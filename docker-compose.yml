@@ -1,0 +1,214 @@
+version: '3.8'
+
+services:
+  # API Gateway - Nginx
+  api-gateway:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./api-gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - user-service
+      - asset-service
+      - liability-service
+      - networth-service
+      - document-service
+    networks:
+      - wealth-network
+
+  # Message Queue - RabbitMQ
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
+    networks:
+      - wealth-network
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # User Service
+  user-service:
+    build: ./services/user-service
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      DB_HOST: postgres-user
+      DB_NAME: userdb
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
+      JWT_SECRET: your-secret-key-change-in-production
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres-user:
+        condition: service_healthy
+    networks:
+      - wealth-network
+
+  postgres-user:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: userdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - user-db-data:/var/lib/postgresql/data
+    networks:
+      - wealth-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Asset Service
+  asset-service:
+    build: ./services/asset-service
+    ports:
+      - "3002:3002"
+    environment:
+      PORT: 3002
+      DB_HOST: postgres-asset
+      DB_NAME: assetdb
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
+      JWT_SECRET: your-secret-key-change-in-production
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres-asset:
+        condition: service_healthy
+    networks:
+      - wealth-network
+
+  postgres-asset:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: assetdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - asset-db-data:/var/lib/postgresql/data
+    networks:
+      - wealth-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Liability Service
+  liability-service:
+    build: ./services/liability-service
+    ports:
+      - "3003:3003"
+    environment:
+      PORT: 3003
+      DB_HOST: postgres-liability
+      DB_NAME: liabilitydb
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
+      JWT_SECRET: your-secret-key-change-in-production
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres-liability:
+        condition: service_healthy
+    networks:
+      - wealth-network
+
+  postgres-liability:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: liabilitydb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - liability-db-data:/var/lib/postgresql/data
+    networks:
+      - wealth-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Net Worth Service
+  networth-service:
+    build: ./services/networth-service
+    ports:
+      - "3004:3004"
+    environment:
+      PORT: 3004
+      ASSET_SERVICE_URL: http://asset-service:3002
+      LIABILITY_SERVICE_URL: http://liability-service:3003
+      RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
+      JWT_SECRET: your-secret-key-change-in-production
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      asset-service:
+        condition: service_started
+      liability-service:
+        condition: service_started
+    networks:
+      - wealth-network
+
+  # Document Service
+  document-service:
+    build: ./services/document-service
+    ports:
+      - "3005:3005"
+    environment:
+      PORT: 3005
+      DB_HOST: postgres-document
+      DB_NAME: documentdb
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
+      JWT_SECRET: your-secret-key-change-in-production
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres-document:
+        condition: service_healthy
+    networks:
+      - wealth-network
+
+  postgres-document:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: documentdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - document-db-data:/var/lib/postgresql/data
+    networks:
+      - wealth-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  wealth-network:
+    driver: bridge
+
+volumes:
+  user-db-data:
+  asset-db-data:
+  liability-db-data:
+  document-db-data:
