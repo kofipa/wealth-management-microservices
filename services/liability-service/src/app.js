@@ -1,13 +1,29 @@
 // services/liability-service/src/app.js
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
 const amqp = require('amqplib');
 const jwt = require('jsonwebtoken');
+const swaggerJsdoc = require('swagger-jsdoc');
+const swaggerUi = require('swagger-ui-express');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Swagger setup
+const swaggerSpec = swaggerJsdoc({
+  definition: {
+    openapi: '3.0.0',
+    info: { title: 'Liability Service API', version: '1.0.0', description: 'Track short-term and long-term liabilities' },
+    components: {
+      securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' } }
+    }
+  },
+  apis: ['./src/app.js']
+});
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Database connection
 const pool = new Pool({
@@ -105,7 +121,41 @@ function authenticateToken(req, res, next) {
 
 // Routes
 
-// Add Short-term Liability
+/**
+ * @swagger
+ * /api/liabilities/short-term:
+ *   post:
+ *     summary: Add a short-term liability
+ *     tags: [Liabilities]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, amount]
+ *             properties:
+ *               name:
+ *                 type: string
+ *               amount:
+ *                 type: number
+ *               currency:
+ *                 type: string
+ *               interest_rate:
+ *                 type: number
+ *               due_date:
+ *                 type: string
+ *                 format: date
+ *               description:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Short-term liability created
+ *       401:
+ *         description: Unauthorized
+ */
 app.post('/api/liabilities/short-term', authenticateToken, async (req, res) => {
   const { name, amount, currency, interest_rate, due_date, description } = req.body;
   const userId = req.user.userId;
@@ -129,7 +179,41 @@ app.post('/api/liabilities/short-term', authenticateToken, async (req, res) => {
   }
 });
 
-// Add Long-term Liability
+/**
+ * @swagger
+ * /api/liabilities/long-term:
+ *   post:
+ *     summary: Add a long-term liability
+ *     tags: [Liabilities]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, amount]
+ *             properties:
+ *               name:
+ *                 type: string
+ *               amount:
+ *                 type: number
+ *               currency:
+ *                 type: string
+ *               interest_rate:
+ *                 type: number
+ *               due_date:
+ *                 type: string
+ *                 format: date
+ *               description:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Long-term liability created
+ *       401:
+ *         description: Unauthorized
+ */
 app.post('/api/liabilities/long-term', authenticateToken, async (req, res) => {
   const { name, amount, currency, interest_rate, due_date, description } = req.body;
   const userId = req.user.userId;
@@ -153,7 +237,45 @@ app.post('/api/liabilities/long-term', authenticateToken, async (req, res) => {
   }
 });
 
-// Update Liability
+/**
+ * @swagger
+ * /api/liabilities/{id}:
+ *   put:
+ *     summary: Update a liability
+ *     tags: [Liabilities]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               amount:
+ *                 type: number
+ *               currency:
+ *                 type: string
+ *               interest_rate:
+ *                 type: number
+ *               due_date:
+ *                 type: string
+ *                 format: date
+ *               description:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Liability updated
+ *       404:
+ *         description: Liability not found
+ */
 app.put('/api/liabilities/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { name, amount, currency, interest_rate, due_date, description } = req.body;
@@ -190,7 +312,25 @@ app.put('/api/liabilities/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Get All User Liabilities
+/**
+ * @swagger
+ * /api/liabilities:
+ *   get:
+ *     summary: Get all liabilities for the authenticated user
+ *     tags: [Liabilities]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *           enum: [short_term, long_term]
+ *         description: Filter by liability type
+ *     responses:
+ *       200:
+ *         description: List of liabilities
+ */
 app.get('/api/liabilities', authenticateToken, async (req, res) => {
   const userId = req.user.userId;
   const { type } = req.query;
@@ -215,7 +355,26 @@ app.get('/api/liabilities', authenticateToken, async (req, res) => {
   }
 });
 
-// Get Liability by ID
+/**
+ * @swagger
+ * /api/liabilities/{id}:
+ *   get:
+ *     summary: Get a liability by ID
+ *     tags: [Liabilities]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Liability details
+ *       404:
+ *         description: Liability not found
+ */
 app.get('/api/liabilities/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const userId = req.user.userId;
@@ -237,7 +396,26 @@ app.get('/api/liabilities/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Delete Liability
+/**
+ * @swagger
+ * /api/liabilities/{id}:
+ *   delete:
+ *     summary: Delete a liability
+ *     tags: [Liabilities]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Liability deleted
+ *       404:
+ *         description: Liability not found
+ */
 app.delete('/api/liabilities/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const userId = req.user.userId;
@@ -262,7 +440,18 @@ app.delete('/api/liabilities/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Get Total Liabilities Amount (for Net Worth calculation)
+/**
+ * @swagger
+ * /api/liabilities/total/amount:
+ *   get:
+ *     summary: Get the total amount of all liabilities
+ *     tags: [Liabilities]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Total liabilities amount
+ */
 app.get('/api/liabilities/total/amount', authenticateToken, async (req, res) => {
   const userId = req.user.userId;
 
@@ -279,7 +468,16 @@ app.get('/api/liabilities/total/amount', authenticateToken, async (req, res) => 
   }
 });
 
-// Health check
+/**
+ * @swagger
+ * /health:
+ *   get:
+ *     summary: Health check
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: Service is healthy
+ */
 app.get('/health', (req, res) => {
   res.json({ status: 'healthy', service: 'liability-service' });
 });

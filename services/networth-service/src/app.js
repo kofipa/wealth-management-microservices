@@ -1,13 +1,29 @@
 // services/networth-service/src/app.js
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const amqp = require('amqplib');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
+const swaggerJsdoc = require('swagger-jsdoc');
+const swaggerUi = require('swagger-ui-express');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Swagger setup
+const swaggerSpec = swaggerJsdoc({
+  definition: {
+    openapi: '3.0.0',
+    info: { title: 'Net Worth Service API', version: '1.0.0', description: 'Calculate net worth by aggregating assets and liabilities' },
+    components: {
+      securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' } }
+    }
+  },
+  apis: ['./src/app.js']
+});
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Service URLs
 const ASSET_SERVICE_URL = process.env.ASSET_SERVICE_URL || 'http://asset-service:3002';
@@ -75,7 +91,36 @@ function authenticateToken(req, res, next) {
 
 // Routes
 
-// Calculate Total Net Worth
+/**
+ * @swagger
+ * /api/networth/calculate:
+ *   get:
+ *     summary: Calculate total net worth (assets minus liabilities)
+ *     tags: [Net Worth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Net worth calculation result
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 userId:
+ *                   type: integer
+ *                 totalAssets:
+ *                   type: number
+ *                 totalLiabilities:
+ *                   type: number
+ *                 netWorth:
+ *                   type: number
+ *                 calculatedAt:
+ *                   type: string
+ *                   format: date-time
+ *       401:
+ *         description: Unauthorized
+ */
 app.get('/api/networth/calculate', authenticateToken, async (req, res) => {
   const userId = req.user.userId;
   const token = req.headers['authorization'];
@@ -116,7 +161,20 @@ app.get('/api/networth/calculate', authenticateToken, async (req, res) => {
   }
 });
 
-// Get Detailed Net Worth Breakdown
+/**
+ * @swagger
+ * /api/networth/breakdown:
+ *   get:
+ *     summary: Get a detailed net worth breakdown by asset and liability type
+ *     tags: [Net Worth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Detailed net worth breakdown
+ *       401:
+ *         description: Unauthorized
+ */
 app.get('/api/networth/breakdown', authenticateToken, async (req, res) => {
   const userId = req.user.userId;
   const token = req.headers['authorization'];
@@ -168,7 +226,16 @@ app.get('/api/networth/breakdown', authenticateToken, async (req, res) => {
   }
 });
 
-// Health check
+/**
+ * @swagger
+ * /health:
+ *   get:
+ *     summary: Health check
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: Service is healthy
+ */
 app.get('/health', (req, res) => {
   res.json({ status: 'healthy', service: 'networth-service' });
 });

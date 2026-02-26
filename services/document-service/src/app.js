@@ -1,14 +1,30 @@
 // services/document-service/src/app.js
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
 const amqp = require('amqplib');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
+const swaggerJsdoc = require('swagger-jsdoc');
+const swaggerUi = require('swagger-ui-express');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Swagger setup
+const swaggerSpec = swaggerJsdoc({
+  definition: {
+    openapi: '3.0.0',
+    info: { title: 'Document Service API', version: '1.0.0', description: 'Upload and manage supporting documents' },
+    components: {
+      securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' } }
+    }
+  },
+  apis: ['./src/app.js']
+});
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Configure multer for file uploads (in-memory storage for simplicity)
 const storage = multer.memoryStorage();
@@ -109,7 +125,40 @@ function authenticateToken(req, res, next) {
 
 // Routes
 
-// Upload Document
+/**
+ * @swagger
+ * /api/documents/upload:
+ *   post:
+ *     summary: Upload a document
+ *     tags: [Documents]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [file]
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *               related_entity_type:
+ *                 type: string
+ *                 enum: [asset, liability, general]
+ *               related_entity_id:
+ *                 type: integer
+ *               description:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Document uploaded
+ *       400:
+ *         description: No file uploaded
+ *       401:
+ *         description: Unauthorized
+ */
 app.post('/api/documents/upload', authenticateToken, upload.single('file'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' });
@@ -149,7 +198,28 @@ app.post('/api/documents/upload', authenticateToken, upload.single('file'), asyn
   }
 });
 
-// Get All User Documents
+/**
+ * @swagger
+ * /api/documents:
+ *   get:
+ *     summary: Get all documents for the authenticated user
+ *     tags: [Documents]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: entity_type
+ *         schema:
+ *           type: string
+ *           enum: [asset, liability, general]
+ *       - in: query
+ *         name: entity_id
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: List of documents
+ */
 app.get('/api/documents', authenticateToken, async (req, res) => {
   const userId = req.user.userId;
   const { entity_type, entity_id } = req.query;
@@ -181,7 +251,26 @@ app.get('/api/documents', authenticateToken, async (req, res) => {
   }
 });
 
-// Download Document
+/**
+ * @swagger
+ * /api/documents/{id}/download:
+ *   get:
+ *     summary: Download a document
+ *     tags: [Documents]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: File download
+ *       404:
+ *         description: Document not found
+ */
 app.get('/api/documents/:id/download', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const userId = req.user.userId;
@@ -211,7 +300,26 @@ app.get('/api/documents/:id/download', authenticateToken, async (req, res) => {
   }
 });
 
-// Delete Document
+/**
+ * @swagger
+ * /api/documents/{id}:
+ *   delete:
+ *     summary: Delete a document
+ *     tags: [Documents]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Document deleted
+ *       404:
+ *         description: Document not found
+ */
 app.delete('/api/documents/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const userId = req.user.userId;
@@ -236,7 +344,16 @@ app.delete('/api/documents/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Health check
+/**
+ * @swagger
+ * /health:
+ *   get:
+ *     summary: Health check
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: Service is healthy
+ */
 app.get('/health', (req, res) => {
   res.json({ status: 'healthy', service: 'document-service' });
 });

@@ -1,13 +1,29 @@
 // services/asset-service/src/app.js
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
 const amqp = require('amqplib');
 const jwt = require('jsonwebtoken');
+const swaggerJsdoc = require('swagger-jsdoc');
+const swaggerUi = require('swagger-ui-express');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Swagger setup
+const swaggerSpec = swaggerJsdoc({
+  definition: {
+    openapi: '3.0.0',
+    info: { title: 'Asset Service API', version: '1.0.0', description: 'Manage cash, investments, properties and other assets' },
+    components: {
+      securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' } }
+    }
+  },
+  apis: ['./src/app.js']
+});
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Database connection
 const pool = new Pool({
@@ -104,7 +120,36 @@ function authenticateToken(req, res, next) {
 
 // Routes
 
-// Add Cash Asset
+/**
+ * @swagger
+ * /api/assets/cash:
+ *   post:
+ *     summary: Add a cash asset
+ *     tags: [Assets]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, value]
+ *             properties:
+ *               name:
+ *                 type: string
+ *               value:
+ *                 type: number
+ *               currency:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Cash asset created
+ *       401:
+ *         description: Unauthorized
+ */
 app.post('/api/assets/cash', authenticateToken, async (req, res) => {
   const { name, value, currency, description } = req.body;
   const userId = req.user.userId;
@@ -128,7 +173,36 @@ app.post('/api/assets/cash', authenticateToken, async (req, res) => {
   }
 });
 
-// Add Investment Asset
+/**
+ * @swagger
+ * /api/assets/investment:
+ *   post:
+ *     summary: Add an investment asset
+ *     tags: [Assets]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, value]
+ *             properties:
+ *               name:
+ *                 type: string
+ *               value:
+ *                 type: number
+ *               currency:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Investment asset created
+ *       401:
+ *         description: Unauthorized
+ */
 app.post('/api/assets/investment', authenticateToken, async (req, res) => {
   const { name, value, currency, description } = req.body;
   const userId = req.user.userId;
@@ -152,7 +226,36 @@ app.post('/api/assets/investment', authenticateToken, async (req, res) => {
   }
 });
 
-// Add Property Asset
+/**
+ * @swagger
+ * /api/assets/property:
+ *   post:
+ *     summary: Add a property asset
+ *     tags: [Assets]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, value]
+ *             properties:
+ *               name:
+ *                 type: string
+ *               value:
+ *                 type: number
+ *               currency:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Property asset created
+ *       401:
+ *         description: Unauthorized
+ */
 app.post('/api/assets/property', authenticateToken, async (req, res) => {
   const { name, value, currency, description } = req.body;
   const userId = req.user.userId;
@@ -176,7 +279,36 @@ app.post('/api/assets/property', authenticateToken, async (req, res) => {
   }
 });
 
-// Add Other Asset
+/**
+ * @swagger
+ * /api/assets/other:
+ *   post:
+ *     summary: Add another type of asset
+ *     tags: [Assets]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, value]
+ *             properties:
+ *               name:
+ *                 type: string
+ *               value:
+ *                 type: number
+ *               currency:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Asset created
+ *       401:
+ *         description: Unauthorized
+ */
 app.post('/api/assets/other', authenticateToken, async (req, res) => {
   const { name, value, currency, description } = req.body;
   const userId = req.user.userId;
@@ -200,7 +332,40 @@ app.post('/api/assets/other', authenticateToken, async (req, res) => {
   }
 });
 
-// Update Asset
+/**
+ * @swagger
+ * /api/assets/{id}:
+ *   put:
+ *     summary: Update an asset
+ *     tags: [Assets]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               value:
+ *                 type: number
+ *               currency:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Asset updated
+ *       404:
+ *         description: Asset not found
+ */
 app.put('/api/assets/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { name, value, currency, description } = req.body;
@@ -235,7 +400,25 @@ app.put('/api/assets/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Get All User Assets
+/**
+ * @swagger
+ * /api/assets:
+ *   get:
+ *     summary: Get all assets for the authenticated user
+ *     tags: [Assets]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *           enum: [cash, investment, property, other]
+ *         description: Filter by asset type
+ *     responses:
+ *       200:
+ *         description: List of assets
+ */
 app.get('/api/assets', authenticateToken, async (req, res) => {
   const userId = req.user.userId;
   const { type } = req.query;
@@ -260,7 +443,26 @@ app.get('/api/assets', authenticateToken, async (req, res) => {
   }
 });
 
-// Get Asset by ID
+/**
+ * @swagger
+ * /api/assets/{id}:
+ *   get:
+ *     summary: Get an asset by ID
+ *     tags: [Assets]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Asset details
+ *       404:
+ *         description: Asset not found
+ */
 app.get('/api/assets/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const userId = req.user.userId;
@@ -282,7 +484,26 @@ app.get('/api/assets/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Delete Asset
+/**
+ * @swagger
+ * /api/assets/{id}:
+ *   delete:
+ *     summary: Delete an asset
+ *     tags: [Assets]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Asset deleted
+ *       404:
+ *         description: Asset not found
+ */
 app.delete('/api/assets/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const userId = req.user.userId;
@@ -307,7 +528,18 @@ app.delete('/api/assets/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Get Total Assets Value (for Net Worth calculation)
+/**
+ * @swagger
+ * /api/assets/total/value:
+ *   get:
+ *     summary: Get the total value of all assets
+ *     tags: [Assets]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Total asset value
+ */
 app.get('/api/assets/total/value', authenticateToken, async (req, res) => {
   const userId = req.user.userId;
 
@@ -324,7 +556,16 @@ app.get('/api/assets/total/value', authenticateToken, async (req, res) => {
   }
 });
 
-// Health check
+/**
+ * @swagger
+ * /health:
+ *   get:
+ *     summary: Health check
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: Service is healthy
+ */
 app.get('/health', (req, res) => {
   res.json({ status: 'healthy', service: 'asset-service' });
 });

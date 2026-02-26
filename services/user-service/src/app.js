@@ -1,14 +1,30 @@
 // services/user-service/src/app.js
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
 const amqp = require('amqplib');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const swaggerJsdoc = require('swagger-jsdoc');
+const swaggerUi = require('swagger-ui-express');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Swagger setup
+const swaggerSpec = swaggerJsdoc({
+  definition: {
+    openapi: '3.0.0',
+    info: { title: 'User Service API', version: '1.0.0', description: 'User authentication and profile management' },
+    components: {
+      securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' } }
+    }
+  },
+  apis: ['./src/app.js']
+});
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Database connection
 const pool = new Pool({
@@ -89,7 +105,30 @@ function authenticateToken(req, res, next) {
 
 // Routes
 
-// Register User
+/**
+ * @swagger
+ * /api/users/register:
+ *   post:
+ *     summary: Register a new user
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password]
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: User registered successfully
+ *       409:
+ *         description: User already exists
+ */
 app.post('/api/users/register', async (req, res) => {
   const { email, password } = req.body;
 
@@ -123,7 +162,30 @@ app.post('/api/users/register', async (req, res) => {
   }
 });
 
-// Login User
+/**
+ * @swagger
+ * /api/users/login:
+ *   post:
+ *     summary: Login and receive a JWT token
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password]
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Returns JWT token
+ *       401:
+ *         description: Invalid credentials
+ */
 app.post('/api/users/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -157,7 +219,37 @@ app.post('/api/users/login', async (req, res) => {
   }
 });
 
-// Add/Update Personal Profile
+/**
+ * @swagger
+ * /api/users/profile:
+ *   post:
+ *     summary: Create or update user profile
+ *     tags: [Profile]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               first_name:
+ *                 type: string
+ *               last_name:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *               date_of_birth:
+ *                 type: string
+ *                 format: date
+ *               address:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Profile saved
+ *       401:
+ *         description: Unauthorized
+ */
 app.post('/api/users/profile', authenticateToken, async (req, res) => {
   const { first_name, last_name, phone, date_of_birth, address } = req.body;
   const userId = req.user.userId;
@@ -200,7 +292,22 @@ app.post('/api/users/profile', authenticateToken, async (req, res) => {
   }
 });
 
-// Get User Profile
+/**
+ * @swagger
+ * /api/users/profile:
+ *   get:
+ *     summary: Get the authenticated user's profile
+ *     tags: [Profile]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User profile
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: User not found
+ */
 app.get('/api/users/profile', authenticateToken, async (req, res) => {
   const userId = req.user.userId;
 
@@ -224,7 +331,16 @@ app.get('/api/users/profile', authenticateToken, async (req, res) => {
   }
 });
 
-// Health check
+/**
+ * @swagger
+ * /health:
+ *   get:
+ *     summary: Health check
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: Service is healthy
+ */
 app.get('/health', (req, res) => {
   res.json({ status: 'healthy', service: 'user-service' });
 });
