@@ -14,6 +14,7 @@ services:
       - liability-service
       - networth-service
       - document-service
+      - service-service
     networks:
       - wealth-network
 
@@ -202,6 +203,26 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # Service Service
+  service-service:
+    build: ./services/service-service
+    ports:
+      - "3006:3006"
+    environment:
+      PORT: 3006
+      USER_SERVICE_URL: http://user-service:3001
+      ASSET_SERVICE_URL: http://asset-service:3002
+      LIABILITY_SERVICE_URL: http://liability-service:3003
+      NETWORTH_SERVICE_URL: http://networth-service:3004
+      DOCUMENT_SERVICE_URL: http://document-service:3005
+      RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
+      JWT_SECRET: your-secret-key-change-in-production
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - wealth-network
 
 networks:
   wealth-network:
