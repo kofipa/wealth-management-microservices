@@ -357,6 +357,34 @@ app.get('/api/liabilities', authenticateToken, async (req, res) => {
 
 /**
  * @swagger
+ * /api/liabilities/total/amount:
+ *   get:
+ *     summary: Get the total amount of all liabilities
+ *     tags: [Liabilities]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Total liabilities amount
+ */
+app.get('/api/liabilities/total/amount', authenticateToken, async (req, res) => {
+  const userId = req.user.userId;
+
+  try {
+    const result = await pool.query(
+      'SELECT SUM(amount) as total_amount FROM liabilities WHERE user_id = $1',
+      [userId]
+    );
+
+    res.json({ totalAmount: result.rows[0].total_amount || 0 });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to calculate total amount' });
+  }
+});
+
+/**
+ * @swagger
  * /api/liabilities/{id}:
  *   get:
  *     summary: Get a liability by ID
@@ -442,34 +470,6 @@ app.delete('/api/liabilities/:id', authenticateToken, async (req, res) => {
 
 /**
  * @swagger
- * /api/liabilities/total/amount:
- *   get:
- *     summary: Get the total amount of all liabilities
- *     tags: [Liabilities]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Total liabilities amount
- */
-app.get('/api/liabilities/total/amount', authenticateToken, async (req, res) => {
-  const userId = req.user.userId;
-
-  try {
-    const result = await pool.query(
-      'SELECT SUM(amount) as total_amount FROM liabilities WHERE user_id = $1',
-      [userId]
-    );
-
-    res.json({ totalAmount: result.rows[0].total_amount || 0 });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to calculate total amount' });
-  }
-});
-
-/**
- * @swagger
  * /health:
  *   get:
  *     summary: Health check
@@ -494,4 +494,8 @@ async function start() {
   });
 }
 
-start();
+module.exports = app;
+
+if (require.main === module) {
+  start();
+}

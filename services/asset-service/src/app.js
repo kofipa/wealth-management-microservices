@@ -445,6 +445,34 @@ app.get('/api/assets', authenticateToken, async (req, res) => {
 
 /**
  * @swagger
+ * /api/assets/total/value:
+ *   get:
+ *     summary: Get the total value of all assets
+ *     tags: [Assets]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Total asset value
+ */
+app.get('/api/assets/total/value', authenticateToken, async (req, res) => {
+  const userId = req.user.userId;
+
+  try {
+    const result = await pool.query(
+      'SELECT SUM(value) as total_value FROM assets WHERE user_id = $1',
+      [userId]
+    );
+
+    res.json({ totalValue: result.rows[0].total_value || 0 });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to calculate total value' });
+  }
+});
+
+/**
+ * @swagger
  * /api/assets/{id}:
  *   get:
  *     summary: Get an asset by ID
@@ -530,34 +558,6 @@ app.delete('/api/assets/:id', authenticateToken, async (req, res) => {
 
 /**
  * @swagger
- * /api/assets/total/value:
- *   get:
- *     summary: Get the total value of all assets
- *     tags: [Assets]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Total asset value
- */
-app.get('/api/assets/total/value', authenticateToken, async (req, res) => {
-  const userId = req.user.userId;
-
-  try {
-    const result = await pool.query(
-      'SELECT SUM(value) as total_value FROM assets WHERE user_id = $1',
-      [userId]
-    );
-
-    res.json({ totalValue: result.rows[0].total_value || 0 });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to calculate total value' });
-  }
-});
-
-/**
- * @swagger
  * /health:
  *   get:
  *     summary: Health check
@@ -582,4 +582,8 @@ async function start() {
   });
 }
 
-start();
+module.exports = app;
+
+if (require.main === module) {
+  start();
+}
