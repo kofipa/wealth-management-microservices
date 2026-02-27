@@ -7,12 +7,12 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
-import { getAssets, createAsset, updateAsset, deleteAsset, uploadDocument } from '../api/client';
+import { getAssets, createAsset, updateAsset, deleteAsset, uploadDocument, createLiability, updateLiability, deleteLiability } from '../api/client';
 
 const fmt = (n) =>
   new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n ?? 0);
 
-const ASSET_TYPES = ['cash', 'investment', 'property', 'vehicle', 'other'];
+const ASSET_TYPES = ['cash', 'investment', 'property', 'vehicle', 'insurance', 'other'];
 
 const EMPTY_FORM = { name: '', type: 'cash', value: '', description: '', metadata: {} };
 
@@ -118,12 +118,179 @@ export default function AssetsScreen() {
         savedAsset = res.data.asset;
       }
       if (pendingFile && savedAsset?.id) {
+        const docCategory = { cash: 'banking', investment: 'investments', property: 'property', insurance: 'insurance' }[form.type] || 'other';
         try {
-          await uploadDocument(pendingFile, form.name, 'asset', savedAsset.id);
+          await uploadDocument(pendingFile, form.name, 'asset', savedAsset.id, docCategory);
         } catch {
           Alert.alert('Warning', 'Asset saved but document upload failed.');
         }
       }
+
+      // ── Mortgage liability sync ──
+      if (form.type === 'property') {
+        const hasMortgage = form.metadata.has_mortgage === true;
+        const mortgageBalance = parseFloat(form.metadata.mortgage_balance) || 0;
+        const mortgagePayment = parseFloat(form.metadata.mortgage_payment) || 0;
+        const existingLiabilityId = editingAsset?.metadata?.mortgage_liability_id;
+
+        if (hasMortgage && mortgageBalance > 0) {
+          const freq = form.metadata.mortgage_frequency || 'Monthly';
+          const multiplier = { Monthly: 12, Fortnightly: 26, Annually: 1 }[freq] ?? 12;
+          const descParts = [
+            form.metadata.mortgage_provider ? `Mortgage with ${form.metadata.mortgage_provider}` : '',
+            mortgagePayment > 0
+              ? `£${mortgagePayment} paid ${freq.toLowerCase()} (£${(mortgagePayment * multiplier).toFixed(2)}/yr)`
+              : '',
+          ].filter(Boolean);
+          const liabilityPayload = {
+            name: `Mortgage - ${form.name}`,
+            type: 'long-term',
+            amount: mortgageBalance,
+            ...(descParts.length ? { description: descParts.join(', ') } : {}),
+            ...(form.metadata.mortgage_rate ? { interest_rate: parseFloat(form.metadata.mortgage_rate) } : {}),
+          };
+          if (existingLiabilityId) {
+            // Update the existing linked liability
+            try {
+              await updateLiability(existingLiabilityId, liabilityPayload);
+            } catch {
+              Alert.alert('Warning', 'Asset saved but mortgage liability could not be updated.');
+            }
+          } else {
+            // Create a new liability and store the ID back on the asset
+            try {
+              const liabilityRes = await createLiability(liabilityPayload);
+              const liabilityId = liabilityRes.data.liability?.id;
+              if (liabilityId) {
+                await updateAsset(savedAsset.id, {
+                  metadata: { ...savedAsset.metadata, mortgage_liability_id: liabilityId },
+                });
+              }
+            } catch {
+              Alert.alert('Warning', 'Asset saved but mortgage liability could not be created.');
+            }
+          }
+        } else if (!hasMortgage && existingLiabilityId) {
+          // Mortgage removed — delete the linked liability
+          try {
+            await deleteLiability(existingLiabilityId);
+            await updateAsset(savedAsset.id, {
+              metadata: { ...savedAsset.metadata, mortgage_liability_id: null },
+            });
+          } catch {
+            Alert.alert('Warning', 'Asset saved but linked mortgage liability could not be removed.');
+          }
+        }
+      }
+
+      // ── Vehicle finance liability sync ──
+      if (form.type === 'vehicle') {
+        const hasFinance = form.metadata.has_finance === true;
+        const financeBalance = parseFloat(form.metadata.finance_balance) || 0;
+        const financePayment = parseFloat(form.metadata.finance_payment) || 0;
+        const existingFinanceLiabilityId = editingAsset?.metadata?.finance_liability_id;
+        const liabilityType = form.metadata.finance_type === 'Personal Loan' ? 'short-term' : 'long-term';
+
+        if (hasFinance && financeBalance > 0) {
+          const freq = form.metadata.finance_frequency || 'Monthly';
+          const multiplier = { Monthly: 12, Quarterly: 4, Annually: 1 }[freq] ?? 12;
+          const descParts = [
+            form.metadata.finance_provider ? `Finance with ${form.metadata.finance_provider}` : '',
+            financePayment > 0
+              ? `£${financePayment} paid ${freq.toLowerCase()} (£${(financePayment * multiplier).toFixed(2)}/yr)`
+              : '',
+          ].filter(Boolean);
+          const liabilityPayload = {
+            name: `${form.metadata.finance_type || 'Finance'} - ${form.name}`,
+            type: liabilityType,
+            amount: financeBalance,
+            ...(descParts.length ? { description: descParts.join(', ') } : {}),
+            ...(form.metadata.finance_rate ? { interest_rate: parseFloat(form.metadata.finance_rate) } : {}),
+          };
+          if (existingFinanceLiabilityId) {
+            try {
+              await updateLiability(existingFinanceLiabilityId, liabilityPayload);
+            } catch {
+              Alert.alert('Warning', 'Asset saved but finance liability could not be updated.');
+            }
+          } else {
+            try {
+              const liabilityRes = await createLiability(liabilityPayload);
+              const liabilityId = liabilityRes.data.liability?.id;
+              if (liabilityId) {
+                await updateAsset(savedAsset.id, {
+                  metadata: { ...savedAsset.metadata, finance_liability_id: liabilityId },
+                });
+              }
+            } catch {
+              Alert.alert('Warning', 'Asset saved but finance liability could not be created.');
+            }
+          }
+        } else if (!hasFinance && existingFinanceLiabilityId) {
+          try {
+            await deleteLiability(existingFinanceLiabilityId);
+            await updateAsset(savedAsset.id, {
+              metadata: { ...savedAsset.metadata, finance_liability_id: null },
+            });
+          } catch {
+            Alert.alert('Warning', 'Asset saved but linked finance liability could not be removed.');
+          }
+        }
+      }
+
+      // ── Insurance premium liability sync ──
+      if (form.type === 'insurance') {
+        const premiumAmount = parseFloat(form.metadata.premium);
+        const hasPremium = premiumAmount > 0;
+        const existingInsuranceLiabilityId = editingAsset?.metadata?.insurance_liability_id;
+
+        if (hasPremium) {
+          const freq = form.metadata.premium_frequency || 'Monthly';
+          const multiplier = { Monthly: 12, Quarterly: 4, Annually: 1 }[freq] ?? 12;
+          const annualCost = premiumAmount * multiplier;
+          const descParts = [
+            form.metadata.policy_type,
+            form.metadata.insurer ? `with ${form.metadata.insurer}` : '',
+            `£${premiumAmount} paid ${freq.toLowerCase()} (£${annualCost.toFixed(2)}/yr)`,
+          ].filter(Boolean);
+          const liabilityPayload = {
+            name: `Insurance Premium - ${form.name}`,
+            type: 'short-term',
+            amount: annualCost,
+            description: descParts.join(', '),
+            ...(form.metadata.renewal_date ? { due_date: form.metadata.renewal_date } : {}),
+          };
+          if (existingInsuranceLiabilityId) {
+            try {
+              await updateLiability(existingInsuranceLiabilityId, liabilityPayload);
+            } catch {
+              Alert.alert('Warning', 'Asset saved but insurance premium liability could not be updated.');
+            }
+          } else {
+            try {
+              const liabilityRes = await createLiability(liabilityPayload);
+              const liabilityId = liabilityRes.data.liability?.id;
+              if (liabilityId) {
+                await updateAsset(savedAsset.id, {
+                  metadata: { ...savedAsset.metadata, insurance_liability_id: liabilityId },
+                });
+              }
+            } catch {
+              Alert.alert('Warning', 'Asset saved but insurance premium liability could not be created.');
+            }
+          }
+        } else if (!hasPremium && existingInsuranceLiabilityId) {
+          try {
+            await deleteLiability(existingInsuranceLiabilityId);
+            await updateAsset(savedAsset.id, {
+              metadata: { ...savedAsset.metadata, insurance_liability_id: null },
+            });
+          } catch {
+            Alert.alert('Warning', 'Asset saved but linked insurance premium liability could not be removed.');
+          }
+        }
+      }
+
       closeModal();
       load();
     } catch (err) {
@@ -163,6 +330,10 @@ export default function AssetsScreen() {
           : null;
       case 'property':
         return m.address ? <Text style={styles.itemDesc}>{m.address}</Text> : null;
+      case 'insurance':
+        return m.insurer
+          ? <Text style={styles.itemDesc}>{m.insurer}{m.policy_type ? ` · ${m.policy_type}` : ''}</Text>
+          : null;
       default:
         return m.category ? <Text style={styles.itemDesc}>{m.category}</Text> : null;
     }
@@ -203,11 +374,11 @@ export default function AssetsScreen() {
             <View style={styles.itemRight}>
               <Text style={styles.itemValue}>{fmt(item.value)}</Text>
               <View style={styles.itemActions}>
-                <TouchableOpacity onPress={() => openEditModal(item)}>
-                  <Text style={styles.editText}>Edit</Text>
+                <TouchableOpacity style={styles.editBtn} onPress={() => openEditModal(item)}>
+                  <Text style={styles.editBtnText}>Edit</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => handleDelete(item.id, item.name)}>
-                  <Text style={styles.deleteText}>Delete</Text>
+                <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item.id, item.name)}>
+                  <Text style={styles.deleteBtnText}>Delete</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -458,6 +629,27 @@ export default function AssetsScreen() {
                       placeholderTextColor="#9ca3af"
                       keyboardType="decimal-pad"
                     />
+                    <Text style={styles.label}>Monthly Payment (£)</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={form.metadata.mortgage_payment !== undefined ? String(form.metadata.mortgage_payment) : ''}
+                      onChangeText={(v) => setMeta('mortgage_payment', v)}
+                      placeholder="e.g. 1200"
+                      placeholderTextColor="#9ca3af"
+                      keyboardType="decimal-pad"
+                    />
+                    <Text style={styles.label}>Payment Frequency</Text>
+                    <View style={styles.typeRow}>
+                      {['Monthly', 'Fortnightly', 'Annually'].map((t) => (
+                        <TouchableOpacity
+                          key={t}
+                          style={[styles.typeChip, form.metadata.mortgage_frequency === t && styles.typeChipActive]}
+                          onPress={() => setMeta('mortgage_frequency', t)}
+                        >
+                          <Text style={[styles.typeChipText, form.metadata.mortgage_frequency === t && styles.typeChipTextActive]}>{t}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
                   </>
                 )}
               </>
@@ -490,6 +682,166 @@ export default function AssetsScreen() {
                   style={styles.input}
                   value={form.metadata.purchase_date || ''}
                   onChangeText={(v) => setMeta('purchase_date', v)}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor="#9ca3af"
+                  keyboardType="numbers-and-punctuation"
+                />
+                {form.type === 'vehicle' && (
+                  <>
+                    <Text style={styles.label}>Has Finance?</Text>
+                    <View style={styles.typeRow}>
+                      {['Yes', 'No'].map((opt) => {
+                        const isYes = opt === 'Yes';
+                        const active = form.metadata.has_finance === isYes;
+                        return (
+                          <TouchableOpacity
+                            key={opt}
+                            style={[styles.typeChip, active && styles.typeChipActive]}
+                            onPress={() => setMeta('has_finance', isYes)}
+                          >
+                            <Text style={[styles.typeChipText, active && styles.typeChipTextActive]}>{opt}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                    {form.metadata.has_finance === true && (
+                      <>
+                        <Text style={styles.label}>Finance Type</Text>
+                        <View style={styles.typeRow}>
+                          {['PCP', 'Hire Purchase', 'Personal Loan'].map((t) => (
+                            <TouchableOpacity
+                              key={t}
+                              style={[styles.typeChip, form.metadata.finance_type === t && styles.typeChipActive]}
+                              onPress={() => setMeta('finance_type', t)}
+                            >
+                              <Text style={[styles.typeChipText, form.metadata.finance_type === t && styles.typeChipTextActive]}>{t}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                        <Text style={styles.label}>Finance Provider</Text>
+                        <TextInput
+                          style={styles.input}
+                          value={form.metadata.finance_provider || ''}
+                          onChangeText={(v) => setMeta('finance_provider', v)}
+                          placeholder="e.g. Black Horse, Santander"
+                          placeholderTextColor="#9ca3af"
+                          autoCapitalize="words"
+                        />
+                        <Text style={styles.label}>Outstanding Balance (£)</Text>
+                        <TextInput
+                          style={styles.input}
+                          value={form.metadata.finance_balance !== undefined ? String(form.metadata.finance_balance) : ''}
+                          onChangeText={(v) => setMeta('finance_balance', v)}
+                          placeholder="e.g. 8000"
+                          placeholderTextColor="#9ca3af"
+                          keyboardType="decimal-pad"
+                        />
+                        <Text style={styles.label}>Periodic Payment (£)</Text>
+                        <TextInput
+                          style={styles.input}
+                          value={form.metadata.finance_payment !== undefined ? String(form.metadata.finance_payment) : ''}
+                          onChangeText={(v) => setMeta('finance_payment', v)}
+                          placeholder="e.g. 350"
+                          placeholderTextColor="#9ca3af"
+                          keyboardType="decimal-pad"
+                        />
+                        <Text style={styles.label}>Payment Frequency</Text>
+                        <View style={styles.typeRow}>
+                          {['Monthly', 'Quarterly', 'Annually'].map((t) => (
+                            <TouchableOpacity
+                              key={t}
+                              style={[styles.typeChip, form.metadata.finance_frequency === t && styles.typeChipActive]}
+                              onPress={() => setMeta('finance_frequency', t)}
+                            >
+                              <Text style={[styles.typeChipText, form.metadata.finance_frequency === t && styles.typeChipTextActive]}>{t}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                        <Text style={styles.label}>Interest Rate (%)</Text>
+                        <TextInput
+                          style={styles.input}
+                          value={form.metadata.finance_rate !== undefined ? String(form.metadata.finance_rate) : ''}
+                          onChangeText={(v) => setMeta('finance_rate', v)}
+                          placeholder="e.g. 6.9"
+                          placeholderTextColor="#9ca3af"
+                          keyboardType="decimal-pad"
+                        />
+                      </>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+
+            {/* ── Insurance fields ── */}
+            {form.type === 'insurance' && (
+              <>
+                <Text style={styles.sectionLabel}>Policy Details</Text>
+                <Text style={styles.label}>Insurer / Provider</Text>
+                <TextInput
+                  style={styles.input}
+                  value={form.metadata.insurer || ''}
+                  onChangeText={(v) => setMeta('insurer', v)}
+                  placeholder="e.g. Aviva, Legal & General"
+                  placeholderTextColor="#9ca3af"
+                  autoCapitalize="words"
+                />
+                <Text style={styles.label}>Policy Type</Text>
+                <View style={styles.typeRow}>
+                  {['Life', 'Whole of Life', 'Income Protection', 'Critical Illness', 'Buildings', 'Contents', 'Other'].map((t) => (
+                    <TouchableOpacity
+                      key={t}
+                      style={[styles.typeChip, form.metadata.policy_type === t && styles.typeChipActive]}
+                      onPress={() => setMeta('policy_type', t)}
+                    >
+                      <Text style={[styles.typeChipText, form.metadata.policy_type === t && styles.typeChipTextActive]}>{t}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <Text style={styles.label}>Policy Number</Text>
+                <TextInput
+                  style={styles.input}
+                  value={form.metadata.policy_number || ''}
+                  onChangeText={(v) => setMeta('policy_number', v)}
+                  placeholder="e.g. POL-123456"
+                  placeholderTextColor="#9ca3af"
+                  autoCapitalize="characters"
+                />
+                <Text style={styles.label}>Sum Assured / Coverage (£)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={form.metadata.sum_assured !== undefined ? String(form.metadata.sum_assured) : ''}
+                  onChangeText={(v) => setMeta('sum_assured', v)}
+                  placeholder="e.g. 500000"
+                  placeholderTextColor="#9ca3af"
+                  keyboardType="decimal-pad"
+                />
+                <Text style={styles.label}>Premium Amount (£)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={form.metadata.premium !== undefined ? String(form.metadata.premium) : ''}
+                  onChangeText={(v) => setMeta('premium', v)}
+                  placeholder="e.g. 50"
+                  placeholderTextColor="#9ca3af"
+                  keyboardType="decimal-pad"
+                />
+                <Text style={styles.label}>Premium Frequency</Text>
+                <View style={styles.typeRow}>
+                  {['Monthly', 'Quarterly', 'Annually'].map((t) => (
+                    <TouchableOpacity
+                      key={t}
+                      style={[styles.typeChip, form.metadata.premium_frequency === t && styles.typeChipActive]}
+                      onPress={() => setMeta('premium_frequency', t)}
+                    >
+                      <Text style={[styles.typeChipText, form.metadata.premium_frequency === t && styles.typeChipTextActive]}>{t}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <Text style={styles.label}>Renewal / Expiry Date</Text>
+                <TextInput
+                  style={styles.input}
+                  value={form.metadata.renewal_date || ''}
+                  onChangeText={(v) => setMeta('renewal_date', v)}
                   placeholder="YYYY-MM-DD"
                   placeholderTextColor="#9ca3af"
                   keyboardType="numbers-and-punctuation"
@@ -542,9 +894,11 @@ const styles = StyleSheet.create({
   itemDesc: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
   itemRight: { alignItems: 'flex-end' },
   itemValue: { fontSize: 16, fontWeight: '700', color: '#16a34a', marginBottom: 6 },
-  itemActions: { flexDirection: 'row', gap: 12 },
-  editText: { fontSize: 13, color: '#2563eb' },
-  deleteText: { fontSize: 13, color: '#ef4444' },
+  itemActions: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  editBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: '#eff6ff', borderWidth: 1, borderColor: '#bfdbfe' },
+  editBtnText: { fontSize: 13, color: '#2563eb', fontWeight: '600' },
+  deleteBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: '#fff1f2', borderWidth: 1, borderColor: '#fecdd3' },
+  deleteBtnText: { fontSize: 13, color: '#ef4444', fontWeight: '600' },
   modal: { flex: 1, backgroundColor: '#f9fafb' },
   modalContent: { padding: 24, paddingBottom: 60 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },

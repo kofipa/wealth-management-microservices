@@ -10,6 +10,9 @@ import { useAuth } from '../context/AuthContext';
 const fmt = (n) =>
   new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n ?? 0);
 
+const fmtLabel = (s) =>
+  s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
 export default function DashboardScreen() {
   const { user } = useAuth();
   const [data, setData] = useState(null);
@@ -48,6 +51,7 @@ export default function DashboardScreen() {
   const totalLiabilities = data?.totalLiabilities ?? 0;
   const isPositive = netWorth >= 0;
   const assetsByType = data?.assetsByType ? Object.entries(data.assetsByType) : [];
+  const liabilitiesByType = data?.liabilitiesByType ? Object.entries(data.liabilitiesByType) : [];
 
   return (
     <ScrollView
@@ -79,12 +83,24 @@ export default function DashboardScreen() {
       </View>
 
       {assetsByType.length > 0 && (
-        <View style={styles.section}>
+        <View style={[styles.section, { marginBottom: 16 }]}>
           <Text style={styles.sectionTitle}>Asset Breakdown</Text>
           {assetsByType.map(([type, value]) => (
             <View key={type} style={styles.breakdownRow}>
-              <Text style={styles.breakdownType}>{type}</Text>
+              <Text style={styles.breakdownType}>{fmtLabel(type)}</Text>
               <Text style={styles.breakdownValue}>{fmt(value)}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {liabilitiesByType.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Liability Breakdown</Text>
+          {liabilitiesByType.map(([type, value]) => (
+            <View key={type} style={styles.breakdownRow}>
+              <Text style={styles.breakdownType}>{fmtLabel(type)}</Text>
+              <Text style={[styles.breakdownValue, styles.breakdownValueRed]}>{fmt(value)}</Text>
             </View>
           ))}
         </View>
@@ -119,6 +135,7 @@ const styles = StyleSheet.create({
   section: { backgroundColor: '#fff', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#e5e7eb' },
   sectionTitle: { fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 12 },
   breakdownRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  breakdownType: { fontSize: 14, color: '#374151', textTransform: 'capitalize' },
+  breakdownType: { fontSize: 14, color: '#374151' },
   breakdownValue: { fontSize: 14, fontWeight: '600', color: '#111827' },
+  breakdownValueRed: { color: '#ef4444' },
 });

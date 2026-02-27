@@ -81,7 +81,7 @@ export const getNetWorthBreakdown = () => networthClient.get('/api/networth/brea
 // Documents
 export const getDocuments = () => documentClient.get('/api/documents');
 export const deleteDocument = (id) => documentClient.delete(`/api/documents/${id}`);
-export const uploadDocument = async (file, description = '', relatedEntityType = 'general', relatedEntityId = null) => {
+export const uploadDocument = async (file, description = '', relatedEntityType = 'general', relatedEntityId = null, category = 'other') => {
   const delegatedToken = await AsyncStorage.getItem('delegatedToken');
   const token = await AsyncStorage.getItem('token');
   const authToken = delegatedToken || token;
@@ -94,6 +94,7 @@ export const uploadDocument = async (file, description = '', relatedEntityType =
   if (description) form.append('description', description);
   form.append('related_entity_type', relatedEntityType);
   if (relatedEntityId) form.append('related_entity_id', String(relatedEntityId));
+  form.append('category', category);
   return documentClient.post('/api/documents/upload', form, {
     headers: {
       'Content-Type': 'multipart/form-data',

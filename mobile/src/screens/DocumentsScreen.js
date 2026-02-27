@@ -1,17 +1,34 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  RefreshControl, ActivityIndicator, Alert, ActionSheetIOS, Platform,
-  Modal, Image, SafeAreaView,
+  RefreshControl, ActivityIndicator, Alert, Platform,
+  Modal, Image, SafeAreaView, ScrollView, TextInput,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system/legacy';
+import { File as FSFile, Paths as FSPaths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDocuments, deleteDocument, uploadDocument } from '../api/client';
 import { DEV_HOST } from '../api/config';
+
+const CATEGORIES = [
+  { id: 'identity',    label: 'Identity',    emoji: '🪪', color: '#7c3aed' },
+  { id: 'property',    label: 'Property',    emoji: '🏠', color: '#16a34a' },
+  { id: 'insurance',   label: 'Insurance',   emoji: '🛡️', color: '#0891b2' },
+  { id: 'investments', label: 'Investments', emoji: '📈', color: '#d97706' },
+  { id: 'banking',     label: 'Banking',     emoji: '🏦', color: '#2563eb' },
+  { id: 'tax',         label: 'Tax',         emoji: '🧾', color: '#dc2626' },
+  { id: 'legal',       label: 'Legal',       emoji: '⚖️', color: '#92400e' },
+  { id: 'will',        label: 'Will',        emoji: '📜', color: '#b45309' },
+  { id: 'other',       label: 'Other',       emoji: '📄', color: '#9ca3af' },
+];
+
+const ALL_FILTERS = [{ id: 'all', label: 'All', emoji: '📂', color: '#6b7280' }, ...CATEGORIES];
+
+const getCat = (id) => CATEGORIES.find((c) => c.id === id) || CATEGORIES[CATEGORIES.length - 1];
 
 const formatDate = (dateStr) => {
   if (!dateStr) return '';
@@ -44,6 +61,14 @@ export default function DocumentsScreen() {
   const [uploading, setUploading] = useState(false);
   const [previewUri, setPreviewUri] = useState(null);
 
+  // Category filter
+  const [activeFilter, setActiveFilter] = useState('all');
+
+  // Upload modal
+  const [uploadModalVisible, setUploadModalVisible] = useState(false);
+  const [uploadCategory, setUploadCategory] = useState('other');
+  const [uploadDescription, setUploadDescription] = useState('');
+
   const load = async () => {
     try {
       const res = await getDocuments();
@@ -62,28 +87,29 @@ export default function DocumentsScreen() {
 
   const handleView = async (item) => {
     try {
-      const token = await AsyncStorage.getItem('token');
+      const delegatedToken = await AsyncStorage.getItem('delegatedToken');
+      const rawToken = await AsyncStorage.getItem('token');
+      const authToken = delegatedToken || rawToken;
       const rawName = item.original_name || item.filename || 'document';
-      // Sanitise filename for use as a local path
       const safeName = rawName.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const localUri = FileSystem.cacheDirectory + safeName;
-      const downloadResumable = FileSystem.createDownloadResumable(
-        `http://${DEV_HOST}:3005/api/documents/${item.id}/download`,
-        localUri,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      const download = await downloadResumable.downloadAsync();
-      if (!download || download.status !== 200) {
-        Alert.alert('Error', `Download failed with status ${download?.status}`);
-        return;
-      }
-      // Show images inline, open other files via share sheet
+      const url = `http://${DEV_HOST}:3005/api/documents/${item.id}/download`;
+
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (!response.ok) throw new Error(`Server responded with ${response.status}`);
+
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      const file = new FSFile(FSPaths.cache, safeName);
+      if (file.exists) file.delete();
+      await file.write(bytes);
+
       if (IMAGE_TYPES.includes(item.mime_type)) {
-        setPreviewUri(download.uri);
+        setPreviewUri(file.uri);
       } else {
         const canShare = await Sharing.isAvailableAsync();
         if (canShare) {
-          await Sharing.shareAsync(download.uri, {
+          await Sharing.shareAsync(file.uri, {
             mimeType: item.mime_type || 'application/octet-stream',
             dialogTitle: rawName,
           });
@@ -98,8 +124,11 @@ export default function DocumentsScreen() {
 
   const doUpload = async (file) => {
     setUploading(true);
+    setUploadModalVisible(false);
     try {
-      await uploadDocument(file);
+      await uploadDocument(file, uploadDescription, 'general', null, uploadCategory);
+      setUploadDescription('');
+      setUploadCategory('other');
       load();
     } catch (err) {
       Alert.alert('Upload failed', err.response?.data?.error || err.message || 'Could not upload file');
@@ -120,11 +149,7 @@ export default function DocumentsScreen() {
     });
     if (!result.canceled && result.assets?.[0]) {
       const asset = result.assets[0];
-      await doUpload({
-        uri: asset.uri,
-        name: `photo_${Date.now()}.jpg`,
-        mimeType: 'image/jpeg',
-      });
+      await doUpload({ uri: asset.uri, name: `photo_${Date.now()}.jpg`, mimeType: 'image/jpeg' });
     }
   };
 
@@ -140,49 +165,15 @@ export default function DocumentsScreen() {
     });
     if (!result.canceled && result.assets?.[0]) {
       const asset = result.assets[0];
-      await doUpload({
-        uri: asset.uri,
-        name: asset.fileName || `image_${Date.now()}.jpg`,
-        mimeType: asset.mimeType || 'image/jpeg',
-      });
+      await doUpload({ uri: asset.uri, name: asset.fileName || `image_${Date.now()}.jpg`, mimeType: asset.mimeType || 'image/jpeg' });
     }
   };
 
   const pickDocument = async () => {
-    const result = await DocumentPicker.getDocumentAsync({
-      type: '*/*',
-      copyToCacheDirectory: true,
-    });
+    const result = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true });
     if (!result.canceled && result.assets?.[0]) {
       const asset = result.assets[0];
-      await doUpload({
-        uri: asset.uri,
-        name: asset.name,
-        mimeType: asset.mimeType || 'application/octet-stream',
-      });
-    }
-  };
-
-  const showUploadOptions = () => {
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ['Cancel', 'Take Photo', 'Choose from Library', 'Browse Files'],
-          cancelButtonIndex: 0,
-        },
-        (index) => {
-          if (index === 1) pickFromCamera();
-          if (index === 2) pickFromGallery();
-          if (index === 3) pickDocument();
-        }
-      );
-    } else {
-      Alert.alert('Upload Document', 'Choose a source', [
-        { text: 'Take Photo', onPress: pickFromCamera },
-        { text: 'Choose from Library', onPress: pickFromGallery },
-        { text: 'Browse Files', onPress: pickDocument },
-        { text: 'Cancel', style: 'cancel' },
-      ]);
+      await doUpload({ uri: asset.uri, name: asset.name, mimeType: asset.mimeType || 'application/octet-stream' });
     }
   };
 
@@ -203,17 +194,26 @@ export default function DocumentsScreen() {
     ]);
   };
 
+  const filteredDocs = activeFilter === 'all'
+    ? documents
+    : documents.filter((d) => d.category === activeFilter);
+
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color="#2563eb" /></View>;
   }
 
   return (
     <View style={styles.container}>
+      {/* ── Header ── */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>{documents.length} Document{documents.length !== 1 ? 's' : ''}</Text>
-        </View>
-        <TouchableOpacity style={styles.uploadBtn} onPress={showUploadOptions} disabled={uploading}>
+        <Text style={styles.headerTitle}>
+          {filteredDocs.length} Document{filteredDocs.length !== 1 ? 's' : ''}
+        </Text>
+        <TouchableOpacity
+          style={styles.uploadBtn}
+          onPress={() => setUploadModalVisible(true)}
+          disabled={uploading}
+        >
           {uploading
             ? <ActivityIndicator color="#fff" size="small" />
             : <Text style={styles.uploadBtnText}>+ Upload</Text>
@@ -221,53 +221,133 @@ export default function DocumentsScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* ── Category filter chips ── */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.filterBar}
+        contentContainerStyle={styles.filterBarContent}
+      >
+        {ALL_FILTERS.map((cat) => {
+          const active = activeFilter === cat.id;
+          return (
+            <TouchableOpacity
+              key={cat.id}
+              style={[styles.filterChip, active && { backgroundColor: cat.color, borderColor: cat.color }]}
+              onPress={() => setActiveFilter(cat.id)}
+            >
+              <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                {cat.emoji} {cat.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+
+      {/* ── Document list ── */}
       <FlatList
-        data={documents}
+        data={filteredDocs}
         keyExtractor={(item) => String(item.id)}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIcon}>📄</Text>
-            <Text style={styles.empty}>No documents yet</Text>
-            <Text style={styles.emptySub}>Tap + Upload to add a photo or file</Text>
+            <Text style={styles.empty}>No documents{activeFilter !== 'all' ? ` in ${getCat(activeFilter).label}` : ''}</Text>
+            <Text style={styles.emptySub}>
+              {activeFilter !== 'all' ? 'Try a different category or tap + Upload' : 'Tap + Upload to add a file'}
+            </Text>
           </View>
         }
-        renderItem={({ item }) => (
-          <View style={styles.item}>
-            <View style={styles.itemIcon}>
-              <Text style={styles.fileIcon}>{getFileIcon(item.original_name || item.filename)}</Text>
+        renderItem={({ item }) => {
+          const cat = getCat(item.category);
+          return (
+            <View style={styles.item}>
+              <View style={styles.itemIcon}>
+                <Text style={styles.fileIcon}>{getFileIcon(item.original_name || item.filename)}</Text>
+              </View>
+              <View style={styles.itemLeft}>
+                <Text style={styles.itemName} numberOfLines={1}>{item.original_name || item.filename}</Text>
+                <View style={[styles.catBadge, { backgroundColor: cat.color + '18', borderColor: cat.color + '40' }]}>
+                  <Text style={[styles.catBadgeText, { color: cat.color }]}>{cat.emoji} {cat.label}</Text>
+                </View>
+                {item.description ? <Text style={styles.itemDesc}>{item.description}</Text> : null}
+                <Text style={styles.itemMeta}>
+                  {formatDate(item.created_at)}{item.file_size ? ` · ${formatSize(item.file_size)}` : ''}
+                </Text>
+              </View>
+              <View style={styles.actions}>
+                <TouchableOpacity onPress={() => handleView(item)} style={styles.viewBtn}>
+                  <Text style={styles.viewText}>View</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleDelete(item.id, item.original_name || item.filename)} style={styles.deleteBtn}>
+                  <Text style={styles.deleteText}>Delete</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            <View style={styles.itemLeft}>
-              <Text style={styles.itemName} numberOfLines={1}>{item.original_name || item.filename}</Text>
-              {item.description ? <Text style={styles.itemType}>{item.description}</Text> : null}
-              <Text style={styles.itemMeta}>
-                {formatDate(item.created_at)}{item.file_size ? ` · ${formatSize(item.file_size)}` : ''}
-              </Text>
-            </View>
-            <View style={styles.actions}>
-              <TouchableOpacity onPress={() => handleView(item)} style={styles.viewBtn}>
-                <Text style={styles.viewText}>View</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => handleDelete(item.id, item.original_name || item.filename)} style={styles.deleteBtn}>
-                <Text style={styles.deleteText}>Delete</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
+          );
+        }}
       />
 
+      {/* ── Upload modal ── */}
+      <Modal visible={uploadModalVisible} animationType="slide" presentationStyle="pageSheet">
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Upload Document</Text>
+              <TouchableOpacity onPress={() => setUploadModalVisible(false)}>
+                <Text style={styles.modalClose}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.label}>Category</Text>
+            <View style={styles.catGrid}>
+              {CATEGORIES.map((cat) => {
+                const active = uploadCategory === cat.id;
+                return (
+                  <TouchableOpacity
+                    key={cat.id}
+                    style={[styles.catOption, active && { backgroundColor: cat.color, borderColor: cat.color }]}
+                    onPress={() => setUploadCategory(cat.id)}
+                  >
+                    <Text style={styles.catOptionEmoji}>{cat.emoji}</Text>
+                    <Text style={[styles.catOptionLabel, active && styles.catOptionLabelActive]}>{cat.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={styles.label}>Description (optional)</Text>
+            <TextInput
+              style={styles.input}
+              value={uploadDescription}
+              onChangeText={setUploadDescription}
+              placeholder="e.g. Annual mortgage statement"
+              placeholderTextColor="#9ca3af"
+            />
+
+            <Text style={styles.sectionLabel}>Choose Source</Text>
+            <TouchableOpacity style={styles.sourceBtn} onPress={pickFromCamera}>
+              <Text style={styles.sourceBtnText}>📷  Take Photo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.sourceBtn} onPress={pickFromGallery}>
+              <Text style={styles.sourceBtnText}>🖼️  Photo Library</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.sourceBtn} onPress={pickDocument}>
+              <Text style={styles.sourceBtnText}>📎  Browse Files</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── Image preview modal ── */}
       <Modal visible={!!previewUri} transparent animationType="fade">
         <SafeAreaView style={styles.previewOverlay}>
           <TouchableOpacity style={styles.previewClose} onPress={() => setPreviewUri(null)}>
             <Text style={styles.previewCloseText}>✕ Close</Text>
           </TouchableOpacity>
           {previewUri && (
-            <Image
-              source={{ uri: previewUri }}
-              style={styles.previewImage}
-              resizeMode="contain"
-            />
+            <Image source={{ uri: previewUri }} style={styles.previewImage} resizeMode="contain" />
           )}
         </SafeAreaView>
       </Modal>
@@ -278,27 +358,67 @@ export default function DocumentsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+
+  // Header
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
   headerTitle: { fontSize: 20, fontWeight: '700', color: '#111827' },
   uploadBtn: { backgroundColor: '#2563eb', borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10, minWidth: 80, alignItems: 'center' },
   uploadBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+
+  // Filter chips
+  filterBar: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb', maxHeight: 54 },
+  filterBarContent: { paddingHorizontal: 12, paddingVertical: 10, gap: 8, flexDirection: 'row' },
+  filterChip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb' },
+  filterChipText: { fontSize: 13, color: '#374151' },
+  filterChipTextActive: { color: '#fff', fontWeight: '600' },
+
+  // List
   list: { padding: 16, paddingBottom: 40 },
   emptyContainer: { alignItems: 'center', marginTop: 80 },
   emptyIcon: { fontSize: 48, marginBottom: 12 },
   empty: { fontSize: 16, fontWeight: '600', color: '#374151', marginBottom: 6 },
   emptySub: { fontSize: 13, color: '#9ca3af', textAlign: 'center' },
+
+  // Document card
   item: { backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 10, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#e5e7eb' },
   itemIcon: { width: 40, height: 40, borderRadius: 8, backgroundColor: '#f3f4f6', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   fileIcon: { fontSize: 20 },
   itemLeft: { flex: 1 },
-  itemName: { fontSize: 15, fontWeight: '600', color: '#111827', marginBottom: 2 },
-  itemType: { fontSize: 12, color: '#6b7280', marginBottom: 2 },
+  itemName: { fontSize: 15, fontWeight: '600', color: '#111827', marginBottom: 4 },
+  catBadge: { alignSelf: 'flex-start', borderRadius: 6, borderWidth: 1, paddingHorizontal: 7, paddingVertical: 2, marginBottom: 4 },
+  catBadgeText: { fontSize: 11, fontWeight: '600' },
+  itemDesc: { fontSize: 12, color: '#6b7280', marginBottom: 2 },
   itemMeta: { fontSize: 12, color: '#9ca3af' },
-  actions: { alignItems: 'flex-end' },
-  viewBtn: { paddingLeft: 12, paddingBottom: 6 },
-  viewText: { fontSize: 13, color: '#2563eb', fontWeight: '600' },
-  deleteBtn: { paddingLeft: 12 },
-  deleteText: { fontSize: 13, color: '#ef4444' },
+  actions: { alignItems: 'flex-end', gap: 6, justifyContent: 'center' },
+  viewBtn: {
+    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
+    backgroundColor: '#eff6ff', borderWidth: 1, borderColor: '#bfdbfe',
+  },
+  viewText: { fontSize: 13, color: '#2563eb', fontWeight: '500' },
+  deleteBtn: {
+    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
+    backgroundColor: '#fff1f2', borderWidth: 1, borderColor: '#fecdd3',
+  },
+  deleteText: { fontSize: 13, color: '#ef4444', fontWeight: '500' },
+
+  // Upload modal
+  modal: { flex: 1, backgroundColor: '#f9fafb' },
+  modalContent: { padding: 24, paddingBottom: 60 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  modalTitle: { fontSize: 22, fontWeight: '700', color: '#111827' },
+  modalClose: { fontSize: 16, color: '#2563eb' },
+  label: { fontSize: 14, fontWeight: '500', color: '#374151', marginBottom: 10 },
+  catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
+  catOption: { width: '22%', alignItems: 'center', paddingVertical: 10, borderRadius: 12, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb' },
+  catOptionEmoji: { fontSize: 22, marginBottom: 4 },
+  catOptionLabel: { fontSize: 11, color: '#374151', fontWeight: '500', textAlign: 'center' },
+  catOptionLabelActive: { color: '#fff' },
+  input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: '#111827', marginBottom: 20 },
+  sectionLabel: { fontSize: 13, fontWeight: '700', color: '#2563eb', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#e5e7eb' },
+  sourceBtn: { backgroundColor: '#fff', borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', paddingVertical: 16, paddingHorizontal: 16, marginBottom: 10 },
+  sourceBtnText: { fontSize: 16, color: '#111827', fontWeight: '500' },
+
+  // Image preview
   previewOverlay: { flex: 1, backgroundColor: '#000' },
   previewClose: { padding: 16 },
   previewCloseText: { color: '#fff', fontSize: 16, fontWeight: '600' },

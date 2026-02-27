@@ -103,6 +103,9 @@ async function initDB() {
       CREATE INDEX IF NOT EXISTS idx_documents_user_id ON documents(user_id);
       CREATE INDEX IF NOT EXISTS idx_documents_entity ON documents(related_entity_type, related_entity_id);
     `);
+    await client.query(`
+      ALTER TABLE documents ADD COLUMN IF NOT EXISTS category VARCHAR(50) DEFAULT 'other';
+    `);
     console.log('Database initialized');
   } finally {
     client.release();
@@ -164,15 +167,15 @@ app.post('/api/documents/upload', authenticateToken, upload.single('file'), asyn
     return res.status(400).json({ error: 'No file uploaded' });
   }
 
-  const { related_entity_type, related_entity_id, description } = req.body;
+  const { related_entity_type, related_entity_id, description, category } = req.body;
   const userId = req.user.userId;
 
   try {
     const result = await pool.query(
       `INSERT INTO documents (user_id, filename, original_name, mime_type, file_size, file_data,
-       related_entity_type, related_entity_id, description)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, filename, original_name, mime_type,
-       file_size, related_entity_type, related_entity_id, description, created_at`,
+       related_entity_type, related_entity_id, description, category)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, filename, original_name, mime_type,
+       file_size, related_entity_type, related_entity_id, description, category, created_at`,
       [
         userId,
         `${Date.now()}_${req.file.originalname}`,
@@ -182,7 +185,8 @@ app.post('/api/documents/upload', authenticateToken, upload.single('file'), asyn
         req.file.buffer,
         related_entity_type || 'general',
         related_entity_id || null,
-        description
+        description,
+        category || 'other',
       ]
     );
 
@@ -222,22 +226,27 @@ app.post('/api/documents/upload', authenticateToken, upload.single('file'), asyn
  */
 app.get('/api/documents', authenticateToken, async (req, res) => {
   const userId = req.user.userId;
-  const { entity_type, entity_id } = req.query;
+  const { entity_type, entity_id, category } = req.query;
 
   try {
     let query = `SELECT id, filename, original_name, mime_type, file_size,
-                 related_entity_type, related_entity_id, description, created_at
+                 related_entity_type, related_entity_id, description, category, created_at
                  FROM documents WHERE user_id = $1`;
     const params = [userId];
 
     if (entity_type) {
-      query += ' AND related_entity_type = $2';
       params.push(entity_type);
+      query += ` AND related_entity_type = $${params.length}`;
 
       if (entity_id) {
-        query += ' AND related_entity_id = $3';
         params.push(entity_id);
+        query += ` AND related_entity_id = $${params.length}`;
       }
+    }
+
+    if (category) {
+      params.push(category);
+      query += ` AND category = $${params.length}`;
     }
 
     query += ' ORDER BY created_at DESC';
