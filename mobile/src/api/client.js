@@ -9,6 +9,7 @@ const BASE_URLS = {
   networth: `http://${DEV_HOST}:3004`,
   document: `http://${DEV_HOST}:3005`,
   service: `http://${DEV_HOST}:3006`,
+  openbanking: `http://${DEV_HOST}:3007`,
 };
 
 // Synchronous token cache — updated by AuthContext on login/logout
@@ -35,6 +36,7 @@ export const liabilityClient = createClient(BASE_URLS.liability);
 export const networthClient = createClient(BASE_URLS.networth);
 export const documentClient = createClient(BASE_URLS.document);
 export const serviceClient = createClient(BASE_URLS.service);
+export const openbankingClient = createClient(BASE_URLS.openbanking);
 
 // Auth
 export const login = (email, password) =>
@@ -102,6 +104,12 @@ export const uploadDocument = async (file, description = '', relatedEntityType =
     },
   });
 };
+
+// Open Banking
+export const getOpenBankingAuthUrl = () => openbankingClient.get('/api/openbanking/auth-url');
+export const getOpenBankingStatus = () => openbankingClient.get('/api/openbanking/status');
+export const getOpenBankingAccounts = () => openbankingClient.get('/api/openbanking/accounts');
+export const disconnectOpenBanking = () => openbankingClient.delete('/api/openbanking/disconnect');
 
 // Services
 export const getServices = () => serviceClient.get('/api/services');

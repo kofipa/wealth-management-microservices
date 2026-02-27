@@ -11,6 +11,7 @@ import {
   getLiabilities, createLiability, updateLiability,
   deleteLiability, uploadDocument,
 } from '../api/client';
+import DatePickerField from '../components/DatePickerField';
 
 const fmt = (n) =>
   new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n ?? 0);
@@ -264,13 +265,10 @@ export default function LiabilitiesScreen() {
               keyboardType="decimal-pad"
             />
 
-            <Text style={styles.label}>Due Date</Text>
-            <TextInput
-              style={styles.input}
+            <DatePickerField
+              label="Due Date"
               value={form.due_date}
-              onChangeText={(v) => setForm({ ...form, due_date: v })}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor="#9ca3af"
+              onChange={(v) => setForm({ ...form, due_date: v })}
             />
 
             <Text style={styles.label}>Description</Text>

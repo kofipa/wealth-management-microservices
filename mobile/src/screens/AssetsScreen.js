@@ -7,7 +7,9 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
-import { getAssets, createAsset, updateAsset, deleteAsset, uploadDocument, createLiability, updateLiability, deleteLiability } from '../api/client';
+import * as WebBrowser from 'expo-web-browser';
+import { getAssets, createAsset, updateAsset, deleteAsset, uploadDocument, createLiability, updateLiability, deleteLiability, getOpenBankingAuthUrl, getOpenBankingStatus, getOpenBankingAccounts } from '../api/client';
+import DatePickerField from '../components/DatePickerField';
 
 const fmt = (n) =>
   new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n ?? 0);
@@ -25,13 +27,21 @@ export default function AssetsScreen() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingAsset, setEditingAsset] = useState(null);
   const [pendingFile, setPendingFile] = useState(null);
+  const [bankConnected, setBankConnected] = useState(false);
+  const [importModalVisible, setImportModalVisible] = useState(false);
+  const [bankAccounts, setBankAccounts] = useState([]);
+  const [selectedAccounts, setSelectedAccounts] = useState({});
+  const [importingBank, setImportingBank] = useState(false);
 
   const load = async () => {
     try {
-      const res = await getAssets();
-      setAssets(res.data.assets || []);
-    } catch {
-      Alert.alert('Error', 'Could not load assets');
+      const [assetsRes, statusRes] = await Promise.allSettled([
+        getAssets(),
+        getOpenBankingStatus(),
+      ]);
+      if (assetsRes.status === 'fulfilled') setAssets(assetsRes.value.data.assets || []);
+      else Alert.alert('Error', 'Could not load assets');
+      if (statusRes.status === 'fulfilled') setBankConnected(statusRes.value.data.connected);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -45,6 +55,14 @@ export default function AssetsScreen() {
   // Update a single metadata key without replacing the whole object
   const setMeta = (key, val) =>
     setForm((prev) => ({ ...prev, metadata: { ...prev.metadata, [key]: val } }));
+
+  // Toggle a value in a metadata array field (for multi-select chips)
+  const toggleMeta = (key, val) =>
+    setForm((prev) => {
+      const arr = Array.isArray(prev.metadata[key]) ? prev.metadata[key] : [];
+      const next = arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val];
+      return { ...prev, metadata: { ...prev.metadata, [key]: next } };
+    });
 
   const openAddModal = () => {
     setEditingAsset(null);
@@ -317,6 +335,73 @@ export default function AssetsScreen() {
     ]);
   };
 
+  const handleConnectBank = async () => {
+    try {
+      const { data } = await getOpenBankingAuthUrl();
+      // Backend handles the code exchange; success page tries wealthmanager:// for iOS,
+      // but we always check status after the browser closes as a fallback for Expo Go.
+      await WebBrowser.openAuthSessionAsync(data.url, 'wealthmanager://openbanking/success');
+      // Check actual connection status regardless of how the browser was dismissed
+      const statusRes = await getOpenBankingStatus();
+      if (statusRes.data.connected) {
+        setBankConnected(true);
+        handleImportAccounts();
+      }
+    } catch {
+      Alert.alert('Error', 'Could not connect to bank. Make sure the bank service is running.');
+    }
+  };
+
+  const handleImportAccounts = async () => {
+    try {
+      setImportingBank(true);
+      const { data } = await getOpenBankingAccounts();
+      const accounts = data.accounts || [];
+      setBankAccounts(accounts);
+      const sel = {};
+      accounts.forEach((a) => { sel[a.account_id] = true; });
+      setSelectedAccounts(sel);
+      setImportModalVisible(true);
+    } catch {
+      Alert.alert('Error', 'Could not fetch bank accounts. Please try again.');
+    } finally {
+      setImportingBank(false);
+    }
+  };
+
+  const handleImportConfirm = async () => {
+    const toImport = bankAccounts.filter((a) => selectedAccounts[a.account_id]);
+    if (toImport.length === 0) {
+      setImportModalVisible(false);
+      return;
+    }
+    try {
+      setSaving(true);
+      for (const acct of toImport) {
+        await createAsset({
+          name: acct.display_name,
+          type: 'cash',
+          value: acct.balance,
+          description: `Imported via Open Banking`,
+          metadata: {
+            source: 'truelayer',
+            account_id: acct.account_id,
+            institution: acct.provider,
+            account_type: acct.account_type,
+            currency: acct.currency,
+          },
+        });
+      }
+      setImportModalVisible(false);
+      load();
+      Alert.alert('Done', `Imported ${toImport.length} account${toImport.length !== 1 ? 's' : ''}`);
+    } catch {
+      Alert.alert('Error', 'Failed to import some accounts');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const getMetaSummary = (item) => {
     const m = item.metadata || {};
     switch (item.asset_type) {
@@ -324,16 +409,20 @@ export default function AssetsScreen() {
         return m.institution
           ? <Text style={styles.itemDesc}>{m.institution}{m.account_type ? ` · ${m.account_type}` : ''}</Text>
           : null;
-      case 'investment':
+      case 'investment': {
+        const itypes = Array.isArray(m.investment_type) ? m.investment_type.join(', ') : m.investment_type;
         return m.platform
-          ? <Text style={styles.itemDesc}>{m.platform}{m.investment_type ? ` · ${m.investment_type}` : ''}</Text>
+          ? <Text style={styles.itemDesc}>{m.platform}{itypes ? ` · ${itypes}` : ''}</Text>
           : null;
+      }
       case 'property':
         return m.address ? <Text style={styles.itemDesc}>{m.address}</Text> : null;
-      case 'insurance':
+      case 'insurance': {
+        const ptypes = Array.isArray(m.policy_type) ? m.policy_type.join(', ') : m.policy_type;
         return m.insurer
-          ? <Text style={styles.itemDesc}>{m.insurer}{m.policy_type ? ` · ${m.policy_type}` : ''}</Text>
+          ? <Text style={styles.itemDesc}>{m.insurer}{ptypes ? ` · ${ptypes}` : ''}</Text>
           : null;
+      }
       default:
         return m.category ? <Text style={styles.itemDesc}>{m.category}</Text> : null;
     }
@@ -356,6 +445,16 @@ export default function AssetsScreen() {
           <Text style={styles.addBtnText}>+ Add</Text>
         </TouchableOpacity>
       </View>
+
+      <TouchableOpacity
+        style={styles.connectBankBtn}
+        onPress={bankConnected ? handleImportAccounts : handleConnectBank}
+        disabled={importingBank}
+      >
+        <Text style={styles.connectBankBtnText}>
+          {importingBank ? 'Loading...' : bankConnected ? '🏦 Import from Bank' : '🔗 Connect Bank'}
+        </Text>
+      </TouchableOpacity>
 
       <FlatList
         data={assets}
@@ -385,6 +484,57 @@ export default function AssetsScreen() {
           </View>
         )}
       />
+
+      {/* ── Bank Import Modal ── */}
+      <Modal visible={importModalVisible} animationType="slide" presentationStyle="pageSheet">
+        <View style={styles.modal}>
+          <View style={[styles.modalContent, { paddingBottom: 20 }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Import Accounts</Text>
+              <TouchableOpacity onPress={() => setImportModalVisible(false)}>
+                <Text style={styles.modalClose}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={{ color: '#6b7280', marginBottom: 16, fontSize: 14 }}>
+              Select accounts to import as cash assets:
+            </Text>
+            {bankAccounts.map((acct) => {
+              const selected = !!selectedAccounts[acct.account_id];
+              return (
+                <TouchableOpacity
+                  key={acct.account_id}
+                  style={styles.accountRow}
+                  onPress={() => setSelectedAccounts((prev) => ({ ...prev, [acct.account_id]: !prev[acct.account_id] }))}
+                >
+                  <View style={[styles.accountCheck, selected && { backgroundColor: '#2563eb' }]}>
+                    {selected && <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>✓</Text>}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: '#111827' }}>{acct.display_name}</Text>
+                    <Text style={{ fontSize: 13, color: '#6b7280' }}>{acct.provider} · {acct.account_type}</Text>
+                  </View>
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: '#16a34a' }}>
+                    {new Intl.NumberFormat('en-GB', { style: 'currency', currency: acct.currency || 'GBP' }).format(acct.balance)}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+            {bankAccounts.length === 0 && (
+              <Text style={{ textAlign: 'center', color: '#9ca3af', marginTop: 40 }}>No accounts found</Text>
+            )}
+          </View>
+          <View style={{ padding: 24, paddingTop: 0 }}>
+            <TouchableOpacity style={styles.saveBtn} onPress={handleImportConfirm} disabled={saving}>
+              {saving
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={styles.saveBtnText}>
+                    Import {Object.values(selectedAccounts).filter(Boolean).length} Account{Object.values(selectedAccounts).filter(Boolean).length !== 1 ? 's' : ''}
+                  </Text>
+              }
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet">
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -489,17 +639,20 @@ export default function AssetsScreen() {
                   placeholderTextColor="#9ca3af"
                   autoCapitalize="words"
                 />
-                <Text style={styles.label}>Investment Type</Text>
+                <Text style={styles.label}>Investment Type <Text style={styles.multiHint}>(select all that apply)</Text></Text>
                 <View style={styles.typeRow}>
-                  {['stocks', 'bonds', 'crypto', 'pension', 'ISA', 'funds'].map((t) => (
-                    <TouchableOpacity
-                      key={t}
-                      style={[styles.typeChip, form.metadata.investment_type === t && styles.typeChipActive]}
-                      onPress={() => setMeta('investment_type', t)}
-                    >
-                      <Text style={[styles.typeChipText, form.metadata.investment_type === t && styles.typeChipTextActive]}>{t}</Text>
-                    </TouchableOpacity>
-                  ))}
+                  {['stocks', 'bonds', 'crypto', 'pension', 'ISA', 'funds'].map((t) => {
+                    const active = (Array.isArray(form.metadata.investment_type) ? form.metadata.investment_type : []).includes(t);
+                    return (
+                      <TouchableOpacity
+                        key={t}
+                        style={[styles.typeChip, active && styles.typeChipActive]}
+                        onPress={() => toggleMeta('investment_type', t)}
+                      >
+                        <Text style={[styles.typeChipText, active && styles.typeChipTextActive]}>{t}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
                 <Text style={styles.label}>Ticker Symbol (optional)</Text>
                 <TextInput
@@ -528,14 +681,10 @@ export default function AssetsScreen() {
                   placeholderTextColor="#9ca3af"
                   keyboardType="decimal-pad"
                 />
-                <Text style={styles.label}>Purchase Date</Text>
-                <TextInput
-                  style={styles.input}
+                <DatePickerField
+                  label="Purchase Date"
                   value={form.metadata.purchase_date || ''}
-                  onChangeText={(v) => setMeta('purchase_date', v)}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor="#9ca3af"
-                  keyboardType="numbers-and-punctuation"
+                  onChange={(v) => setMeta('purchase_date', v)}
                 />
               </>
             )}
@@ -575,14 +724,10 @@ export default function AssetsScreen() {
                   placeholderTextColor="#9ca3af"
                   keyboardType="decimal-pad"
                 />
-                <Text style={styles.label}>Purchase Date</Text>
-                <TextInput
-                  style={styles.input}
+                <DatePickerField
+                  label="Purchase Date"
                   value={form.metadata.purchase_date || ''}
-                  onChangeText={(v) => setMeta('purchase_date', v)}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor="#9ca3af"
-                  keyboardType="numbers-and-punctuation"
+                  onChange={(v) => setMeta('purchase_date', v)}
                 />
                 <Text style={styles.label}>Has Mortgage?</Text>
                 <View style={styles.typeRow}>
@@ -677,14 +822,10 @@ export default function AssetsScreen() {
                   placeholderTextColor="#9ca3af"
                   keyboardType="decimal-pad"
                 />
-                <Text style={styles.label}>Purchase Date</Text>
-                <TextInput
-                  style={styles.input}
+                <DatePickerField
+                  label="Purchase Date"
                   value={form.metadata.purchase_date || ''}
-                  onChangeText={(v) => setMeta('purchase_date', v)}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor="#9ca3af"
-                  keyboardType="numbers-and-punctuation"
+                  onChange={(v) => setMeta('purchase_date', v)}
                 />
                 {form.type === 'vehicle' && (
                   <>
@@ -786,17 +927,20 @@ export default function AssetsScreen() {
                   placeholderTextColor="#9ca3af"
                   autoCapitalize="words"
                 />
-                <Text style={styles.label}>Policy Type</Text>
+                <Text style={styles.label}>Policy Type <Text style={styles.multiHint}>(select all that apply)</Text></Text>
                 <View style={styles.typeRow}>
-                  {['Life', 'Whole of Life', 'Income Protection', 'Critical Illness', 'Buildings', 'Contents', 'Other'].map((t) => (
-                    <TouchableOpacity
-                      key={t}
-                      style={[styles.typeChip, form.metadata.policy_type === t && styles.typeChipActive]}
-                      onPress={() => setMeta('policy_type', t)}
-                    >
-                      <Text style={[styles.typeChipText, form.metadata.policy_type === t && styles.typeChipTextActive]}>{t}</Text>
-                    </TouchableOpacity>
-                  ))}
+                  {['Life', 'Whole of Life', 'Income Protection', 'Critical Illness', 'Buildings', 'Contents', 'Other'].map((t) => {
+                    const active = (Array.isArray(form.metadata.policy_type) ? form.metadata.policy_type : []).includes(t);
+                    return (
+                      <TouchableOpacity
+                        key={t}
+                        style={[styles.typeChip, active && styles.typeChipActive]}
+                        onPress={() => toggleMeta('policy_type', t)}
+                      >
+                        <Text style={[styles.typeChipText, active && styles.typeChipTextActive]}>{t}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
                 <Text style={styles.label}>Policy Number</Text>
                 <TextInput
@@ -837,14 +981,10 @@ export default function AssetsScreen() {
                     </TouchableOpacity>
                   ))}
                 </View>
-                <Text style={styles.label}>Renewal / Expiry Date</Text>
-                <TextInput
-                  style={styles.input}
+                <DatePickerField
+                  label="Renewal / Expiry Date"
                   value={form.metadata.renewal_date || ''}
-                  onChangeText={(v) => setMeta('renewal_date', v)}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor="#9ca3af"
-                  keyboardType="numbers-and-punctuation"
+                  onChange={(v) => setMeta('renewal_date', v)}
                 />
               </>
             )}
@@ -920,4 +1060,9 @@ const styles = StyleSheet.create({
   removeFile: { fontSize: 18, color: '#6b7280', paddingLeft: 8 },
   attachBtn: { borderWidth: 1, borderColor: '#d1d5db', borderStyle: 'dashed', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginBottom: 16 },
   attachBtnText: { fontSize: 14, color: '#6b7280' },
+  multiHint: { fontSize: 12, fontWeight: '400', color: '#9ca3af' },
+  connectBankBtn: { backgroundColor: '#eff6ff', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 16, alignItems: 'center', marginHorizontal: 16, marginTop: 12, marginBottom: 4, borderWidth: 1, borderColor: '#bfdbfe' },
+  connectBankBtnText: { fontSize: 14, color: '#1d4ed8', fontWeight: '600' },
+  accountRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  accountCheck: { width: 24, height: 24, borderRadius: 4, borderWidth: 2, borderColor: '#2563eb', marginRight: 12, alignItems: 'center', justifyContent: 'center' },
 });
