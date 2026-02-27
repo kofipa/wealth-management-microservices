@@ -98,6 +98,11 @@ async function initDB() {
       CREATE INDEX IF NOT EXISTS idx_assets_user_id ON assets(user_id);
       CREATE INDEX IF NOT EXISTS idx_assets_type ON assets(asset_type);
     `);
+    // Migration: add metadata column if it doesn't exist yet
+    await client.query(`
+      ALTER TABLE assets ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}';
+    `);
+
     console.log('Database initialized');
   } finally {
     client.release();
@@ -151,14 +156,14 @@ function authenticateToken(req, res, next) {
  *         description: Unauthorized
  */
 app.post('/api/assets/cash', authenticateToken, async (req, res) => {
-  const { name, value, currency, description } = req.body;
+  const { name, value, currency, description, metadata } = req.body;
   const userId = req.user.userId;
 
   try {
     const result = await pool.query(
-      `INSERT INTO assets (user_id, asset_type, name, value, currency, description)
-       VALUES ($1, 'cash', $2, $3, $4, $5) RETURNING *`,
-      [userId, name, value, currency || 'USD', description]
+      `INSERT INTO assets (user_id, asset_type, name, value, currency, description, metadata)
+       VALUES ($1, 'cash', $2, $3, $4, $5, $6) RETURNING *`,
+      [userId, name, value, currency || 'GBP', description, JSON.stringify(metadata || {})]
     );
 
     const asset = result.rows[0];
@@ -204,14 +209,14 @@ app.post('/api/assets/cash', authenticateToken, async (req, res) => {
  *         description: Unauthorized
  */
 app.post('/api/assets/investment', authenticateToken, async (req, res) => {
-  const { name, value, currency, description } = req.body;
+  const { name, value, currency, description, metadata } = req.body;
   const userId = req.user.userId;
 
   try {
     const result = await pool.query(
-      `INSERT INTO assets (user_id, asset_type, name, value, currency, description)
-       VALUES ($1, 'investment', $2, $3, $4, $5) RETURNING *`,
-      [userId, name, value, currency || 'USD', description]
+      `INSERT INTO assets (user_id, asset_type, name, value, currency, description, metadata)
+       VALUES ($1, 'investment', $2, $3, $4, $5, $6) RETURNING *`,
+      [userId, name, value, currency || 'GBP', description, JSON.stringify(metadata || {})]
     );
 
     const asset = result.rows[0];
@@ -257,14 +262,14 @@ app.post('/api/assets/investment', authenticateToken, async (req, res) => {
  *         description: Unauthorized
  */
 app.post('/api/assets/property', authenticateToken, async (req, res) => {
-  const { name, value, currency, description } = req.body;
+  const { name, value, currency, description, metadata } = req.body;
   const userId = req.user.userId;
 
   try {
     const result = await pool.query(
-      `INSERT INTO assets (user_id, asset_type, name, value, currency, description)
-       VALUES ($1, 'property', $2, $3, $4, $5) RETURNING *`,
-      [userId, name, value, currency || 'USD', description]
+      `INSERT INTO assets (user_id, asset_type, name, value, currency, description, metadata)
+       VALUES ($1, 'property', $2, $3, $4, $5, $6) RETURNING *`,
+      [userId, name, value, currency || 'GBP', description, JSON.stringify(metadata || {})]
     );
 
     const asset = result.rows[0];
@@ -310,14 +315,14 @@ app.post('/api/assets/property', authenticateToken, async (req, res) => {
  *         description: Unauthorized
  */
 app.post('/api/assets/other', authenticateToken, async (req, res) => {
-  const { name, value, currency, description } = req.body;
+  const { name, value, currency, description, metadata } = req.body;
   const userId = req.user.userId;
 
   try {
     const result = await pool.query(
-      `INSERT INTO assets (user_id, asset_type, name, value, currency, description)
-       VALUES ($1, 'other', $2, $3, $4, $5) RETURNING *`,
-      [userId, name, value, currency || 'USD', description]
+      `INSERT INTO assets (user_id, asset_type, name, value, currency, description, metadata)
+       VALUES ($1, 'other', $2, $3, $4, $5, $6) RETURNING *`,
+      [userId, name, value, currency || 'GBP', description, JSON.stringify(metadata || {})]
     );
 
     const asset = result.rows[0];
@@ -368,7 +373,7 @@ app.post('/api/assets/other', authenticateToken, async (req, res) => {
  */
 app.put('/api/assets/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
-  const { name, value, currency, description } = req.body;
+  const { name, value, currency, description, metadata } = req.body;
   const userId = req.user.userId;
 
   try {
@@ -378,10 +383,13 @@ app.put('/api/assets/:id', authenticateToken, async (req, res) => {
            value = COALESCE($2, value),
            currency = COALESCE($3, currency),
            description = COALESCE($4, description),
+           metadata = CASE WHEN $5::jsonb IS NOT NULL THEN $5::jsonb ELSE metadata END,
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $5 AND user_id = $6
+       WHERE id = $6 AND user_id = $7
        RETURNING *`,
-      [name, value, currency, description, id, userId]
+      [name, value, currency, description,
+       metadata !== undefined ? JSON.stringify(metadata) : null,
+       id, userId]
     );
 
     if (result.rows.length === 0) {
