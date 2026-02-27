@@ -83,6 +83,36 @@ async function initDB() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
+
+    // Add last_login_at if it doesn't exist yet
+    await client.query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMP;
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS nominees (
+        id SERIAL PRIMARY KEY,
+        owner_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        nominee_email VARCHAR(255) NOT NULL,
+        nominee_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        inactivity_days INTEGER NOT NULL DEFAULT 30,
+        status VARCHAR(20) DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(owner_id, nominee_email)
+      );
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        token VARCHAR(10) NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        used BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
     console.log('Database initialized');
   } finally {
     client.release();
@@ -209,6 +239,18 @@ app.post('/api/users/login', async (req, res) => {
       { expiresIn: '24h' }
     );
 
+    // Record last login and auto-link any pending nominations for this email
+    try {
+      await pool.query('UPDATE users SET last_login_at = NOW() WHERE id = $1', [user.id]);
+      await pool.query(
+        `UPDATE nominees SET nominee_user_id = $1, status = 'accepted'
+         WHERE nominee_email = $2 AND nominee_user_id IS NULL`,
+        [user.id, user.email]
+      );
+    } catch (e) {
+      console.error('Post-login update error (non-fatal):', e.message);
+    }
+
     // Publish UserLoggedIn event
     await publishEvent('user.logged_in', { userId: user.id, email: user.email });
 
@@ -328,6 +370,222 @@ app.get('/api/users/profile', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to retrieve profile' });
+  }
+});
+
+// --- Nominee / Trusted Contacts Routes ---
+
+app.post('/api/users/nominees', authenticateToken, async (req, res) => {
+  const { email, inactivity_days } = req.body;
+  const ownerId = req.user.userId;
+
+  if (!email || !inactivity_days) {
+    return res.status(400).json({ error: 'email and inactivity_days are required' });
+  }
+  if (email === req.user.email) {
+    return res.status(400).json({ error: 'You cannot nominate yourself' });
+  }
+
+  try {
+    // Check if nominee already has an account
+    const existingUser = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    const nomineeUserId = existingUser.rows.length > 0 ? existingUser.rows[0].id : null;
+    const status = nomineeUserId ? 'accepted' : 'pending';
+
+    const result = await pool.query(
+      `INSERT INTO nominees (owner_id, nominee_email, nominee_user_id, inactivity_days, status)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (owner_id, nominee_email) DO UPDATE
+         SET inactivity_days = EXCLUDED.inactivity_days,
+             nominee_user_id = COALESCE(nominees.nominee_user_id, EXCLUDED.nominee_user_id),
+             status = COALESCE(nominees.status, EXCLUDED.status)
+       RETURNING *`,
+      [ownerId, email, nomineeUserId, inactivity_days, status]
+    );
+
+    res.status(201).json({ nominee: result.rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Could not add nominee' });
+  }
+});
+
+app.get('/api/users/nominees', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM nominees WHERE owner_id = $1 ORDER BY created_at DESC',
+      [req.user.userId]
+    );
+    res.json({ nominees: result.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Could not fetch nominees' });
+  }
+});
+
+app.delete('/api/users/nominees/:id', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'DELETE FROM nominees WHERE id = $1 AND owner_id = $2 RETURNING id',
+      [req.params.id, req.user.userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Nominee not found' });
+    }
+    res.json({ message: 'Nominee removed' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Could not remove nominee' });
+  }
+});
+
+app.get('/api/users/delegated-accounts', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT n.id, n.owner_id, u.email AS owner_email, n.inactivity_days, u.last_login_at
+       FROM nominees n
+       JOIN users u ON u.id = n.owner_id
+       WHERE n.nominee_user_id = $1 AND n.status = 'accepted'`,
+      [req.user.userId]
+    );
+
+    const accounts = result.rows.map((row) => {
+      const lastLogin = row.last_login_at ? new Date(row.last_login_at) : null;
+      const daysSince = lastLogin
+        ? (Date.now() - lastLogin.getTime()) / (1000 * 60 * 60 * 24)
+        : Infinity;
+      const accessAvailable = daysSince >= row.inactivity_days;
+      const daysRemaining = accessAvailable ? 0 : Math.ceil(row.inactivity_days - daysSince);
+      return {
+        owner_id: row.owner_id,
+        owner_email: row.owner_email,
+        inactivity_days: row.inactivity_days,
+        last_login_at: row.last_login_at,
+        access_available: accessAvailable,
+        days_remaining: daysRemaining,
+      };
+    });
+
+    res.json({ accounts });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Could not fetch delegated accounts' });
+  }
+});
+
+app.post('/api/users/delegate/:ownerId', authenticateToken, async (req, res) => {
+  const nomineeId = req.user.userId;
+  const ownerId = parseInt(req.params.ownerId);
+
+  try {
+    const nomineeCheck = await pool.query(
+      `SELECT n.inactivity_days, u.email AS owner_email, u.last_login_at
+       FROM nominees n
+       JOIN users u ON u.id = n.owner_id
+       WHERE n.owner_id = $1 AND n.nominee_user_id = $2 AND n.status = 'accepted'`,
+      [ownerId, nomineeId]
+    );
+
+    if (nomineeCheck.rows.length === 0) {
+      return res.status(403).json({ error: 'Not authorised as nominee for this account' });
+    }
+
+    const { inactivity_days, owner_email, last_login_at } = nomineeCheck.rows[0];
+    const lastLogin = last_login_at ? new Date(last_login_at) : null;
+    const daysSince = lastLogin
+      ? (Date.now() - lastLogin.getTime()) / (1000 * 60 * 60 * 24)
+      : Infinity;
+
+    if (daysSince < inactivity_days) {
+      return res.status(403).json({
+        error: `Account holder is still active. Access available after ${Math.ceil(inactivity_days - daysSince)} more days of inactivity.`,
+      });
+    }
+
+    const token = jwt.sign(
+      { userId: ownerId, email: owner_email, isDelegated: true, delegatedBy: nomineeId },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '8h' }
+    );
+
+    res.json({ token, owner_email });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Could not issue delegated token' });
+  }
+});
+
+// --- Forgot / Reset Password Routes ---
+
+app.post('/api/users/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email is required' });
+
+  try {
+    const userResult = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    // Always return success to avoid leaking whether the email exists
+    if (userResult.rows.length === 0) {
+      return res.json({ message: 'Reset code generated', devCode: null });
+    }
+
+    const userId = userResult.rows[0].id;
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+    await pool.query(
+      `INSERT INTO password_reset_tokens (user_id, token, expires_at)
+       VALUES ($1, $2, NOW() + INTERVAL '15 minutes')`,
+      [userId, code]
+    );
+
+    console.log(`Reset code for ${email}: ${code}`);
+    res.json({ message: 'Reset code generated', devCode: code });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Could not generate reset code' });
+  }
+});
+
+app.post('/api/users/reset-password', async (req, res) => {
+  const { email, token, newPassword } = req.body;
+
+  if (!email || !token || !newPassword) {
+    return res.status(400).json({ error: 'email, token and newPassword are required' });
+  }
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT prt.id FROM password_reset_tokens prt
+       JOIN users u ON u.id = prt.user_id
+       WHERE prt.token = $1
+         AND prt.used = FALSE
+         AND prt.expires_at > NOW()
+         AND u.email = $2`,
+      [token, email]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid or expired reset code' });
+    }
+
+    const tokenId = result.rows[0].id;
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    await pool.query(
+      'UPDATE users SET password_hash = $1 WHERE email = $2',
+      [passwordHash, email]
+    );
+    await pool.query(
+      'UPDATE password_reset_tokens SET used = TRUE WHERE id = $1',
+      [tokenId]
+    );
+
+    res.json({ message: 'Password reset successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Could not reset password' });
   }
 });
 
