@@ -560,9 +560,10 @@ app.put('/api/users/nominees/:id', authenticateToken, async (req, res) => {
 app.get('/api/users/delegated-accounts', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT n.id, n.owner_id, u.email AS owner_email, n.inactivity_days, u.last_login_at
+      `SELECT n.id, n.owner_id, u.email AS owner_email, p.first_name AS owner_first_name, p.last_name AS owner_last_name, n.inactivity_days, u.last_login_at
        FROM nominees n
        JOIN users u ON u.id = n.owner_id
+       LEFT JOIN user_profiles p ON p.user_id = n.owner_id
        WHERE n.nominee_user_id = $1 AND n.status = 'accepted'`,
       [req.user.userId]
     );
@@ -577,6 +578,7 @@ app.get('/api/users/delegated-accounts', authenticateToken, async (req, res) => 
       return {
         owner_id: row.owner_id,
         owner_email: row.owner_email,
+        owner_name: [row.owner_first_name, row.owner_last_name].filter(Boolean).join(' ') || row.owner_email,
         inactivity_days: row.inactivity_days,
         last_login_at: row.last_login_at,
         access_available: accessAvailable,
@@ -597,9 +599,10 @@ app.post('/api/users/delegate/:ownerId', authenticateToken, async (req, res) => 
 
   try {
     const nomineeCheck = await pool.query(
-      `SELECT n.inactivity_days, u.email AS owner_email, u.last_login_at
+      `SELECT n.inactivity_days, u.email AS owner_email, p.first_name AS owner_first_name, p.last_name AS owner_last_name, u.last_login_at
        FROM nominees n
        JOIN users u ON u.id = n.owner_id
+       LEFT JOIN user_profiles p ON p.user_id = n.owner_id
        WHERE n.owner_id = $1 AND n.nominee_user_id = $2 AND n.status = 'accepted'`,
       [ownerId, nomineeId]
     );
@@ -608,7 +611,8 @@ app.post('/api/users/delegate/:ownerId', authenticateToken, async (req, res) => 
       return res.status(403).json({ error: 'Not authorised as nominee for this account' });
     }
 
-    const { inactivity_days, owner_email, last_login_at } = nomineeCheck.rows[0];
+    const { inactivity_days, owner_email, owner_first_name, owner_last_name, last_login_at } = nomineeCheck.rows[0];
+    const owner_name = [owner_first_name, owner_last_name].filter(Boolean).join(' ') || owner_email;
     const lastLogin = last_login_at ? new Date(last_login_at) : null;
     const daysSince = lastLogin
       ? (Date.now() - lastLogin.getTime()) / (1000 * 60 * 60 * 24)
@@ -626,7 +630,7 @@ app.post('/api/users/delegate/:ownerId', authenticateToken, async (req, res) => 
       { expiresIn: '8h' }
     );
 
-    res.json({ token, owner_email });
+    res.json({ token, owner_email, owner_name });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Could not issue delegated token' });

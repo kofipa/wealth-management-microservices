@@ -106,13 +106,17 @@ export function AuthProvider({ children }) {
     setDelegatedFor(null);
   };
 
-  const delegateAccount = async (ownerId, ownerEmail) => {
+  const delegateAccount = async (ownerId, ownerName) => {
     const res = await requestDelegation(ownerId);
+    const delegatedFor = {
+      email: res.data.owner_email,
+      name: ownerName || res.data.owner_name || res.data.owner_email,
+    };
     await secureSet('delegatedToken', res.data.token);
-    await secureSet('delegatedFor', JSON.stringify({ email: ownerEmail }));
+    await secureSet('delegatedFor', JSON.stringify(delegatedFor));
     setActiveToken(res.data.token);
     setIsDelegated(true);
-    setDelegatedFor({ email: ownerEmail });
+    setDelegatedFor(delegatedFor);
   };
 
   const exitDelegation = async () => {

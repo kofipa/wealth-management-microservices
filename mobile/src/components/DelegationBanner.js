@@ -8,7 +8,7 @@ export default function DelegationBanner() {
   return (
     <View style={styles.banner}>
       <Text style={styles.text}>
-        Viewing {delegatedFor?.email}'s account
+        Viewing {delegatedFor?.name || delegatedFor?.email}'s account
       </Text>
       <TouchableOpacity onPress={exitDelegation}>
         <Text style={styles.link}>Return to mine</Text>

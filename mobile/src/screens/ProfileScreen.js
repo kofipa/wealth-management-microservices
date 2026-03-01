@@ -192,14 +192,14 @@ export default function ProfileScreen() {
   const handleViewAccount = async (account) => {
     Alert.alert(
       'Access Account',
-      `You are about to view ${account.owner_email}'s account. You will have full access.`,
+      `You are about to view ${account.owner_name || account.owner_email}'s account. You will have full access.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'View Account',
           onPress: async () => {
             try {
-              await delegateAccount(account.owner_id, account.owner_email);
+              await delegateAccount(account.owner_id, account.owner_name);
               navigation.navigate('MainTabs', { screen: 'Dashboard' });
             } catch (err) {
               Alert.alert('Error', err.response?.data?.error || 'Could not access account');
@@ -425,7 +425,7 @@ export default function ProfileScreen() {
           {delegatedAccounts.map((acc) => (
             <View key={acc.owner_id} style={styles.delegatedRow}>
               <View style={styles.delegatedLeft}>
-                <Text style={styles.delegatedEmail}>{acc.owner_email}</Text>
+                <Text style={styles.delegatedEmail}>{acc.owner_name || acc.owner_email}</Text>
                 {acc.access_available ? (
                   <Text style={styles.accessAvailable}>● Access available</Text>
                 ) : (
