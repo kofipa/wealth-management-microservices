@@ -7,6 +7,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getNetWorthBreakdown, getNetWorthHistory } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import TrendChart from '../components/TrendChart';
+import DelegationBanner from '../components/DelegationBanner';
 import { buildRecommendations } from '../utils/recommendations';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -20,7 +21,7 @@ const fmtLabel = (s) =>
 const ROTATION_MS = 4000;
 
 export default function DashboardScreen() {
-  const { user } = useAuth();
+  const { user, isDelegated } = useAuth();
   const navigation = useNavigation();
   const [data, setData] = useState(null);
   const [history, setHistory] = useState([]);
@@ -88,6 +89,15 @@ export default function DashboardScreen() {
   };
 
   useFocusEffect(useCallback(() => { load(); }, []));
+
+  // Re-fetch when delegation state changes (e.g. exiting a delegated account
+  // while already on the Dashboard — useFocusEffect won't fire in that case).
+  const delegationMounted = useRef(false);
+  useEffect(() => {
+    if (!delegationMounted.current) { delegationMounted.current = true; return; }
+    load();
+  }, [isDelegated]);
+
   const onRefresh = () => { setRefreshing(true); load(); };
 
   if (loading) {
@@ -151,6 +161,8 @@ export default function DashboardScreen() {
       <Text style={styles.greeting}>
         {user?.email ? `Hello, ${user.email.split('@')[0]}` : 'Dashboard'}
       </Text>
+
+      <DelegationBanner />
 
       {error && <Text style={styles.error}>{error}</Text>}
 
@@ -308,7 +320,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
   content: { padding: 20, paddingBottom: 40 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  greeting: { fontSize: 24, fontWeight: '700', color: '#111827', marginBottom: 20 },
+  greeting: { fontSize: 24, fontWeight: '700', color: '#111827', marginBottom: 8 },
   error: { color: '#ef4444', textAlign: 'center', marginBottom: 16 },
   netWorthCard: {
     borderRadius: 16, padding: 28, alignItems: 'center', marginBottom: 16,

@@ -97,29 +97,6 @@ function MainTabs() {
   );
 }
 
-function DelegationBanner() {
-  const { isDelegated, delegatedFor, exitDelegation } = useAuth();
-  if (!isDelegated) return null;
-  return (
-    <View style={{
-      backgroundColor: '#f97316',
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-    }}>
-      <Text style={{ color: '#fff', fontWeight: '600', fontSize: 13, flex: 1 }}>
-        Viewing {delegatedFor?.email}'s account
-      </Text>
-      <TouchableOpacity onPress={exitDelegation}>
-        <Text style={{ color: '#fff', fontSize: 13, textDecorationLine: 'underline' }}>
-          Return to mine
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
 
 function AppNavigatorStack({ navigationRef }) {
   const [biometricLocked, setBiometricLocked] = useState(false);
@@ -157,7 +134,6 @@ function AppNavigatorStack({ navigationRef }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <DelegationBanner />
       <AppStack.Navigator>
         <AppStack.Screen
           name="MainTabs"

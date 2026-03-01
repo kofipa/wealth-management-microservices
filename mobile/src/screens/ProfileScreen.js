@@ -13,7 +13,7 @@ import { useAuth } from '../context/AuthContext';
 import AppLogo from '../components/AppLogo';
 import {
   getProfile, getServiceHealth,
-  getNominees, addNominee, removeNominee,
+  getNominees, addNominee, updateNominee, removeNominee,
   getDelegatedAccounts, updateProfile, changePassword,
   setSecurityQuestion,
 } from '../api/client';
@@ -33,7 +33,7 @@ const StatusDot = ({ status }) => (
   <View style={[styles.dot, status === 'up' ? styles.dotUp : styles.dotDown]} />
 );
 
-const INACTIVITY_OPTIONS = [7, 14, 30, 60, 90];
+const INACTIVITY_OPTIONS = [0, 7, 14, 30, 60, 90];
 
 export default function ProfileScreen() {
   const { user, logout, isDelegated, delegateAccount } = useAuth();
@@ -51,6 +51,13 @@ export default function ProfileScreen() {
   const [inactivityDays, setInactivityDays] = useState(30);
   const [saving, setSaving] = useState(false);
   const [healthExpanded, setHealthExpanded] = useState(false);
+
+  // Edit nominee modal
+  const [editNomineeVisible, setEditNomineeVisible] = useState(false);
+  const [editingNominee, setEditingNominee] = useState(null);
+  const [editNomineeEmail, setEditNomineeEmail] = useState('');
+  const [editInactivityDays, setEditInactivityDays] = useState(30);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   // Edit profile modal
   const [editProfileVisible, setEditProfileVisible] = useState(false);
@@ -155,6 +162,30 @@ export default function ProfileScreen() {
         },
       },
     ]);
+  };
+
+  const handleEditNomineeOpen = (n) => {
+    setEditingNominee(n);
+    setEditNomineeEmail(n.nominee_email);
+    setEditInactivityDays(n.inactivity_days);
+    setEditNomineeVisible(true);
+  };
+
+  const handleUpdateNominee = async () => {
+    if (!editNomineeEmail.trim()) {
+      Alert.alert('Error', 'Please enter an email address');
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      await updateNominee(editingNominee.id, editNomineeEmail.trim().toLowerCase(), editInactivityDays);
+      setEditNomineeVisible(false);
+      load();
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || 'Could not update nominee');
+    } finally {
+      setSavingEdit(false);
+    }
   };
 
   const handleViewAccount = async (account) => {
@@ -359,7 +390,7 @@ export default function ProfileScreen() {
                 <View style={styles.nomineeLeft}>
                   <Text style={styles.nomineeEmail}>{n.nominee_email}</Text>
                   <Text style={styles.nomineeMeta}>
-                    Access after {n.inactivity_days} days inactive
+                    {n.inactivity_days === 0 ? 'Immediate access when activated' : `Access after ${n.inactivity_days} days inactive`}
                   </Text>
                 </View>
                 <View style={styles.nomineeRight}>
@@ -368,6 +399,9 @@ export default function ProfileScreen() {
                       {n.status === 'accepted' ? 'Active' : 'Pending'}
                     </Text>
                   </View>
+                  <TouchableOpacity onPress={() => handleEditNomineeOpen(n)}>
+                    <Text style={styles.editNomineeText}>Edit</Text>
+                  </TouchableOpacity>
                   <TouchableOpacity onPress={() => handleRemoveNominee(n.id, n.nominee_email)}>
                     <Text style={styles.removeText}>Remove</Text>
                   </TouchableOpacity>
@@ -697,7 +731,7 @@ export default function ProfileScreen() {
                   onPress={() => setInactivityDays(d)}
                 >
                   <Text style={[styles.chipText, inactivityDays === d && styles.chipTextActive]}>
-                    {d} days
+                    {d === 0 ? 'Now' : `${d} days`}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -705,6 +739,50 @@ export default function ProfileScreen() {
 
             <TouchableOpacity style={styles.saveBtn} onPress={handleAddNominee} disabled={saving}>
               {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Add Trusted Contact</Text>}
+            </TouchableOpacity>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Edit Nominee Modal */}
+      <Modal visible={editNomineeVisible} animationType="slide" presentationStyle="pageSheet">
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <ScrollView contentContainerStyle={styles.modalScroll}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Trusted Contact</Text>
+              <TouchableOpacity onPress={() => setEditNomineeVisible(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.label}>Email Address</Text>
+            <TextInput
+              style={styles.input}
+              value={editNomineeEmail}
+              onChangeText={setEditNomineeEmail}
+              placeholder="nominee@example.com"
+              placeholderTextColor="#9ca3af"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+
+            <Text style={styles.label}>Grant access after how many days of inactivity?</Text>
+            <View style={styles.chipRow}>
+              {INACTIVITY_OPTIONS.map((d) => (
+                <TouchableOpacity
+                  key={d}
+                  style={[styles.chip, editInactivityDays === d && styles.chipActive]}
+                  onPress={() => setEditInactivityDays(d)}
+                >
+                  <Text style={[styles.chipText, editInactivityDays === d && styles.chipTextActive]}>
+                    {d === 0 ? 'Now' : `${d} days`}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity style={styles.saveBtn} onPress={handleUpdateNominee} disabled={savingEdit}>
+              {savingEdit ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Save Changes</Text>}
             </TouchableOpacity>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -752,6 +830,7 @@ const styles = StyleSheet.create({
   badgeTextActive: { color: '#16a34a' },
   badgeTextPending: { color: '#92400e' },
   removeText: { fontSize: 12, color: '#ef4444' },
+  editNomineeText: { fontSize: 12, color: '#2563eb', marginBottom: 4 },
 
   delegatedRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
   delegatedLeft: { flex: 1 },

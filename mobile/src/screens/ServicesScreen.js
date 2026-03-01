@@ -530,7 +530,7 @@ export default function ServicesScreen({ route }) {
                 <>
                   <Text style={styles.sectionLabel}>Recommended for you</Text>
                   {recommended.map((svc) => renderCard(svc, true))}
-                  <Text style={styles.sectionLabel}>All Services</Text>
+                  <Text style={styles.sectionLabel}>Other Services</Text>
                 </>
               )}
               {others.map((svc) => renderCard(svc, false))}

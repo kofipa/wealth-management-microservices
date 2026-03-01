@@ -159,6 +159,8 @@ export const verifySecurityQuestion = (email, answer) =>
 export const addNominee = (email, inactivity_days) =>
   userClient.post('/api/users/nominees', { email, inactivity_days });
 export const getNominees = () => userClient.get('/api/users/nominees');
+export const updateNominee = (id, email, inactivity_days) =>
+  userClient.put(`/api/users/nominees/${id}`, { email, inactivity_days });
 export const removeNominee = (id) => userClient.delete(`/api/users/nominees/${id}`);
 export const getDelegatedAccounts = () => userClient.get('/api/users/delegated-accounts');
 export const requestDelegation = (ownerId) =>

@@ -464,7 +464,7 @@ app.post('/api/users/nominees', authenticateToken, async (req, res) => {
   const { email, inactivity_days } = req.body;
   const ownerId = req.user.userId;
 
-  if (!email || !inactivity_days) {
+  if (!email || inactivity_days === undefined || inactivity_days === null) {
     return res.status(400).json({ error: 'email and inactivity_days are required' });
   }
   if (email === req.user.email) {
@@ -521,6 +521,39 @@ app.delete('/api/users/nominees/:id', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Could not remove nominee' });
+  }
+});
+
+app.put('/api/users/nominees/:id', authenticateToken, async (req, res) => {
+  const { email, inactivity_days } = req.body;
+  const ownerId = req.user.userId;
+
+  if (!email || inactivity_days === undefined || inactivity_days === null) {
+    return res.status(400).json({ error: 'email and inactivity_days are required' });
+  }
+  if (email === req.user.email) {
+    return res.status(400).json({ error: 'You cannot nominate yourself' });
+  }
+
+  try {
+    const existingUser = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    const nomineeUserId = existingUser.rows.length > 0 ? existingUser.rows[0].id : null;
+    const status = nomineeUserId ? 'accepted' : 'pending';
+
+    const result = await pool.query(
+      `UPDATE nominees
+       SET nominee_email = $1, inactivity_days = $2, nominee_user_id = $3, status = $4
+       WHERE id = $5 AND owner_id = $6
+       RETURNING *`,
+      [email, inactivity_days, nomineeUserId, status, req.params.id, ownerId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Nominee not found' });
+    }
+    res.json({ nominee: result.rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Could not update nominee' });
   }
 });
 
