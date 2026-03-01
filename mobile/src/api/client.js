@@ -129,6 +129,9 @@ export const uploadDocument = async (file, description = '', relatedEntityType =
   });
 };
 
+export const exportNetWorthPdf = () =>
+  networthClient.get('/api/networth/export/pdf', { responseType: 'arraybuffer' });
+
 // Open Banking
 export const getOpenBankingAuthUrl = () => openbankingClient.get('/api/openbanking/auth-url');
 export const getOpenBankingStatus = () => openbankingClient.get('/api/openbanking/status');

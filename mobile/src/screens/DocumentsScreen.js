@@ -3,15 +3,17 @@ import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   RefreshControl, ActivityIndicator, Alert, Platform,
   Modal, Image, SafeAreaView, ScrollView, TextInput,
-  KeyboardAvoidingView,
+  KeyboardAvoidingView, Linking,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { File as FSFile, Paths as FSPaths } from 'expo-file-system';
+import { getContentUriAsync } from 'expo-file-system/legacy';
+import * as IntentLauncher from 'expo-intent-launcher';
 import * as Sharing from 'expo-sharing';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { getDocuments, deleteDocument, uploadDocument } from '../api/client';
 import { DEV_HOST } from '../api/config';
 
@@ -94,8 +96,8 @@ export default function DocumentsScreen() {
 
   const handleView = async (item) => {
     try {
-      const delegatedToken = await AsyncStorage.getItem('delegatedToken');
-      const rawToken = await AsyncStorage.getItem('token');
+      const delegatedToken = await SecureStore.getItemAsync('delegatedToken');
+      const rawToken = await SecureStore.getItemAsync('token');
       const authToken = delegatedToken || rawToken;
       const rawName = item.original_name || item.filename || 'document';
       const safeName = rawName.replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -113,6 +115,26 @@ export default function DocumentsScreen() {
 
       if (IMAGE_TYPES.includes(item.mime_type)) {
         setPreviewUri(file.uri);
+      } else if (item.mime_type === 'application/pdf') {
+        if (Platform.OS === 'android') {
+          // Android: convert to content:// URI and launch with VIEW intent directly
+          const contentUri = await getContentUriAsync(file.uri);
+          await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+            data: contentUri,
+            flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
+            type: 'application/pdf',
+          });
+        } else {
+          // iOS: share sheet filtered to PDF-compatible apps
+          const canShare = await Sharing.isAvailableAsync();
+          if (canShare) {
+            await Sharing.shareAsync(file.uri, {
+              mimeType: 'application/pdf',
+              dialogTitle: rawName,
+              UTI: 'com.adobe.pdf',
+            });
+          }
+        }
       } else {
         const canShare = await Sharing.isAvailableAsync();
         if (canShare) {

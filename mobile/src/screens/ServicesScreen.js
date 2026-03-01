@@ -311,7 +311,7 @@ const UPLOAD_PROMPT_SERVICES = {
 // Insurance services get a premium capture modal instead
 const INSURANCE_SERVICES = new Set(['life-insurance', 'income-protection']);
 
-export default function ServicesScreen() {
+export default function ServicesScreen({ route }) {
   const { user } = useAuth();
   const navigation = useNavigation();
   const [activeService, setActiveService] = useState(null);
@@ -319,6 +319,17 @@ export default function ServicesScreen() {
   const [insurancePrompt, setInsurancePrompt] = useState({ visible: false, provider: null });
   const [monthlyPremium, setMonthlyPremium] = useState('');
   const [savingPremium, setSavingPremium] = useState(false);
+
+  // Auto-open a service when navigated from the recommendations carousel
+  useEffect(() => {
+    const openServiceId = route?.params?.openServiceId;
+    if (openServiceId) {
+      const svc = SERVICES.find((s) => s.id === openServiceId);
+      if (svc) setActiveService(svc);
+      // Clear the param so navigating back and forth doesn't re-open
+      navigation.setParams({ openServiceId: undefined });
+    }
+  }, [route?.params?.openServiceId]);
 
   useEffect(() => {
     if (!activeService) return;

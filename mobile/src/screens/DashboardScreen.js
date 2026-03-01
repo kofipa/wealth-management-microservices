@@ -289,7 +289,7 @@ export default function DashboardScreen() {
           <Animated.View style={{ opacity: fadeAnim }}>
             <TouchableOpacity
               style={[styles.recCard, { borderLeftColor: svc.color, borderLeftWidth: 4 }]}
-              onPress={() => navigation.navigate('Services')}
+              onPress={() => navigation.navigate('Services', { openServiceId: svc.id })}
               activeOpacity={0.8}
             >
               <View style={[styles.recIconBox, { backgroundColor: svc.bg }]}>

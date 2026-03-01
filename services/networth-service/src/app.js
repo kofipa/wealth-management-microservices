@@ -10,6 +10,7 @@ const swaggerUi = require('swagger-ui-express');
 const { Pool } = require('pg');
 
 const helmet = require('helmet');
+const PDFDocument = require('pdfkit');
 
 const app = express();
 app.use(helmet());
@@ -325,6 +326,121 @@ app.get('/api/networth/history', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Error fetching history:', err.message);
     res.status(500).json({ error: 'Failed to fetch history' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/networth/export/pdf:
+ *   get:
+ *     summary: Export net worth summary as a PDF
+ *     tags: [Net Worth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: PDF file
+ *         content:
+ *           application/pdf:
+ *             schema:
+ *               type: string
+ *               format: binary
+ */
+app.get('/api/networth/export/pdf', authenticateToken, async (req, res) => {
+  const userId = req.user.userId;
+  const token = req.headers['authorization'];
+
+  try {
+    // Fetch breakdown + history in parallel
+    const [breakdownResp, historyResp] = await Promise.all([
+      axios.get(`http://localhost:${process.env.PORT || 3004}/api/networth/breakdown`, { headers: { Authorization: token } }),
+      pool.query(
+        `SELECT snapshot_date AS date, net_worth, total_assets, total_liabilities
+         FROM networth_snapshots
+         WHERE user_id = $1 AND snapshot_date >= CURRENT_DATE - INTERVAL '30 days'
+         ORDER BY snapshot_date ASC`,
+        [userId]
+      ),
+    ]);
+
+    const data = breakdownResp.data;
+    const history = historyResp.rows;
+
+    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="networth-report.pdf"');
+    doc.pipe(res);
+
+    // Header
+    doc.fontSize(24).font('Helvetica-Bold').text('Net Worth Report', { align: 'center' });
+    doc.fontSize(11).font('Helvetica').fillColor('#555')
+      .text(`Generated ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`, { align: 'center' });
+    doc.moveDown(1.5);
+
+    // Net worth summary box
+    const nw = parseFloat(data.netWorth || 0);
+    doc.fontSize(13).font('Helvetica-Bold').fillColor('#000').text('Summary');
+    doc.moveDown(0.3);
+    const fmt = (v) => `£${parseFloat(v || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    doc.font('Helvetica').fontSize(11)
+      .text(`Net Worth:          ${fmt(data.netWorth)}`)
+      .text(`Total Assets:       ${fmt(data.totalAssets)}`)
+      .text(`Total Liabilities:  ${fmt(data.totalLiabilities)}`);
+    doc.moveDown(1);
+
+    // Assets by type
+    if (data.assetsByType && Object.keys(data.assetsByType).length > 0) {
+      doc.fontSize(13).font('Helvetica-Bold').text('Assets by Type');
+      doc.moveDown(0.3);
+      for (const [type, value] of Object.entries(data.assetsByType)) {
+        doc.font('Helvetica').fontSize(11)
+          .text(`  ${type.charAt(0).toUpperCase() + type.slice(1).replace('_', ' ')}: ${fmt(value)}`);
+      }
+      doc.moveDown(1);
+    }
+
+    // Liabilities by type
+    if (data.liabilitiesByType && Object.keys(data.liabilitiesByType).length > 0) {
+      doc.fontSize(13).font('Helvetica-Bold').text('Liabilities by Type');
+      doc.moveDown(0.3);
+      for (const [type, value] of Object.entries(data.liabilitiesByType)) {
+        doc.font('Helvetica').fontSize(11)
+          .text(`  ${type.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}: ${fmt(value)}`);
+      }
+      doc.moveDown(1);
+    }
+
+    // 30-day history
+    if (history.length > 0) {
+      doc.fontSize(13).font('Helvetica-Bold').text('30-Day History');
+      doc.moveDown(0.3);
+      for (const row of history) {
+        const dateStr = new Date(row.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+        doc.font('Helvetica').fontSize(10)
+          .text(`  ${dateStr}  —  Net Worth: ${fmt(row.net_worth)}  (Assets: ${fmt(row.total_assets)}, Liabilities: ${fmt(row.total_liabilities)})`);
+      }
+      doc.moveDown(1);
+
+      // Trend summary
+      if (history.length >= 2) {
+        const first = parseFloat(history[0].net_worth);
+        const last = parseFloat(history[history.length - 1].net_worth);
+        const delta = last - first;
+        const sign = delta >= 0 ? '+' : '';
+        doc.fontSize(11).font('Helvetica-Bold')
+          .text(`Trend over last ${history.length} snapshots: ${sign}${fmt(delta)}`);
+      }
+    }
+
+    doc.end();
+  } catch (err) {
+    const downstream = err.response?.status;
+    if (downstream === 401 || downstream === 403) {
+      return res.status(downstream).json({ error: 'Unauthorized' });
+    }
+    console.error('PDF export error:', err.message);
+    if (!res.headersSent) res.status(500).json({ error: 'Failed to generate PDF' });
   }
 });
 
