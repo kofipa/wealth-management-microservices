@@ -5,7 +5,7 @@ import {
   RefreshControl, Modal, TextInput, KeyboardAvoidingView, Platform, Switch,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
 import Constants from 'expo-constants';
@@ -37,6 +37,7 @@ const INACTIVITY_OPTIONS = [0, 7, 14, 30, 60, 90];
 
 export default function ProfileScreen() {
   const { user, logout, isDelegated, delegateAccount } = useAuth();
+  const navigation = useNavigation();
 
   const [profile, setProfile] = useState(null);
   const [services, setServices] = useState([]);
@@ -199,6 +200,7 @@ export default function ProfileScreen() {
           onPress: async () => {
             try {
               await delegateAccount(account.owner_id, account.owner_email);
+              navigation.navigate('MainTabs', { screen: 'Dashboard' });
             } catch (err) {
               Alert.alert('Error', err.response?.data?.error || 'Could not access account');
             }
