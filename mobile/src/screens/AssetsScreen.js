@@ -556,7 +556,8 @@ export default function AssetsScreen() {
         </Text>
       </TouchableOpacity>
 
-      {/* Search */}
+      {/* Search + sort — only useful with more than one item */}
+      {assets.length > 1 && (
       <View style={styles.searchRow}>
         <TextInput
           style={styles.searchInput}
@@ -567,8 +568,9 @@ export default function AssetsScreen() {
           clearButtonMode="while-editing"
         />
       </View>
+      )}
 
-      {/* Sort chips */}
+      {assets.length > 1 && (
       <View style={styles.sortRow}>
         {SORT_OPTIONS.map(opt => (
           <TouchableOpacity
@@ -585,6 +587,7 @@ export default function AssetsScreen() {
           </TouchableOpacity>
         ))}
       </View>
+      )}
 
       <FlatList
         data={filteredAssets}

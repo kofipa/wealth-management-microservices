@@ -201,35 +201,38 @@ export default function LiabilitiesScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Search */}
-      <View style={styles.searchRow}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search liabilities…"
-          placeholderTextColor="#9ca3af"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          clearButtonMode="while-editing"
-        />
-      </View>
+      {/* Search + sort — only useful with more than one item */}
+      {liabilities.length > 1 && (
+        <>
+          <View style={styles.searchRow}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search liabilities…"
+              placeholderTextColor="#9ca3af"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              clearButtonMode="while-editing"
+            />
+          </View>
 
-      {/* Sort chips */}
-      <View style={styles.sortRow}>
-        {SORT_OPTIONS.map(opt => (
-          <TouchableOpacity
-            key={opt.key}
-            style={[styles.sortChip, sortBy === opt.key && styles.sortChipActive]}
-            onPress={() => setSortBy(opt.key)}
-          >
-            <Text style={[styles.sortChipText, sortBy === opt.key && styles.sortChipTextActive]}>
-              {opt.label}
-              {opt.arrow && (
-                <Text style={{ color: '#ef4444', fontWeight: '800' }}>{opt.arrow}</Text>
-              )}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+          <View style={styles.sortRow}>
+            {SORT_OPTIONS.map(opt => (
+              <TouchableOpacity
+                key={opt.key}
+                style={[styles.sortChip, sortBy === opt.key && styles.sortChipActive]}
+                onPress={() => setSortBy(opt.key)}
+              >
+                <Text style={[styles.sortChipText, sortBy === opt.key && styles.sortChipTextActive]}>
+                  {opt.label}
+                  {opt.arrow && (
+                    <Text style={{ color: '#ef4444', fontWeight: '800' }}>{opt.arrow}</Text>
+                  )}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </>
+      )}
 
       <FlatList
         data={filteredLiabilities}
