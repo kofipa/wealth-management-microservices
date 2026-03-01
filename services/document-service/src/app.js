@@ -31,7 +31,7 @@ const swaggerSpec = swaggerJsdoc({
   },
   apis: ['./src/app.js']
 });
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use('/api-docs', authenticateToken, swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Configure multer for file uploads (in-memory storage for simplicity)
 const ALLOWED_MIME_TYPES = [
@@ -339,9 +339,10 @@ app.get('/api/documents/:id/download', authenticateToken, async (req, res) => {
     const document = result.rows[0];
 
     res.set({
-      'Content-Type': document.mime_type,
-      'Content-Disposition': `attachment; filename="${document.original_name}"`,
-      'Content-Length': document.file_size
+      'Content-Type': 'application/octet-stream',
+      'Content-Disposition': `attachment; filename="${encodeURIComponent(document.original_name)}"`,
+      'Content-Length': document.file_size,
+      'X-Content-Type-Options': 'nosniff',
     });
 
     res.send(document.file_data);

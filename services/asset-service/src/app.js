@@ -381,6 +381,9 @@ app.get('/api/assets/valuation/vehicle', authenticateToken, async (req, res) => 
   if (!reg || isNaN(purchasePrice) || !purchaseDate) {
     return res.status(400).json({ error: 'reg, purchase_price and purchase_date required' });
   }
+  if (!/^[A-Z]{2}[0-9]{2}[A-Z]{3}$|^[A-Z][0-9]{1,3}[A-Z]{3}$|^[A-Z]{3}[0-9]{1,3}[A-Z]$/.test(reg)) {
+    return res.status(400).json({ error: 'Invalid UK registration plate format' });
+  }
 
   // Depreciation calculation (independent of DVLA)
   const years = (Date.now() - new Date(purchaseDate).getTime()) / (365.25 * 24 * 60 * 60 * 1000);
@@ -431,6 +434,9 @@ app.get('/api/assets/valuation/vehicle', authenticateToken, async (req, res) => 
 app.get('/api/assets/price/quote', authenticateToken, async (req, res) => {
   const ticker = (req.query.ticker || '').trim().toUpperCase();
   if (!ticker) return res.status(400).json({ error: 'ticker required' });
+  if (!/^[A-Z0-9]{1,6}(\.[A-Z]{1,2})?$/.test(ticker)) {
+    return res.status(400).json({ error: 'Invalid ticker format' });
+  }
 
   const cached = priceCache.get(ticker);
   if (cached && Date.now() - cached.timestamp < PRICE_CACHE_TTL) {
@@ -464,7 +470,7 @@ app.get('/api/assets/price/quote', authenticateToken, async (req, res) => {
     res.json(result);
   } catch (err) {
     console.error('Price quote error:', err.message);
-    res.status(502).json({ error: 'Price feed unavailable', detail: err.message });
+    res.status(502).json({ error: 'Price feed unavailable' });
   }
 });
 
@@ -472,6 +478,9 @@ app.get('/api/assets/price/quote', authenticateToken, async (req, res) => {
 app.get('/api/assets/valuation/property', authenticateToken, async (req, res) => {
   const raw = (req.query.postcode || '').trim().toUpperCase().replace(/\s+/g, ' ');
   if (!raw) return res.status(400).json({ error: 'postcode required' });
+  if (!/^[A-Z]{1,2}[0-9][0-9A-Z]?\s?[0-9][A-Z]{2}$/.test(raw)) {
+    return res.status(400).json({ error: 'Invalid postcode format' });
+  }
 
   const cached = valuationCache.get(raw);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
@@ -503,7 +512,7 @@ app.get('/api/assets/valuation/property', authenticateToken, async (req, res) =>
     res.json(result);
   } catch (err) {
     console.error('Valuation error:', err.message);
-    res.status(502).json({ error: 'Land Registry unavailable', detail: err.message });
+    res.status(502).json({ error: 'Land Registry unavailable' });
   }
 });
 

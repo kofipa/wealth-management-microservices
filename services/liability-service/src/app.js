@@ -29,7 +29,7 @@ const swaggerSpec = swaggerJsdoc({
   },
   apis: ['./src/app.js']
 });
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use('/api-docs', authenticateToken, swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Database connection
 const pool = new Pool({

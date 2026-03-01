@@ -85,6 +85,13 @@ const forgotPasswordLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+const resetPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5,
+  message: { error: 'Too many password reset attempts. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Swagger setup
 const swaggerSpec = swaggerJsdoc({
@@ -97,7 +104,7 @@ const swaggerSpec = swaggerJsdoc({
   },
   apis: ['./src/app.js']
 });
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use('/api-docs', authenticateToken, swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Database connection
 const pool = new Pool({
@@ -608,7 +615,7 @@ app.post('/api/users/delegate/:ownerId', authenticateToken, async (req, res) => 
     );
 
     if (nomineeCheck.rows.length === 0) {
-      return res.status(403).json({ error: 'Not authorised as nominee for this account' });
+      return res.status(403).json({ error: 'Access denied' });
     }
 
     const { inactivity_days, owner_email, owner_first_name, owner_last_name, last_login_at } = nomineeCheck.rows[0];
@@ -668,7 +675,7 @@ app.post('/api/users/forgot-password', forgotPasswordLimiter, async (req, res) =
   }
 });
 
-app.post('/api/users/reset-password', async (req, res) => {
+app.post('/api/users/reset-password', resetPasswordLimiter, async (req, res) => {
   const { email, token, newPassword } = req.body;
 
   if (!email || !token || !newPassword) {

@@ -31,7 +31,7 @@ const swaggerSpec = swaggerJsdoc({
   },
   apis: ['./src/app.js']
 });
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use('/api-docs', authenticateToken, swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Service URLs
 const ASSET_SERVICE_URL = process.env.ASSET_SERVICE_URL || 'http://asset-service:3002';
