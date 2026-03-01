@@ -6,6 +6,7 @@ import {
 import * as WebBrowser from 'expo-web-browser';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { createLiability, getNetWorthBreakdown } from '../api/client';
 import { getRecommendedServiceIds } from '../utils/recommendations';
 
@@ -349,6 +350,8 @@ const INSURANCE_SERVICES = new Set(['life-insurance', 'income-protection']);
 
 export default function ServicesScreen({ route }) {
   const { user } = useAuth();
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   const navigation = useNavigation();
   const [activeService, setActiveService] = useState(null);
   const [providerStatus, setProviderStatus] = useState({});
@@ -622,7 +625,7 @@ export default function ServicesScreen({ route }) {
                 onChangeText={setMonthlyPremium}
                 keyboardType="decimal-pad"
                 placeholder="0.00"
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={colors.placeholder}
               />
               <Text style={styles.premiumPerMonth}>/month</Text>
             </View>
@@ -635,7 +638,7 @@ export default function ServicesScreen({ route }) {
 
             <TouchableOpacity
               style={[styles.getStartedBtn, {
-                backgroundColor: (!monthlyPremium || parseFloat(monthlyPremium) <= 0 || savingPremium) ? '#9ca3af' : '#2563eb',
+                backgroundColor: (!monthlyPremium || parseFloat(monthlyPremium) <= 0 || savingPremium) ? '#9ca3af' : colors.primary,
                 marginTop: 20,
               }]}
               onPress={handleAddPremium}
@@ -660,21 +663,21 @@ export default function ServicesScreen({ route }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
+const makeStyles = (colors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   content: { padding: 16, paddingBottom: 60 },
   intro: { marginBottom: 20, paddingHorizontal: 4 },
-  introTitle: { fontSize: 22, fontWeight: '700', color: '#111827', marginBottom: 4 },
-  introSub: { fontSize: 14, color: '#6b7280', lineHeight: 20 },
+  introTitle: { fontSize: 22, fontWeight: '700', color: colors.text, marginBottom: 4 },
+  introSub: { fontSize: 14, color: colors.textSecondary, lineHeight: 20 },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 14,
     padding: 16,
     marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'flex-start',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.border,
   },
   iconBox: {
     width: 52,
@@ -688,28 +691,28 @@ const styles = StyleSheet.create({
   icon: { fontSize: 26 },
   cardBody: { flex: 1 },
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: '#111827', flexShrink: 1 },
+  cardTitle: { fontSize: 16, fontWeight: '700', color: colors.text, flexShrink: 1 },
   tag: { borderRadius: 20, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 8 },
   tagText: { fontSize: 11, fontWeight: '600' },
-  cardDesc: { fontSize: 13, color: '#6b7280', lineHeight: 19, marginBottom: 8 },
+  cardDesc: { fontSize: 13, color: colors.textSecondary, lineHeight: 19, marginBottom: 8 },
   cta: { fontSize: 13, fontWeight: '600' },
   footer: { alignItems: 'center', marginTop: 8 },
-  footerText: { fontSize: 13, color: '#9ca3af' },
+  footerText: { fontSize: 13, color: colors.textTertiary },
   sectionLabel: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#6b7280',
+    color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
     marginBottom: 10,
     marginTop: 4,
   },
   cardRecommended: {
-    borderColor: '#2563eb',
+    borderColor: colors.primary,
     borderWidth: 1.5,
   },
   recBadge: {
-    backgroundColor: '#2563eb',
+    backgroundColor: colors.primary,
     borderRadius: 20,
     paddingHorizontal: 7,
     paddingVertical: 2,
@@ -719,7 +722,7 @@ const styles = StyleSheet.create({
   // Provider modal
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingHorizontal: 20,
@@ -733,9 +736,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 10,
   },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
-  closeBtn: { fontSize: 18, color: '#6b7280', paddingHorizontal: 4 },
-  sheetIntro: { fontSize: 13, color: '#6b7280', marginBottom: 16, lineHeight: 19 },
+  sheetTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
+  closeBtn: { fontSize: 18, color: colors.textSecondary, paddingHorizontal: 4 },
+  sheetIntro: { fontSize: 13, color: colors.textSecondary, marginBottom: 16, lineHeight: 19 },
   providerCard: {
     borderWidth: 1.5,
     borderRadius: 12,
@@ -744,7 +747,7 @@ const styles = StyleSheet.create({
   },
   providerCardHeader: { paddingHorizontal: 14, paddingVertical: 10 },
   providerName: { fontSize: 15, fontWeight: '700' },
-  providerDesc: { fontSize: 13, color: '#374151', lineHeight: 19, paddingHorizontal: 14, paddingVertical: 10 },
+  providerDesc: { fontSize: 13, color: colors.textSecondary, lineHeight: 19, paddingHorizontal: 14, paddingVertical: 10 },
   getStartedBtn: {
     marginHorizontal: 14,
     marginBottom: 12,
@@ -753,15 +756,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   getStartedText: { color: '#fff', fontSize: 14, fontWeight: '700' },
-  noProvidersNote: { fontSize: 13, color: '#6b7280', textAlign: 'center', paddingVertical: 16, lineHeight: 19 },
-  sheetFooterNote: { fontSize: 12, color: '#9ca3af', textAlign: 'center', marginTop: 8, lineHeight: 17 },
+  noProvidersNote: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', paddingVertical: 16, lineHeight: 19 },
+  sheetFooterNote: { fontSize: 12, color: colors.textTertiary, textAlign: 'center', marginTop: 8, lineHeight: 17 },
 
   // Insurance premium modal
-  premiumRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, marginTop: 8 },
-  premiumCurrency: { fontSize: 20, fontWeight: '600', color: '#111827', marginRight: 4 },
-  premiumInput: { flex: 1, fontSize: 22, fontWeight: '700', color: '#111827', paddingVertical: 14 },
-  premiumPerMonth: { fontSize: 14, color: '#6b7280' },
-  premiumAnnual: { fontSize: 13, color: '#2563eb', marginTop: 8, textAlign: 'center' },
+  premiumRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 14, marginTop: 8 },
+  premiumCurrency: { fontSize: 20, fontWeight: '600', color: colors.text, marginRight: 4 },
+  premiumInput: { flex: 1, fontSize: 22, fontWeight: '700', color: colors.text, paddingVertical: 14 },
+  premiumPerMonth: { fontSize: 14, color: colors.textSecondary },
+  premiumAnnual: { fontSize: 13, color: colors.primary, marginTop: 8, textAlign: 'center' },
   skipBtn: { alignItems: 'center', marginTop: 14, paddingVertical: 8 },
-  skipText: { fontSize: 13, color: '#9ca3af' },
+  skipText: { fontSize: 13, color: colors.textTertiary },
 });

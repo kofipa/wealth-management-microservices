@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import AppLogo from '../components/AppLogo';
+import { useTheme } from '../context/ThemeContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -30,6 +31,7 @@ const SLIDES = [
 ];
 
 export default function OnboardingScreen({ navigation }) {
+  const { colors } = useTheme();
   const [activeIndex, setActiveIndex] = useState(0);
 
   const finish = async () => {
@@ -47,15 +49,14 @@ export default function OnboardingScreen({ navigation }) {
 
   const slide = SLIDES[activeIndex];
   const isLast = activeIndex === SLIDES.length - 1;
+  const styles = makeStyles(colors);
 
   return (
     <View style={styles.container}>
-      {/* Skip */}
       <TouchableOpacity style={styles.skipBtn} onPress={finish}>
         <Text style={styles.skipText}>Skip</Text>
       </TouchableOpacity>
 
-      {/* Slide content */}
       <View style={styles.slideContent}>
         {slide.emoji === null ? (
           <View style={styles.logoWrap}>
@@ -68,7 +69,6 @@ export default function OnboardingScreen({ navigation }) {
         <Text style={styles.body}>{slide.body}</Text>
       </View>
 
-      {/* Dots */}
       <View style={styles.dots}>
         {SLIDES.map((_, i) => (
           <TouchableOpacity key={i} onPress={() => setActiveIndex(i)}>
@@ -77,7 +77,6 @@ export default function OnboardingScreen({ navigation }) {
         ))}
       </View>
 
-      {/* Button */}
       <TouchableOpacity style={styles.btn} onPress={next}>
         <Text style={styles.btnText}>{isLast ? 'Get Started' : 'Next'}</Text>
       </TouchableOpacity>
@@ -85,10 +84,10 @@ export default function OnboardingScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: colors.background,
     paddingHorizontal: 32,
     paddingTop: 60,
     paddingBottom: 48,
@@ -100,63 +99,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     marginBottom: 24,
   },
-  skipText: {
-    fontSize: 15,
-    color: '#9ca3af',
-  },
+  skipText: { fontSize: 15, color: colors.textTertiary },
   slideContent: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
   },
-  logoWrap: {
-    marginBottom: 32,
-  },
-  emoji: {
-    fontSize: 72,
-    marginBottom: 32,
-  },
+  logoWrap: { marginBottom: 32 },
+  emoji: { fontSize: 72, marginBottom: 32 },
   title: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#111827',
+    color: colors.text,
     textAlign: 'center',
     lineHeight: 36,
     marginBottom: 16,
   },
   body: {
     fontSize: 16,
-    color: '#6b7280',
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
     paddingHorizontal: 8,
   },
-  dots: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 32,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#d1d5db',
-  },
-  dotActive: {
-    width: 24,
-    backgroundColor: '#2563eb',
-  },
+  dots: { flexDirection: 'row', gap: 8, marginBottom: 32 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.border },
+  dotActive: { width: 24, backgroundColor: colors.primary },
   btn: {
-    backgroundColor: '#2563eb',
+    backgroundColor: colors.primary,
     borderRadius: 12,
     paddingVertical: 16,
     width: '100%',
     alignItems: 'center',
   },
-  btnText: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '700',
-  },
+  btnText: { color: '#fff', fontSize: 17, fontWeight: '700' },
 });

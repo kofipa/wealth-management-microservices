@@ -10,6 +10,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as WebBrowser from 'expo-web-browser';
 import { getAssets, createAsset, updateAsset, deleteAsset, uploadDocument, createLiability, updateLiability, deleteLiability, getOpenBankingAuthUrl, getOpenBankingStatus, getOpenBankingAccounts, getPropertyValuation, getStockQuote, getVehicleValuation } from '../api/client';
 import DatePickerField from '../components/DatePickerField';
+import { useTheme } from '../context/ThemeContext';
 
 const fmt = (n) =>
   new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n ?? 0);
@@ -38,6 +39,9 @@ export default function AssetsScreen() {
   const [quotes, setQuotes] = useState({}); // { [assetId]: { name, price_gbp, exchange, loading, error } }
   const [vehicleVals, setVehicleVals] = useState({}); // { [assetId]: { estimated_value, make, year, loading, error } }
   const editingAssetIdRef = useRef(null); // tracks which asset is open in edit modal
+
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
 
   const load = async () => {
     try {
@@ -531,7 +535,7 @@ export default function AssetsScreen() {
   ];
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color="#2563eb" /></View>;
+    return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
   }
 
   return (
@@ -562,7 +566,7 @@ export default function AssetsScreen() {
         <TextInput
           style={styles.searchInput}
           placeholder="Search assets…"
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor={colors.placeholder}
           value={searchQuery}
           onChangeText={setSearchQuery}
           clearButtonMode="while-editing"
@@ -719,7 +723,7 @@ export default function AssetsScreen() {
                 <Text style={styles.modalClose}>Cancel</Text>
               </TouchableOpacity>
             </View>
-            <Text style={{ color: '#6b7280', marginBottom: 16, fontSize: 14 }}>
+            <Text style={{ color: colors.textSecondary, marginBottom: 16, fontSize: 14 }}>
               Select accounts to import as cash assets:
             </Text>
             {bankAccounts.map((acct) => {
@@ -730,12 +734,12 @@ export default function AssetsScreen() {
                   style={styles.accountRow}
                   onPress={() => setSelectedAccounts((prev) => ({ ...prev, [acct.account_id]: !prev[acct.account_id] }))}
                 >
-                  <View style={[styles.accountCheck, selected && { backgroundColor: '#2563eb' }]}>
-                    {selected && <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>✓</Text>}
+                  <View style={[styles.accountCheck, selected && { backgroundColor: colors.primary }]}>
+                    {selected && <Text style={{ color: colors.surface, fontSize: 14, fontWeight: '700' }}>✓</Text>}
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '600', color: '#111827' }}>{acct.display_name}</Text>
-                    <Text style={{ fontSize: 13, color: '#6b7280' }}>{acct.provider} · {acct.account_type}</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>{acct.display_name}</Text>
+                    <Text style={{ fontSize: 13, color: colors.textSecondary }}>{acct.provider} · {acct.account_type}</Text>
                   </View>
                   <Text style={{ fontSize: 16, fontWeight: '700', color: '#16a34a' }}>
                     {new Intl.NumberFormat('en-GB', { style: 'currency', currency: acct.currency || 'GBP' }).format(acct.balance)}
@@ -744,13 +748,13 @@ export default function AssetsScreen() {
               );
             })}
             {bankAccounts.length === 0 && (
-              <Text style={{ textAlign: 'center', color: '#9ca3af', marginTop: 40 }}>No accounts found</Text>
+              <Text style={{ textAlign: 'center', color: colors.textTertiary, marginTop: 40 }}>No accounts found</Text>
             )}
           </View>
           <View style={{ padding: 24, paddingTop: 0 }}>
             <TouchableOpacity style={styles.saveBtn} onPress={handleImportConfirm} disabled={saving}>
               {saving
-                ? <ActivityIndicator color="#fff" />
+                ? <ActivityIndicator color={colors.surface} />
                 : <Text style={styles.saveBtnText}>
                     Import {Object.values(selectedAccounts).filter(Boolean).length} Account{Object.values(selectedAccounts).filter(Boolean).length !== 1 ? 's' : ''}
                   </Text>
@@ -776,7 +780,7 @@ export default function AssetsScreen() {
               value={form.name}
               onChangeText={(v) => setForm({ ...form, name: v })}
               placeholder="e.g. Savings Account"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.placeholder}
             />
 
             <Text style={styles.label}>Type</Text>
@@ -798,7 +802,7 @@ export default function AssetsScreen() {
               value={form.value}
               onChangeText={(v) => setForm({ ...form, value: v })}
               placeholder="0.00"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.placeholder}
               keyboardType="decimal-pad"
             />
 
@@ -808,7 +812,7 @@ export default function AssetsScreen() {
               value={form.description}
               onChangeText={(v) => setForm({ ...form, description: v })}
               placeholder="Optional notes"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.placeholder}
               multiline
               numberOfLines={3}
             />
@@ -823,7 +827,7 @@ export default function AssetsScreen() {
                   value={form.metadata.institution || ''}
                   onChangeText={(v) => setMeta('institution', v)}
                   placeholder="e.g. Barclays"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={colors.placeholder}
                   autoCapitalize="words"
                 />
                 <Text style={styles.label}>Account Type</Text>
@@ -844,7 +848,7 @@ export default function AssetsScreen() {
                   value={form.metadata.interest_rate !== undefined ? String(form.metadata.interest_rate) : ''}
                   onChangeText={(v) => setMeta('interest_rate', v)}
                   placeholder="e.g. 4.5"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={colors.placeholder}
                   keyboardType="decimal-pad"
                 />
               </>
@@ -860,7 +864,7 @@ export default function AssetsScreen() {
                   value={form.metadata.platform || ''}
                   onChangeText={(v) => setMeta('platform', v)}
                   placeholder="e.g. Vanguard, Hargreaves Lansdown"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={colors.placeholder}
                   autoCapitalize="words"
                 />
                 <Text style={styles.label}>Investment Type <Text style={styles.multiHint}>(select all that apply)</Text></Text>
@@ -884,7 +888,7 @@ export default function AssetsScreen() {
                   value={form.metadata.ticker_symbol || ''}
                   onChangeText={(v) => setMeta('ticker_symbol', v.toUpperCase())}
                   placeholder="e.g. VWRL"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={colors.placeholder}
                   autoCapitalize="characters"
                 />
                 <Text style={styles.label}>Quantity / Units</Text>
@@ -893,7 +897,7 @@ export default function AssetsScreen() {
                   value={form.metadata.quantity !== undefined ? String(form.metadata.quantity) : ''}
                   onChangeText={(v) => setMeta('quantity', v)}
                   placeholder="e.g. 100"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={colors.placeholder}
                   keyboardType="decimal-pad"
                 />
                 <Text style={styles.label}>Purchase Price Per Unit (£)</Text>
@@ -902,7 +906,7 @@ export default function AssetsScreen() {
                   value={form.metadata.purchase_price !== undefined ? String(form.metadata.purchase_price) : ''}
                   onChangeText={(v) => setMeta('purchase_price', v)}
                   placeholder="e.g. 85.50"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={colors.placeholder}
                   keyboardType="decimal-pad"
                 />
                 <DatePickerField
@@ -923,7 +927,7 @@ export default function AssetsScreen() {
                   value={form.metadata.address || ''}
                   onChangeText={(v) => setMeta('address', v)}
                   placeholder="Full property address"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={colors.placeholder}
                   multiline
                   numberOfLines={3}
                 />
@@ -945,7 +949,7 @@ export default function AssetsScreen() {
                   value={form.metadata.purchase_price !== undefined ? String(form.metadata.purchase_price) : ''}
                   onChangeText={(v) => setMeta('purchase_price', v)}
                   placeholder="e.g. 250000"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={colors.placeholder}
                   keyboardType="decimal-pad"
                 />
                 <DatePickerField
@@ -977,7 +981,7 @@ export default function AssetsScreen() {
                       value={form.metadata.mortgage_provider || ''}
                       onChangeText={(v) => setMeta('mortgage_provider', v)}
                       placeholder="e.g. Halifax"
-                      placeholderTextColor="#9ca3af"
+                      placeholderTextColor={colors.placeholder}
                       autoCapitalize="words"
                     />
                     <Text style={styles.label}>Mortgage Balance (£)</Text>
@@ -986,7 +990,7 @@ export default function AssetsScreen() {
                       value={form.metadata.mortgage_balance !== undefined ? String(form.metadata.mortgage_balance) : ''}
                       onChangeText={(v) => setMeta('mortgage_balance', v)}
                       placeholder="e.g. 150000"
-                      placeholderTextColor="#9ca3af"
+                      placeholderTextColor={colors.placeholder}
                       keyboardType="decimal-pad"
                     />
                     <Text style={styles.label}>Mortgage Rate (%)</Text>
@@ -995,7 +999,7 @@ export default function AssetsScreen() {
                       value={form.metadata.mortgage_rate !== undefined ? String(form.metadata.mortgage_rate) : ''}
                       onChangeText={(v) => setMeta('mortgage_rate', v)}
                       placeholder="e.g. 2.99"
-                      placeholderTextColor="#9ca3af"
+                      placeholderTextColor={colors.placeholder}
                       keyboardType="decimal-pad"
                     />
                     <Text style={styles.label}>Monthly Payment (£)</Text>
@@ -1004,7 +1008,7 @@ export default function AssetsScreen() {
                       value={form.metadata.mortgage_payment !== undefined ? String(form.metadata.mortgage_payment) : ''}
                       onChangeText={(v) => setMeta('mortgage_payment', v)}
                       placeholder="e.g. 1200"
-                      placeholderTextColor="#9ca3af"
+                      placeholderTextColor={colors.placeholder}
                       keyboardType="decimal-pad"
                     />
                     <Text style={styles.label}>Payment Frequency</Text>
@@ -1034,7 +1038,7 @@ export default function AssetsScreen() {
                   value={form.metadata.category || ''}
                   onChangeText={(v) => setMeta('category', v)}
                   placeholder={form.type === 'vehicle' ? 'e.g. Car, Motorcycle' : 'e.g. Jewellery, Art'}
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={colors.placeholder}
                   autoCapitalize="words"
                 />
                 {form.type === 'vehicle' && (
@@ -1045,7 +1049,7 @@ export default function AssetsScreen() {
                       value={form.metadata.reg_plate || ''}
                       onChangeText={(v) => setMeta('reg_plate', v.toUpperCase())}
                       placeholder="e.g. AA19 AAA"
-                      placeholderTextColor="#9ca3af"
+                      placeholderTextColor={colors.placeholder}
                       autoCapitalize="characters"
                     />
                   </>
@@ -1056,7 +1060,7 @@ export default function AssetsScreen() {
                   value={form.metadata.purchase_price !== undefined ? String(form.metadata.purchase_price) : ''}
                   onChangeText={(v) => setMeta('purchase_price', v)}
                   placeholder="e.g. 15000"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={colors.placeholder}
                   keyboardType="decimal-pad"
                 />
                 <DatePickerField
@@ -1102,7 +1106,7 @@ export default function AssetsScreen() {
                           value={form.metadata.finance_provider || ''}
                           onChangeText={(v) => setMeta('finance_provider', v)}
                           placeholder="e.g. Black Horse, Santander"
-                          placeholderTextColor="#9ca3af"
+                          placeholderTextColor={colors.placeholder}
                           autoCapitalize="words"
                         />
                         <Text style={styles.label}>Outstanding Balance (£)</Text>
@@ -1111,7 +1115,7 @@ export default function AssetsScreen() {
                           value={form.metadata.finance_balance !== undefined ? String(form.metadata.finance_balance) : ''}
                           onChangeText={(v) => setMeta('finance_balance', v)}
                           placeholder="e.g. 8000"
-                          placeholderTextColor="#9ca3af"
+                          placeholderTextColor={colors.placeholder}
                           keyboardType="decimal-pad"
                         />
                         <Text style={styles.label}>Periodic Payment (£)</Text>
@@ -1120,7 +1124,7 @@ export default function AssetsScreen() {
                           value={form.metadata.finance_payment !== undefined ? String(form.metadata.finance_payment) : ''}
                           onChangeText={(v) => setMeta('finance_payment', v)}
                           placeholder="e.g. 350"
-                          placeholderTextColor="#9ca3af"
+                          placeholderTextColor={colors.placeholder}
                           keyboardType="decimal-pad"
                         />
                         <Text style={styles.label}>Payment Frequency</Text>
@@ -1141,7 +1145,7 @@ export default function AssetsScreen() {
                           value={form.metadata.finance_rate !== undefined ? String(form.metadata.finance_rate) : ''}
                           onChangeText={(v) => setMeta('finance_rate', v)}
                           placeholder="e.g. 6.9"
-                          placeholderTextColor="#9ca3af"
+                          placeholderTextColor={colors.placeholder}
                           keyboardType="decimal-pad"
                         />
                       </>
@@ -1161,7 +1165,7 @@ export default function AssetsScreen() {
                   value={form.metadata.insurer || ''}
                   onChangeText={(v) => setMeta('insurer', v)}
                   placeholder="e.g. Aviva, Legal & General"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={colors.placeholder}
                   autoCapitalize="words"
                 />
                 <Text style={styles.label}>Policy Type <Text style={styles.multiHint}>(select all that apply)</Text></Text>
@@ -1185,7 +1189,7 @@ export default function AssetsScreen() {
                   value={form.metadata.policy_number || ''}
                   onChangeText={(v) => setMeta('policy_number', v)}
                   placeholder="e.g. POL-123456"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={colors.placeholder}
                   autoCapitalize="characters"
                 />
                 <Text style={styles.label}>Sum Assured / Coverage (£)</Text>
@@ -1194,7 +1198,7 @@ export default function AssetsScreen() {
                   value={form.metadata.sum_assured !== undefined ? String(form.metadata.sum_assured) : ''}
                   onChangeText={(v) => setMeta('sum_assured', v)}
                   placeholder="e.g. 500000"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={colors.placeholder}
                   keyboardType="decimal-pad"
                 />
                 <Text style={styles.label}>Premium Amount (£)</Text>
@@ -1203,7 +1207,7 @@ export default function AssetsScreen() {
                   value={form.metadata.premium !== undefined ? String(form.metadata.premium) : ''}
                   onChangeText={(v) => setMeta('premium', v)}
                   placeholder="e.g. 50"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={colors.placeholder}
                   keyboardType="decimal-pad"
                 />
                 <Text style={styles.label}>Premium Frequency</Text>
@@ -1243,7 +1247,7 @@ export default function AssetsScreen() {
 
             <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
               {saving
-                ? <ActivityIndicator color="#fff" />
+                ? <ActivityIndicator color={colors.surface} />
                 : <Text style={styles.saveBtnText}>{editingAsset ? 'Save Changes' : 'Add Asset'}</Text>
               }
             </TouchableOpacity>
@@ -1254,70 +1258,70 @@ export default function AssetsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
+const makeStyles = (colors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
-  totalLabel: { fontSize: 13, color: '#6b7280' },
-  totalValue: { fontSize: 22, fontWeight: '700', color: '#111827' },
-  addBtn: { backgroundColor: '#2563eb', borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10 },
-  addBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
+  totalLabel: { fontSize: 13, color: colors.textSecondary },
+  totalValue: { fontSize: 22, fontWeight: '700', color: colors.text },
+  addBtn: { backgroundColor: colors.primary, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10 },
+  addBtnText: { color: colors.surface, fontWeight: '600', fontSize: 14 },
   list: { padding: 16, paddingBottom: 40 },
-  empty: { textAlign: 'center', color: '#9ca3af', marginTop: 60, fontSize: 15 },
-  item: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between', borderWidth: 1, borderColor: '#e5e7eb' },
+  empty: { textAlign: 'center', color: colors.textTertiary, marginTop: 60, fontSize: 15 },
+  item: { backgroundColor: colors.surface, borderRadius: 12, padding: 16, marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between', borderWidth: 1, borderColor: colors.border },
   itemLeft: { flex: 1, marginRight: 8 },
-  itemName: { fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 2 },
-  itemType: { fontSize: 12, color: '#6b7280', textTransform: 'capitalize', marginBottom: 2 },
-  itemDesc: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
+  itemName: { fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 2 },
+  itemType: { fontSize: 12, color: colors.textSecondary, textTransform: 'capitalize', marginBottom: 2 },
+  itemDesc: { fontSize: 12, color: colors.textTertiary, marginTop: 2 },
   itemRight: { alignItems: 'flex-end' },
   itemValue: { fontSize: 16, fontWeight: '700', color: '#16a34a', marginBottom: 6 },
   itemActions: { flexDirection: 'row', gap: 8, marginTop: 8 },
-  editBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: '#eff6ff', borderWidth: 1, borderColor: '#bfdbfe' },
-  editBtnText: { fontSize: 13, color: '#2563eb', fontWeight: '600' },
+  editBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: colors.primaryLight, borderWidth: 1, borderColor: colors.primary },
+  editBtnText: { fontSize: 13, color: colors.primary, fontWeight: '600' },
   deleteBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: '#fff1f2', borderWidth: 1, borderColor: '#fecdd3' },
   deleteBtnText: { fontSize: 13, color: '#ef4444', fontWeight: '600' },
-  modal: { flex: 1, backgroundColor: '#f9fafb' },
+  modal: { flex: 1, backgroundColor: colors.background },
   modalContent: { padding: 24, paddingBottom: 60 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  modalTitle: { fontSize: 22, fontWeight: '700', color: '#111827' },
-  modalClose: { fontSize: 16, color: '#2563eb' },
-  sectionLabel: { fontSize: 13, fontWeight: '700', color: '#2563eb', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 8, marginBottom: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#e5e7eb' },
-  label: { fontSize: 14, fontWeight: '500', color: '#374151', marginBottom: 6 },
-  input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: '#111827', marginBottom: 16 },
+  modalTitle: { fontSize: 22, fontWeight: '700', color: colors.text },
+  modalClose: { fontSize: 16, color: colors.primary },
+  sectionLabel: { fontSize: 13, fontWeight: '700', color: colors.primary, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 8, marginBottom: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border },
+  label: { fontSize: 14, fontWeight: '500', color: colors.textSecondary, marginBottom: 6 },
+  input: { backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: colors.text, marginBottom: 16 },
   textArea: { height: 80, textAlignVertical: 'top' },
   typeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-  typeChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb' },
-  typeChipActive: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
-  typeChipText: { fontSize: 13, color: '#374151', textTransform: 'capitalize' },
-  typeChipTextActive: { color: '#fff' },
-  saveBtn: { backgroundColor: '#2563eb', borderRadius: 10, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
-  saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  pendingFile: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#eff6ff', borderRadius: 8, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: '#bfdbfe' },
-  pendingFileName: { flex: 1, fontSize: 14, color: '#1d4ed8' },
-  removeFile: { fontSize: 18, color: '#6b7280', paddingLeft: 8 },
-  attachBtn: { borderWidth: 1, borderColor: '#d1d5db', borderStyle: 'dashed', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginBottom: 16 },
-  attachBtnText: { fontSize: 14, color: '#6b7280' },
-  multiHint: { fontSize: 12, fontWeight: '400', color: '#9ca3af' },
+  typeChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border },
+  typeChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  typeChipText: { fontSize: 13, color: colors.textSecondary, textTransform: 'capitalize' },
+  typeChipTextActive: { color: colors.surface },
+  saveBtn: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
+  saveBtnText: { color: colors.surface, fontSize: 16, fontWeight: '600' },
+  pendingFile: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primaryLight, borderRadius: 8, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: colors.primary },
+  pendingFileName: { flex: 1, fontSize: 14, color: colors.primary },
+  removeFile: { fontSize: 18, color: colors.textSecondary, paddingLeft: 8 },
+  attachBtn: { borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginBottom: 16 },
+  attachBtnText: { fontSize: 14, color: colors.textSecondary },
+  multiHint: { fontSize: 12, fontWeight: '400', color: colors.textTertiary },
   valuationRow: { flexDirection: 'row', alignItems: 'center', marginTop: 3 },
   valuationText: { fontSize: 12, color: '#059669', flex: 1 },
-  valuationError: { fontSize: 12, color: '#9ca3af', flex: 1 },
+  valuationError: { fontSize: 12, color: colors.textTertiary, flex: 1 },
   refreshBtn: { paddingHorizontal: 6, paddingVertical: 2 },
-  refreshIcon: { fontSize: 15, color: '#6b7280' },
-  connectBankBtn: { backgroundColor: '#eff6ff', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 16, alignItems: 'center', marginHorizontal: 16, marginTop: 12, marginBottom: 4, borderWidth: 1, borderColor: '#bfdbfe' },
-  connectBankBtnText: { fontSize: 14, color: '#1d4ed8', fontWeight: '600' },
-  accountRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  accountCheck: { width: 24, height: 24, borderRadius: 4, borderWidth: 2, borderColor: '#2563eb', marginRight: 12, alignItems: 'center', justifyContent: 'center' },
-  searchRow: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  searchInput: { backgroundColor: '#f3f4f6', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: '#111827' },
-  sortRow: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#fff', gap: 8, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
-  sortChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb' },
-  sortChipActive: { backgroundColor: '#eff6ff', borderColor: '#2563eb' },
-  sortChipText: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
-  sortChipTextActive: { color: '#2563eb', fontWeight: '600' },
+  refreshIcon: { fontSize: 15, color: colors.textSecondary },
+  connectBankBtn: { backgroundColor: colors.primaryLight, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 16, alignItems: 'center', marginHorizontal: 16, marginTop: 12, marginBottom: 4, borderWidth: 1, borderColor: colors.primary },
+  connectBankBtnText: { fontSize: 14, color: colors.primary, fontWeight: '600' },
+  accountRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.surfaceAlt },
+  accountCheck: { width: 24, height: 24, borderRadius: 4, borderWidth: 2, borderColor: colors.primary, marginRight: 12, alignItems: 'center', justifyContent: 'center' },
+  searchRow: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.surfaceAlt },
+  searchInput: { backgroundColor: colors.surfaceAlt, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: colors.text },
+  sortRow: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 8, backgroundColor: colors.surface, gap: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
+  sortChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border },
+  sortChipActive: { backgroundColor: colors.primaryLight, borderColor: colors.primary },
+  sortChipText: { fontSize: 13, color: colors.textSecondary, fontWeight: '500' },
+  sortChipTextActive: { color: colors.primary, fontWeight: '600' },
   emptyState: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 32 },
   emptyEmoji: { fontSize: 56, marginBottom: 16 },
-  emptyTitle: { fontSize: 20, fontWeight: '700', color: '#111827', marginBottom: 8 },
-  emptyBody: { fontSize: 15, color: '#6b7280', textAlign: 'center', lineHeight: 22, marginBottom: 24 },
-  emptyBtn: { backgroundColor: '#2563eb', borderRadius: 10, paddingVertical: 14, paddingHorizontal: 32 },
-  emptyBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  emptyTitle: { fontSize: 20, fontWeight: '700', color: colors.text, marginBottom: 8 },
+  emptyBody: { fontSize: 15, color: colors.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: 24 },
+  emptyBtn: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 14, paddingHorizontal: 32 },
+  emptyBtnText: { color: colors.surface, fontSize: 15, fontWeight: '600' },
 });

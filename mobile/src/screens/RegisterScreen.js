@@ -5,10 +5,12 @@ import {
   ActivityIndicator, Alert,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import AppLogo from '../components/AppLogo';
 
 export default function RegisterScreen({ navigation }) {
   const { register } = useAuth();
+  const { colors } = useTheme();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -36,6 +38,8 @@ export default function RegisterScreen({ navigation }) {
     }
   };
 
+  const styles = makeStyles(colors);
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -49,7 +53,7 @@ export default function RegisterScreen({ navigation }) {
         <TextInput
           style={styles.input}
           placeholder="Full Name"
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor={colors.placeholder}
           value={name}
           onChangeText={setName}
           autoCapitalize="words"
@@ -57,7 +61,7 @@ export default function RegisterScreen({ navigation }) {
         <TextInput
           style={styles.input}
           placeholder="Email"
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor={colors.placeholder}
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
@@ -67,7 +71,7 @@ export default function RegisterScreen({ navigation }) {
           <TextInput
             style={styles.passwordInput}
             placeholder="Password (min 8 characters)"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={colors.placeholder}
             value={password}
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
@@ -96,27 +100,27 @@ export default function RegisterScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
+const makeStyles = (colors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
   logoWrap: { alignItems: 'center', marginBottom: 28 },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.inputBg,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.border,
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
     marginBottom: 14,
-    color: '#111827',
+    color: colors.text,
   },
   passwordWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: colors.inputBg,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.border,
     borderRadius: 10,
     marginBottom: 14,
   },
@@ -125,12 +129,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    color: '#111827',
+    color: colors.text,
   },
   eyeButton: { paddingHorizontal: 14, paddingVertical: 14 },
   eyeText: { fontSize: 18 },
   button: {
-    backgroundColor: '#2563eb',
+    backgroundColor: colors.primary,
     borderRadius: 10,
     paddingVertical: 16,
     alignItems: 'center',
@@ -138,6 +142,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  link: { textAlign: 'center', color: '#6b7280', fontSize: 15 },
-  linkBold: { color: '#2563eb', fontWeight: '600' },
+  link: { textAlign: 'center', color: colors.textSecondary, fontSize: 15 },
+  linkBold: { color: colors.primary, fontWeight: '600' },
 });

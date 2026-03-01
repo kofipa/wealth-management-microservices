@@ -1,15 +1,16 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
 
 /**
  * AppLogo — pure React Native logo, no image assets required.
- * Drop in a real image later by replacing the <Badge> with an <Image>.
  *
  * Props:
  *   size     'large' (default) | 'small'
  *   tagline  optional string shown beneath the wordmark
  */
 export default function AppLogo({ size = 'large', tagline }) {
+  const { colors } = useTheme();
   const large = size === 'large';
 
   return (
@@ -31,13 +32,13 @@ export default function AppLogo({ size = 'large', tagline }) {
 
       {/* Wordmark */}
       <Text style={[styles.wordmark, large ? styles.wordmarkLarge : styles.wordmarkSmall]}>
-        <Text style={styles.wordDark}>Wealth</Text>
+        <Text style={[styles.wordDark, { color: colors.text }]}>Wealth</Text>
         <Text style={styles.wordBlue}>Manager</Text>
       </Text>
 
       {/* Optional tagline */}
       {!!tagline && (
-        <Text style={[styles.tagline, large ? styles.taglineLarge : styles.taglineSmall]}>
+        <Text style={[styles.tagline, large ? styles.taglineLarge : styles.taglineSmall, { color: colors.textSecondary }]}>
           {tagline}
         </Text>
       )}
@@ -46,11 +47,9 @@ export default function AppLogo({ size = 'large', tagline }) {
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    alignItems: 'center',
-  },
+  wrapper: { alignItems: 'center' },
 
-  // Badge
+  // Badge — always blue regardless of theme
   badge: {
     backgroundColor: '#1d4ed8',
     justifyContent: 'flex-end',
@@ -60,7 +59,6 @@ const styles = StyleSheet.create({
   badgeLarge: { width: 80, height: 80, borderRadius: 22, marginBottom: 16, padding: 12 },
   badgeSmall: { width: 48, height: 48, borderRadius: 14, marginBottom: 10, padding: 7 },
 
-  // Subtle inner ring for depth
   ring: {
     position: 'absolute',
     borderWidth: 1.5,
@@ -70,44 +68,22 @@ const styles = StyleSheet.create({
   ringLarge: { width: 96, height: 96, top: -20, right: -20 },
   ringSmall: { width: 58, height: 58, top: -12, right: -12 },
 
-  // Rising bars
-  bars: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 4,
-    zIndex: 1,
-  },
-  bar: {
-    backgroundColor: '#ffffff',
-    borderRadius: 2,
-  },
+  bars: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, zIndex: 1 },
+  bar: { backgroundColor: '#ffffff', borderRadius: 2 },
   barLarge: { width: 7 },
   barSmall: { width: 5 },
 
-  // Trend arrow — top-right of badge
-  arrow: {
-    position: 'absolute',
-    color: 'rgba(255,255,255,0.55)',
-    fontWeight: '700',
-  },
+  arrow: { position: 'absolute', color: 'rgba(255,255,255,0.55)', fontWeight: '700' },
   arrowLarge: { fontSize: 15, top: 8, right: 10 },
   arrowSmall: { fontSize: 10, top: 5, right: 6 },
 
-  // Wordmark
-  wordmark: {
-    fontWeight: '800',
-    letterSpacing: -0.5,
-  },
+  wordmark: { fontWeight: '800', letterSpacing: -0.5 },
   wordmarkLarge: { fontSize: 30, marginBottom: 6 },
   wordmarkSmall: { fontSize: 18, marginBottom: 4 },
-  wordDark: { color: '#111827' },
+  wordDark: { color: '#111827' }, // overridden inline with colors.text
   wordBlue: { color: '#2563eb' },
 
-  // Tagline
-  tagline: {
-    color: '#6b7280',
-    textAlign: 'center',
-  },
+  tagline: { textAlign: 'center' },
   taglineLarge: { fontSize: 14, lineHeight: 20 },
   taglineSmall: { fontSize: 11 },
 });

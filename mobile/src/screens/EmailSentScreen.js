@@ -3,9 +3,11 @@ import {
   View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert,
 } from 'react-native';
 import { resendVerification } from '../api/client';
+import { useTheme } from '../context/ThemeContext';
 
 export default function EmailSentScreen({ route, navigation }) {
   const { email } = route.params || {};
+  const { colors } = useTheme();
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
 
@@ -20,6 +22,8 @@ export default function EmailSentScreen({ route, navigation }) {
       setResending(false);
     }
   };
+
+  const styles = makeStyles(colors);
 
   return (
     <View style={styles.container}>
@@ -42,7 +46,7 @@ export default function EmailSentScreen({ route, navigation }) {
           disabled={resending}
         >
           {resending ? (
-            <ActivityIndicator color="#2563eb" />
+            <ActivityIndicator color={colors.primary} />
           ) : (
             <Text style={styles.resendText}>Resend verification email</Text>
           )}
@@ -56,22 +60,22 @@ export default function EmailSentScreen({ route, navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,
   },
   icon: { fontSize: 64, marginBottom: 20 },
-  heading: { fontSize: 24, fontWeight: '700', color: '#111827', marginBottom: 12, textAlign: 'center' },
-  body: { fontSize: 16, color: '#6b7280', textAlign: 'center', marginBottom: 8, lineHeight: 24 },
-  email: { fontWeight: '600', color: '#111827' },
-  sub: { fontSize: 14, color: '#9ca3af', textAlign: 'center', marginBottom: 32, lineHeight: 20 },
+  heading: { fontSize: 24, fontWeight: '700', color: colors.text, marginBottom: 12, textAlign: 'center' },
+  body: { fontSize: 16, color: colors.textSecondary, textAlign: 'center', marginBottom: 8, lineHeight: 24 },
+  email: { fontWeight: '600', color: colors.text },
+  sub: { fontSize: 14, color: colors.textTertiary, textAlign: 'center', marginBottom: 32, lineHeight: 20 },
   resendBtn: {
     borderWidth: 1,
-    borderColor: '#2563eb',
+    borderColor: colors.primary,
     borderRadius: 10,
     paddingVertical: 12,
     paddingHorizontal: 24,
@@ -79,7 +83,7 @@ const styles = StyleSheet.create({
     minWidth: 220,
     alignItems: 'center',
   },
-  resendText: { color: '#2563eb', fontSize: 15, fontWeight: '600' },
-  resentMsg: { color: '#16a34a', fontSize: 15, fontWeight: '600', marginBottom: 20 },
-  loginLink: { color: '#6b7280', fontSize: 15, textDecorationLine: 'underline' },
+  resendText: { color: colors.primary, fontSize: 15, fontWeight: '600' },
+  resentMsg: { color: colors.success, fontSize: 15, fontWeight: '600', marginBottom: 20 },
+  loginLink: { color: colors.textSecondary, fontSize: 15, textDecorationLine: 'underline' },
 });

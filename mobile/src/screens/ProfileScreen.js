@@ -10,6 +10,7 @@ import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
 import Constants from 'expo-constants';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import AppLogo from '../components/AppLogo';
 import {
   getProfile, getServiceHealth,
@@ -29,14 +30,19 @@ const SECURITY_QUESTIONS = [
   "What was the name of your childhood best friend?",
 ];
 
+// Semantic status colours — kept fixed regardless of theme
 const StatusDot = ({ status }) => (
-  <View style={[styles.dot, status === 'up' ? styles.dotUp : styles.dotDown]} />
+  <View style={{
+    width: 8, height: 8, borderRadius: 4,
+    backgroundColor: status === 'up' ? '#16a34a' : '#ef4444',
+  }} />
 );
 
 const INACTIVITY_OPTIONS = [0, 7, 14, 30, 60, 90];
 
 export default function ProfileScreen() {
   const { user, logout, isDelegated, delegateAccount } = useAuth();
+  const { colors, isDark, toggleTheme } = useTheme();
   const navigation = useNavigation();
 
   const [profile, setProfile] = useState(null);
@@ -46,47 +52,39 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Add nominee modal
   const [modalVisible, setModalVisible] = useState(false);
   const [nomineeEmail, setNomineeEmail] = useState('');
   const [inactivityDays, setInactivityDays] = useState(30);
   const [saving, setSaving] = useState(false);
   const [healthExpanded, setHealthExpanded] = useState(false);
 
-  // Edit nominee modal
   const [editNomineeVisible, setEditNomineeVisible] = useState(false);
   const [editingNominee, setEditingNominee] = useState(null);
   const [editNomineeEmail, setEditNomineeEmail] = useState('');
   const [editInactivityDays, setEditInactivityDays] = useState(30);
   const [savingEdit, setSavingEdit] = useState(false);
 
-  // Edit profile modal
   const [editProfileVisible, setEditProfileVisible] = useState(false);
   const [editForm, setEditForm] = useState({ first_name: '', last_name: '', phone: '', date_of_birth: '' });
   const [savingProfile, setSavingProfile] = useState(false);
   const [showDobPicker, setShowDobPicker] = useState(false);
 
-  // Change password modal
   const [pwModalVisible, setPwModalVisible] = useState(false);
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
   const [savingPw, setSavingPw] = useState(false);
   const [showPw, setShowPw] = useState({ current: false, next: false, confirm: false });
 
-  // Change email modal
   const [emailModalVisible, setEmailModalVisible] = useState(false);
   const [emailForm, setEmailForm] = useState({ newEmail: '', password: '' });
   const [savingEmail, setSavingEmail] = useState(false);
 
-  // Delete account modal
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [deletingAccount, setDeletingAccount] = useState(false);
 
-  // Biometric
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
 
-  // Security question
   const [sqModalVisible, setSqModalVisible] = useState(false);
   const [sqForm, setSqForm] = useState({ question: '', answer: '' });
   const [savingSq, setSavingSq] = useState(false);
@@ -114,7 +112,6 @@ export default function ProfileScreen() {
       if (results[2].status === 'fulfilled') setNominees(results[2].value.data.nominees || []);
       if (results[3].status === 'fulfilled') setDelegatedAccounts(results[3].value.data.accounts || []);
 
-      // Biometric check
       const hasHw = await LocalAuthentication.hasHardwareAsync();
       const enrolled = await LocalAuthentication.isEnrolledAsync();
       setBiometricAvailable(hasHw && enrolled);
@@ -318,8 +315,10 @@ export default function ProfileScreen() {
     }
   };
 
+  const styles = makeStyles(colors);
+
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color="#2563eb" /></View>;
+    return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
   }
 
   const displayUser = profile || user;
@@ -416,11 +415,21 @@ export default function ProfileScreen() {
             <Switch
               value={biometricEnabled}
               onValueChange={toggleBiometric}
-              trackColor={{ false: '#e5e7eb', true: '#bfdbfe' }}
-              thumbColor={biometricEnabled ? '#2563eb' : '#9ca3af'}
+              trackColor={{ false: colors.border, true: colors.primaryLight }}
+              thumbColor={biometricEnabled ? colors.primary : colors.textTertiary}
             />
           </View>
         )}
+        {/* Dark Mode Toggle */}
+        <View style={styles.securityRow}>
+          <Text style={styles.securityRowLabel}>Dark Mode</Text>
+          <Switch
+            value={isDark}
+            onValueChange={toggleTheme}
+            trackColor={{ false: colors.border, true: colors.primaryLight }}
+            thumbColor={isDark ? colors.primary : colors.textTertiary}
+          />
+        </View>
       </View>
 
       {/* Trusted Contacts — hidden when in delegated mode */}
@@ -561,7 +570,7 @@ export default function ProfileScreen() {
               value={editForm.first_name}
               onChangeText={(v) => setEditForm({ ...editForm, first_name: v })}
               placeholder="First name"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.placeholder}
               autoCapitalize="words"
             />
 
@@ -571,7 +580,7 @@ export default function ProfileScreen() {
               value={editForm.last_name}
               onChangeText={(v) => setEditForm({ ...editForm, last_name: v })}
               placeholder="Last name"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.placeholder}
               autoCapitalize="words"
             />
 
@@ -581,7 +590,7 @@ export default function ProfileScreen() {
               value={editForm.phone}
               onChangeText={(v) => setEditForm({ ...editForm, phone: v })}
               placeholder="e.g. +44 7700 900000"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.placeholder}
               keyboardType="phone-pad"
             />
 
@@ -645,7 +654,7 @@ export default function ProfileScreen() {
                 value={pwForm.current}
                 onChangeText={(v) => setPwForm({ ...pwForm, current: v })}
                 placeholder="Your current password"
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={colors.placeholder}
                 secureTextEntry={!showPw.current}
               />
               <TouchableOpacity
@@ -663,7 +672,7 @@ export default function ProfileScreen() {
                 value={pwForm.next}
                 onChangeText={(v) => setPwForm({ ...pwForm, next: v })}
                 placeholder="At least 8 characters"
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={colors.placeholder}
                 secureTextEntry={!showPw.next}
               />
               <TouchableOpacity
@@ -681,7 +690,7 @@ export default function ProfileScreen() {
                 value={pwForm.confirm}
                 onChangeText={(v) => setPwForm({ ...pwForm, confirm: v })}
                 placeholder="Repeat new password"
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={colors.placeholder}
                 secureTextEntry={!showPw.confirm}
               />
               <TouchableOpacity
@@ -716,7 +725,7 @@ export default function ProfileScreen() {
               value={emailForm.newEmail}
               onChangeText={(v) => setEmailForm({ ...emailForm, newEmail: v })}
               placeholder="Enter new email"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.placeholder}
               autoCapitalize="none"
               keyboardType="email-address"
             />
@@ -727,11 +736,11 @@ export default function ProfileScreen() {
               value={emailForm.password}
               onChangeText={(v) => setEmailForm({ ...emailForm, password: v })}
               placeholder="Confirm your password"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.placeholder}
               secureTextEntry
             />
 
-            <Text style={[styles.label, { color: '#6b7280', fontSize: 13, marginTop: -4 }]}>
+            <Text style={[styles.label, { color: colors.textSecondary, fontSize: 13, marginTop: -4 }]}>
               A verification link will be sent to your new address. Your email won't change until you click it.
             </Text>
 
@@ -790,7 +799,7 @@ export default function ProfileScreen() {
               value={sqForm.answer}
               onChangeText={(v) => setSqForm({ ...sqForm, answer: v })}
               placeholder="Enter your answer"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.placeholder}
               autoCapitalize="none"
               autoCorrect={false}
             />
@@ -817,7 +826,7 @@ export default function ProfileScreen() {
             <Text style={[styles.label, { color: '#dc2626', fontWeight: '600', marginBottom: 4 }]}>
               This action is permanent and cannot be undone.
             </Text>
-            <Text style={[styles.label, { color: '#6b7280', fontSize: 13, marginBottom: 20 }]}>
+            <Text style={[styles.label, { color: colors.textSecondary, fontSize: 13, marginBottom: 20 }]}>
               All your assets, liabilities, documents, and account data will be permanently deleted.
             </Text>
 
@@ -827,7 +836,7 @@ export default function ProfileScreen() {
               value={deletePassword}
               onChangeText={setDeletePassword}
               placeholder="Your current password"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.placeholder}
               secureTextEntry
             />
 
@@ -865,7 +874,7 @@ export default function ProfileScreen() {
               value={nomineeEmail}
               onChangeText={setNomineeEmail}
               placeholder="their@email.com"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.placeholder}
               keyboardType="email-address"
               autoCapitalize="none"
             />
@@ -895,7 +904,7 @@ export default function ProfileScreen() {
       {/* Edit Nominee Modal */}
       <Modal visible={editNomineeVisible} animationType="slide" presentationStyle="pageSheet">
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView contentContainerStyle={styles.modalScroll}>
+          <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit Trusted Contact</Text>
               <TouchableOpacity onPress={() => setEditNomineeVisible(false)}>
@@ -909,7 +918,7 @@ export default function ProfileScreen() {
               value={editNomineeEmail}
               onChangeText={setEditNomineeEmail}
               placeholder="nominee@example.com"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.placeholder}
               keyboardType="email-address"
               autoCapitalize="none"
             />
@@ -939,46 +948,40 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
+const makeStyles = (colors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   content: { padding: 20, paddingBottom: 60 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
 
-  avatarCard: { backgroundColor: '#fff', borderRadius: 16, padding: 28, alignItems: 'center', marginBottom: 16, borderWidth: 1, borderColor: '#e5e7eb' },
-  avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#2563eb', justifyContent: 'center', alignItems: 'center', marginBottom: 14 },
+  avatarCard: { backgroundColor: colors.surface, borderRadius: 16, padding: 28, alignItems: 'center', marginBottom: 16, borderWidth: 1, borderColor: colors.border },
+  avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center', marginBottom: 14 },
   avatarText: { fontSize: 30, fontWeight: '700', color: '#fff' },
-  name: { fontSize: 20, fontWeight: '700', color: '#111827', marginBottom: 4 },
-  email: { fontSize: 14, color: '#6b7280', marginBottom: 6 },
-  dobText: { fontSize: 13, color: '#9ca3af', marginBottom: 16 },
-  editProfileBtn: { borderWidth: 1, borderColor: '#2563eb', borderRadius: 8, paddingHorizontal: 20, paddingVertical: 8 },
-  editProfileBtnText: { color: '#2563eb', fontSize: 14, fontWeight: '600' },
-  securityRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderTopWidth: 1, borderTopColor: '#f3f4f6', marginTop: 4 },
-  securityRowLabel: { fontSize: 15, color: '#111827' },
-  securityRowChevron: { fontSize: 22, color: '#9ca3af' },
-  versionText: { textAlign: 'center', fontSize: 12, color: '#d1d5db', marginTop: 8, marginBottom: 20 },
-  deleteAccountBtn: {
-    borderWidth: 1,
-    borderColor: '#dc2626',
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
+  name: { fontSize: 20, fontWeight: '700', color: colors.text, marginBottom: 4 },
+  email: { fontSize: 14, color: colors.textSecondary, marginBottom: 6 },
+  dobText: { fontSize: 13, color: colors.textTertiary, marginBottom: 16 },
+  editProfileBtn: { borderWidth: 1, borderColor: colors.primary, borderRadius: 8, paddingHorizontal: 20, paddingVertical: 8 },
+  editProfileBtnText: { color: colors.primary, fontSize: 14, fontWeight: '600' },
+  securityRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderTopWidth: 1, borderTopColor: colors.surfaceAlt, marginTop: 4 },
+  securityRowLabel: { fontSize: 15, color: colors.text },
+  securityRowChevron: { fontSize: 22, color: colors.textTertiary },
+  versionText: { textAlign: 'center', fontSize: 12, color: colors.border, marginTop: 8, marginBottom: 20 },
+  deleteAccountBtn: { borderWidth: 1, borderColor: '#dc2626', borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
   deleteAccountText: { color: '#dc2626', fontSize: 15, fontWeight: '600' },
 
-  section: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#e5e7eb' },
+  section: { backgroundColor: colors.surface, borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: colors.border },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  sectionTitle: { fontSize: 16, fontWeight: '600', color: '#111827' },
-  sectionSub: { fontSize: 12, color: '#9ca3af', marginBottom: 14, lineHeight: 18 },
-  emptyText: { fontSize: 13, color: '#9ca3af', textAlign: 'center', paddingVertical: 8 },
+  sectionTitle: { fontSize: 16, fontWeight: '600', color: colors.text },
+  sectionSub: { fontSize: 12, color: colors.textTertiary, marginBottom: 14, lineHeight: 18 },
+  emptyText: { fontSize: 13, color: colors.textTertiary, textAlign: 'center', paddingVertical: 8 },
 
-  addBtn: { backgroundColor: '#2563eb', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 6 },
+  addBtn: { backgroundColor: colors.primary, borderRadius: 6, paddingHorizontal: 12, paddingVertical: 6 },
   addBtnText: { color: '#fff', fontSize: 13, fontWeight: '600' },
 
-  nomineeRow: { paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
+  nomineeRow: { paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.surfaceAlt },
   nomineeTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   nomineeActions: { flexDirection: 'row', gap: 12, marginTop: 6 },
-  nomineeEmail: { fontSize: 14, color: '#111827', fontWeight: '500' },
-  nomineeMeta: { fontSize: 12, color: '#6b7280', marginTop: 2 },
+  nomineeEmail: { fontSize: 14, color: colors.text, fontWeight: '500' },
+  nomineeMeta: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
   statusBadge: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
   badgeActive: { backgroundColor: '#dcfce7' },
   badgePending: { backgroundColor: '#fef9c3' },
@@ -986,26 +989,23 @@ const styles = StyleSheet.create({
   badgeTextActive: { color: '#16a34a' },
   badgeTextPending: { color: '#92400e' },
   removeText: { fontSize: 12, color: '#ef4444' },
-  editNomineeText: { fontSize: 12, color: '#2563eb' },
+  editNomineeText: { fontSize: 12, color: colors.primary },
 
-  delegatedRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
+  delegatedRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.surfaceAlt },
   delegatedLeft: { flex: 1 },
-  delegatedEmail: { fontSize: 14, color: '#111827', fontWeight: '500' },
+  delegatedEmail: { fontSize: 14, color: colors.text, fontWeight: '500' },
   accessAvailable: { fontSize: 12, color: '#16a34a', marginTop: 2 },
-  accessPending: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
-  viewBtn: { backgroundColor: '#2563eb', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 6, marginLeft: 12 },
+  accessPending: { fontSize: 12, color: colors.textTertiary, marginTop: 2 },
+  viewBtn: { backgroundColor: colors.primary, borderRadius: 6, paddingHorizontal: 12, paddingVertical: 6, marginLeft: 12 },
   viewBtnText: { color: '#fff', fontSize: 13, fontWeight: '600' },
 
   serviceHealthTitle: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   allUpDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#16a34a' },
   alertDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#ef4444' },
-  chevron: { fontSize: 12, color: '#9ca3af' },
-  serviceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#f3f4f6', marginTop: 4 },
+  chevron: { fontSize: 12, color: colors.textTertiary },
+  serviceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.surfaceAlt, marginTop: 4 },
   serviceLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  dotUp: { backgroundColor: '#16a34a' },
-  dotDown: { backgroundColor: '#ef4444' },
-  serviceName: { fontSize: 14, color: '#374151' },
+  serviceName: { fontSize: 14, color: colors.textSecondary },
   serviceStatus: { fontSize: 13, fontWeight: '500', textTransform: 'uppercase' },
   statusUp: { color: '#16a34a' },
   statusDown: { color: '#ef4444' },
@@ -1015,37 +1015,37 @@ const styles = StyleSheet.create({
   topBarSignOut: { flex: 1, alignItems: 'flex-end' },
   topBarSignOutText: { fontSize: 14, fontWeight: '600', color: '#ef4444' },
 
-  modal: { flex: 1, backgroundColor: '#f9fafb' },
+  modal: { flex: 1, backgroundColor: colors.background },
   modalContent: { padding: 24, paddingBottom: 60 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  modalTitle: { fontSize: 22, fontWeight: '700', color: '#111827' },
-  modalClose: { fontSize: 16, color: '#2563eb' },
-  modalDesc: { fontSize: 14, color: '#6b7280', lineHeight: 20, marginBottom: 24 },
-  label: { fontSize: 14, fontWeight: '500', color: '#374151', marginBottom: 8 },
-  input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: '#111827', marginBottom: 20 },
-  pwWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, marginBottom: 20 },
-  pwInput: { flex: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: '#111827' },
+  modalTitle: { fontSize: 22, fontWeight: '700', color: colors.text },
+  modalClose: { fontSize: 16, color: colors.primary },
+  modalDesc: { fontSize: 14, color: colors.textSecondary, lineHeight: 20, marginBottom: 24 },
+  label: { fontSize: 14, fontWeight: '500', color: colors.textSecondary, marginBottom: 8 },
+  input: { backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: colors.text, marginBottom: 20 },
+  pwWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.border, borderRadius: 10, marginBottom: 20 },
+  pwInput: { flex: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: colors.text },
   pwEye: { paddingHorizontal: 14, paddingVertical: 12 },
   pwEyeText: { fontSize: 18 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 28 },
-  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb' },
-  chipActive: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
-  chipText: { fontSize: 13, color: '#374151' },
+  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border },
+  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipText: { fontSize: 13, color: colors.textSecondary },
   chipTextActive: { color: '#fff' },
-  saveBtn: { backgroundColor: '#2563eb', borderRadius: 10, paddingVertical: 16, alignItems: 'center' },
+  saveBtn: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 16, alignItems: 'center' },
   saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   datePickerBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  datePickerText: { fontSize: 16, color: '#111827' },
-  datePickerPlaceholder: { fontSize: 16, color: '#9ca3af' },
+  datePickerText: { fontSize: 16, color: colors.text },
+  datePickerPlaceholder: { fontSize: 16, color: colors.placeholder },
   datePickerIcon: { fontSize: 18 },
   doneBtn: { alignSelf: 'flex-end', paddingVertical: 8, paddingHorizontal: 16, marginBottom: 12 },
-  doneBtnText: { fontSize: 16, color: '#2563eb', fontWeight: '600' },
-  securityRowSub: { fontSize: 12, color: '#6b7280', marginTop: 2 },
+  doneBtnText: { fontSize: 16, color: colors.primary, fontWeight: '600' },
+  securityRowSub: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
   securityRowSubEmpty: { fontSize: 12, color: '#f59e0b', marginTop: 2 },
-  questionList: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, marginBottom: 20, overflow: 'hidden' },
-  questionItem: { paddingHorizontal: 14, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', backgroundColor: '#fff' },
-  questionItemActive: { backgroundColor: '#eff6ff' },
-  questionItemText: { fontSize: 14, color: '#374151', lineHeight: 20 },
-  questionItemTextActive: { color: '#2563eb', fontWeight: '600' },
-  sqHint: { fontSize: 12, color: '#9ca3af', lineHeight: 18, marginBottom: 20 },
+  questionList: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, marginBottom: 20, overflow: 'hidden' },
+  questionItem: { paddingHorizontal: 14, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.surfaceAlt, backgroundColor: colors.surface },
+  questionItemActive: { backgroundColor: colors.primaryLight },
+  questionItemText: { fontSize: 14, color: colors.textSecondary, lineHeight: 20 },
+  questionItemTextActive: { color: colors.primary, fontWeight: '600' },
+  sqHint: { fontSize: 12, color: colors.textTertiary, lineHeight: 18, marginBottom: 20 },
 });

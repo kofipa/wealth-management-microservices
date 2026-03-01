@@ -16,6 +16,7 @@ import * as Sharing from 'expo-sharing';
 import * as SecureStore from 'expo-secure-store';
 import { getDocuments, deleteDocument, uploadDocument } from '../api/client';
 import { DEV_HOST } from '../api/config';
+import { useTheme } from '../context/ThemeContext';
 
 const CATEGORIES = [
   { id: 'identity',    label: 'Identity',    emoji: '🪪', color: '#7c3aed' },
@@ -62,6 +63,9 @@ function getFileIcon(filename) {
 const IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
 
 export default function DocumentsScreen() {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
+
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -250,7 +254,7 @@ export default function DocumentsScreen() {
   })();
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color="#2563eb" /></View>;
+    return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
   }
 
   return (
@@ -388,7 +392,7 @@ export default function DocumentsScreen() {
               value={uploadDescription}
               onChangeText={setUploadDescription}
               placeholder="e.g. Annual mortgage statement"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.placeholder}
             />
 
             <Text style={styles.label}>Expiry Date (optional)</Text>
@@ -460,36 +464,36 @@ export default function DocumentsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
+const makeStyles = (colors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   // Header
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: '#111827' },
-  uploadBtn: { backgroundColor: '#2563eb', borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10, minWidth: 80, alignItems: 'center' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
+  headerTitle: { fontSize: 20, fontWeight: '700', color: colors.text },
+  uploadBtn: { backgroundColor: colors.primary, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10, minWidth: 80, alignItems: 'center' },
   uploadBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
 
   // Filter chips
-  filterBar: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb', maxHeight: 54 },
+  filterBar: { backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border, maxHeight: 54 },
   filterBarContent: { paddingHorizontal: 12, paddingVertical: 10, gap: 8, flexDirection: 'row' },
-  filterChip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb' },
-  filterChipText: { fontSize: 13, color: '#374151' },
+  filterChip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border },
+  filterChipText: { fontSize: 13, color: colors.textSecondary },
   filterChipTextActive: { color: '#fff', fontWeight: '600' },
 
   // List
   list: { padding: 16, paddingBottom: 40 },
   emptyContainer: { alignItems: 'center', marginTop: 80 },
   emptyIcon: { fontSize: 48, marginBottom: 12 },
-  empty: { fontSize: 16, fontWeight: '600', color: '#374151', marginBottom: 6 },
-  emptySub: { fontSize: 13, color: '#9ca3af', textAlign: 'center' },
+  empty: { fontSize: 16, fontWeight: '600', color: colors.textSecondary, marginBottom: 6 },
+  emptySub: { fontSize: 13, color: colors.textTertiary, textAlign: 'center' },
 
   // Document card
-  item: { backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 10, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#e5e7eb' },
-  itemIcon: { width: 40, height: 40, borderRadius: 8, backgroundColor: '#f3f4f6', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  item: { backgroundColor: colors.surface, borderRadius: 12, padding: 14, marginBottom: 10, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: colors.border },
+  itemIcon: { width: 40, height: 40, borderRadius: 8, backgroundColor: colors.surfaceAlt, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   fileIcon: { fontSize: 20 },
   itemLeft: { flex: 1 },
-  itemName: { fontSize: 15, fontWeight: '600', color: '#111827', marginBottom: 4 },
+  itemName: { fontSize: 15, fontWeight: '600', color: colors.text, marginBottom: 4 },
   catBadge: { alignSelf: 'flex-start', borderRadius: 6, borderWidth: 1, paddingHorizontal: 7, paddingVertical: 2, marginBottom: 4 },
   catBadgeText: { fontSize: 11, fontWeight: '600' },
   badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 4 },
@@ -497,14 +501,14 @@ const styles = StyleSheet.create({
   expiredBadgeText: { fontSize: 11, fontWeight: '600', color: '#dc2626' },
   expiringSoonBadge: { borderRadius: 6, borderWidth: 1, paddingHorizontal: 7, paddingVertical: 2, backgroundColor: '#fffbeb', borderColor: '#fcd34d' },
   expiringSoonBadgeText: { fontSize: 11, fontWeight: '600', color: '#d97706' },
-  itemDesc: { fontSize: 12, color: '#6b7280', marginBottom: 2 },
-  itemMeta: { fontSize: 12, color: '#9ca3af' },
+  itemDesc: { fontSize: 12, color: colors.textSecondary, marginBottom: 2 },
+  itemMeta: { fontSize: 12, color: colors.textTertiary },
   actions: { alignItems: 'flex-end', gap: 6, justifyContent: 'center' },
   viewBtn: {
     paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
-    backgroundColor: '#eff6ff', borderWidth: 1, borderColor: '#bfdbfe',
+    backgroundColor: colors.primaryLight, borderWidth: 1, borderColor: colors.primary,
   },
-  viewText: { fontSize: 13, color: '#2563eb', fontWeight: '500' },
+  viewText: { fontSize: 13, color: colors.primary, fontWeight: '500' },
   deleteBtn: {
     paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
     backgroundColor: '#fff1f2', borderWidth: 1, borderColor: '#fecdd3',
@@ -512,27 +516,27 @@ const styles = StyleSheet.create({
   deleteText: { fontSize: 13, color: '#ef4444', fontWeight: '500' },
 
   // Upload modal
-  modal: { flex: 1, backgroundColor: '#f9fafb' },
+  modal: { flex: 1, backgroundColor: colors.background },
   modalContent: { padding: 24, paddingBottom: 60 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  modalTitle: { fontSize: 22, fontWeight: '700', color: '#111827' },
-  modalClose: { fontSize: 16, color: '#2563eb' },
-  label: { fontSize: 14, fontWeight: '500', color: '#374151', marginBottom: 10 },
+  modalTitle: { fontSize: 22, fontWeight: '700', color: colors.text },
+  modalClose: { fontSize: 16, color: colors.primary },
+  label: { fontSize: 14, fontWeight: '500', color: colors.textSecondary, marginBottom: 10 },
   catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
-  catOption: { width: '22%', alignItems: 'center', paddingVertical: 10, borderRadius: 12, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb' },
+  catOption: { width: '22%', alignItems: 'center', paddingVertical: 10, borderRadius: 12, backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border },
   catOptionEmoji: { fontSize: 22, marginBottom: 4 },
-  catOptionLabel: { fontSize: 11, color: '#374151', fontWeight: '500', textAlign: 'center' },
+  catOptionLabel: { fontSize: 11, color: colors.textSecondary, fontWeight: '500', textAlign: 'center' },
   catOptionLabelActive: { color: '#fff' },
-  input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: '#111827', marginBottom: 20 },
-  sectionLabel: { fontSize: 13, fontWeight: '700', color: '#2563eb', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#e5e7eb' },
-  sourceBtn: { backgroundColor: '#fff', borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', paddingVertical: 16, paddingHorizontal: 16, marginBottom: 10 },
-  sourceBtnText: { fontSize: 16, color: '#111827', fontWeight: '500' },
+  input: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: colors.text, marginBottom: 20 },
+  sectionLabel: { fontSize: 13, fontWeight: '700', color: colors.primary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border },
+  sourceBtn: { backgroundColor: colors.surface, borderRadius: 10, borderWidth: 1, borderColor: colors.border, paddingVertical: 16, paddingHorizontal: 16, marginBottom: 10 },
+  sourceBtnText: { fontSize: 16, color: colors.text, fontWeight: '500' },
   datePickerBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  datePickerText: { fontSize: 16, color: '#111827' },
-  datePickerPlaceholder: { fontSize: 16, color: '#9ca3af' },
+  datePickerText: { fontSize: 16, color: colors.text },
+  datePickerPlaceholder: { fontSize: 16, color: colors.textTertiary },
   datePickerIcon: { fontSize: 18 },
   doneBtn: { alignSelf: 'flex-end', paddingVertical: 8, paddingHorizontal: 16, marginBottom: 12 },
-  doneBtnText: { fontSize: 16, color: '#2563eb', fontWeight: '600' },
+  doneBtnText: { fontSize: 16, color: colors.primary, fontWeight: '600' },
 
   // Image preview
   previewOverlay: { flex: 1, backgroundColor: '#000' },

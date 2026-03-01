@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 
+// Delegation banner uses intentional purple branding — colours stay fixed across themes
 export default function DelegationBanner() {
   const { isDelegated, delegatedFor, exitDelegation } = useAuth();
   if (!isDelegated) return null;

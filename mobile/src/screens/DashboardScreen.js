@@ -6,6 +6,7 @@ import {
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getNetWorthBreakdown, getNetWorthHistory } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import TrendChart from '../components/TrendChart';
 import DelegationBanner from '../components/DelegationBanner';
 import { buildRecommendations } from '../utils/recommendations';
@@ -22,6 +23,7 @@ const ROTATION_MS = 4000;
 
 export default function DashboardScreen() {
   const { user, isDelegated } = useAuth();
+  const { colors } = useTheme();
   const navigation = useNavigation();
   const [data, setData] = useState(null);
   const [history, setHistory] = useState([]);
@@ -49,12 +51,10 @@ export default function DashboardScreen() {
     }, ROTATION_MS);
   }, [fadeTo]);
 
-  // Start/restart rotation whenever recommendations list changes
   useEffect(() => {
     startRotation(recommendations.length);
   }, [recommendations.length, startRotation]);
 
-  // Clean up on unmount
   const cleanupRef = useRef(null);
   cleanupRef.current = () => clearInterval(intervalRef.current);
   useFocusEffect(useCallback(() => {
@@ -63,7 +63,7 @@ export default function DashboardScreen() {
 
   const goToIndex = (i) => {
     fadeTo(i, (idx) => setRecIndex(idx));
-    startRotation(recommendations.length); // reset timer on manual tap
+    startRotation(recommendations.length);
   };
 
   const load = async () => {
@@ -90,8 +90,6 @@ export default function DashboardScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, []));
 
-  // Re-fetch when delegation state changes (e.g. exiting a delegated account
-  // while already on the Dashboard — useFocusEffect won't fire in that case).
   const delegationMounted = useRef(false);
   useEffect(() => {
     if (!delegationMounted.current) { delegationMounted.current = true; return; }
@@ -100,10 +98,12 @@ export default function DashboardScreen() {
 
   const onRefresh = () => { setRefreshing(true); load(); };
 
+  const styles = makeStyles(colors);
+
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#2563eb" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -114,7 +114,6 @@ export default function DashboardScreen() {
   const isPositive = netWorth >= 0;
   const liabilitiesByType = data?.liabilitiesByType ? Object.entries(data.liabilitiesByType) : [];
 
-  // Monthly change — compare current live values vs oldest snapshot
   const historyValues = history.map(h => parseFloat(h.net_worth));
   const monthlyChange = history.length >= 1
     ? parseFloat(netWorth) - historyValues[0]
@@ -126,7 +125,6 @@ export default function DashboardScreen() {
     ? parseFloat(totalLiabilities) - parseFloat(history[0].total_liabilities)
     : null;
 
-  // Donut chart segments
   const ASSET_COLORS = {
     cash: '#2563eb',
     investment: '#7c3aed',
@@ -191,14 +189,14 @@ export default function DashboardScreen() {
         <View style={[styles.summaryCard, styles.cardGreen]}>
           <Text style={styles.cardLabel}>Total Assets</Text>
           <Text style={styles.cardValue}>{fmt(totalAssets)}</Text>
-          <Text style={{ fontSize: 12, fontWeight: '600', marginTop: 4, color: assetsTrend === null ? '#9ca3af' : assetsTrend >= 0 ? '#15803d' : '#dc2626' }}>
+          <Text style={{ fontSize: 12, fontWeight: '600', marginTop: 4, color: assetsTrend === null ? colors.textTertiary : assetsTrend >= 0 ? '#15803d' : '#dc2626' }}>
             {assetsTrend === null ? '— 30-day trend' : `${assetsTrend >= 0 ? '↑' : '↓'} ${assetsTrend >= 0 ? '+' : ''}${fmt(assetsTrend)}`}
           </Text>
         </View>
         <View style={[styles.summaryCard, styles.cardRed]}>
           <Text style={styles.cardLabel}>Total Liabilities</Text>
           <Text style={styles.cardValue}>{fmt(totalLiabilities)}</Text>
-          <Text style={{ fontSize: 12, fontWeight: '600', marginTop: 4, color: liabsTrend === null ? '#9ca3af' : liabsTrend <= 0 ? '#15803d' : '#dc2626' }}>
+          <Text style={{ fontSize: 12, fontWeight: '600', marginTop: 4, color: liabsTrend === null ? colors.textTertiary : liabsTrend <= 0 ? '#15803d' : '#dc2626' }}>
             {liabsTrend === null ? '— 30-day trend' : `${liabsTrend <= 0 ? '↓' : '↑'} ${liabsTrend > 0 ? '+' : ''}${fmt(liabsTrend)}`}
           </Text>
         </View>
@@ -255,16 +253,16 @@ export default function DashboardScreen() {
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: seg.color, marginRight: 7 }} />
-                      <Text style={{ fontSize: 13, color: '#374151', fontWeight: '500' }}>{seg.label}</Text>
+                      <Text style={{ fontSize: 13, color: colors.textSecondary, fontWeight: '500' }}>{seg.label}</Text>
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Text style={{ fontSize: 13, color: '#111827', fontWeight: '600' }}>{fmt(seg.value)}</Text>
+                      <Text style={{ fontSize: 13, color: colors.text, fontWeight: '600' }}>{fmt(seg.value)}</Text>
                       <View style={{ backgroundColor: seg.color + '22', borderRadius: 5, paddingHorizontal: 6, paddingVertical: 1 }}>
                         <Text style={{ fontSize: 11, fontWeight: '700', color: seg.color }}>{pct}%</Text>
                       </View>
                     </View>
                   </View>
-                  <View style={{ height: 8, backgroundColor: '#f3f4f6', borderRadius: 4 }}>
+                  <View style={{ height: 8, backgroundColor: colors.surfaceAlt, borderRadius: 4 }}>
                     <View style={{ height: 8, width: `${barWidth}%`, backgroundColor: seg.color, borderRadius: 4 }} />
                   </View>
                 </View>
@@ -294,16 +292,16 @@ export default function DashboardScreen() {
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: color, marginRight: 7 }} />
-                      <Text style={{ fontSize: 13, color: '#374151', fontWeight: '500' }}>{label}</Text>
+                      <Text style={{ fontSize: 13, color: colors.textSecondary, fontWeight: '500' }}>{label}</Text>
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Text style={{ fontSize: 13, color: '#111827', fontWeight: '600' }}>{fmt(val)}</Text>
+                      <Text style={{ fontSize: 13, color: colors.text, fontWeight: '600' }}>{fmt(val)}</Text>
                       <View style={{ backgroundColor: color + '22', borderRadius: 5, paddingHorizontal: 6, paddingVertical: 1 }}>
                         <Text style={{ fontSize: 11, fontWeight: '700', color }}>{pct}%</Text>
                       </View>
                     </View>
                   </View>
-                  <View style={{ height: 8, backgroundColor: '#f3f4f6', borderRadius: 4 }}>
+                  <View style={{ height: 8, backgroundColor: colors.surfaceAlt, borderRadius: 4 }}>
                     <View style={{ height: 8, width: `${barWidth}%`, backgroundColor: color, borderRadius: 4 }} />
                   </View>
                 </View>
@@ -316,15 +314,13 @@ export default function DashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
+const makeStyles = (colors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   content: { padding: 20, paddingBottom: 40 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  greeting: { fontSize: 24, fontWeight: '700', color: '#111827', marginBottom: 8 },
-  error: { color: '#ef4444', textAlign: 'center', marginBottom: 16 },
-  netWorthCard: {
-    borderRadius: 16, padding: 28, alignItems: 'center', marginBottom: 16,
-  },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
+  greeting: { fontSize: 24, fontWeight: '700', color: colors.text, marginBottom: 8 },
+  error: { color: colors.danger, textAlign: 'center', marginBottom: 16 },
+  netWorthCard: { borderRadius: 16, padding: 28, alignItems: 'center', marginBottom: 16 },
   positive: { backgroundColor: '#1d4ed8' },
   negative: { backgroundColor: '#dc2626' },
   netWorthLabel: { fontSize: 14, color: 'rgba(255,255,255,0.8)', marginBottom: 8 },
@@ -343,12 +339,12 @@ const styles = StyleSheet.create({
 
   // Carousel
   recsSection: { marginBottom: 24 },
-  recsSectionTitle: { fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 12 },
+  recsSectionTitle: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 12 },
   recCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.border,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -360,12 +356,12 @@ const styles = StyleSheet.create({
   recIcon: { fontSize: 24 },
   recTextBox: { flex: 1 },
   recTitle: { fontSize: 15, fontWeight: '700', marginBottom: 3 },
-  recNudge: { fontSize: 12, color: '#6b7280', lineHeight: 17 },
+  recNudge: { fontSize: 12, color: colors.textSecondary, lineHeight: 17 },
   recArrow: { fontSize: 20, fontWeight: '700', marginLeft: 10 },
   dots: { flexDirection: 'row', justifyContent: 'center', marginTop: 12, gap: 6 },
-  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#d1d5db' },
+  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.border },
   dotActive: { width: 20 },
 
-  section: { backgroundColor: '#fff', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#e5e7eb' },
-  sectionTitle: { fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 12 },
+  section: { backgroundColor: colors.surface, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: colors.border },
+  sectionTitle: { fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 12 },
 });

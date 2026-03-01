@@ -5,9 +5,11 @@ import {
   ActivityIndicator, Alert, ScrollView,
 } from 'react-native';
 import { forgotPassword, resetPassword, getSecurityQuestion, verifySecurityQuestion } from '../api/client';
+import { useTheme } from '../context/ThemeContext';
 
 // step: 1=email, 'sq'=security question, 2=code+new password
 export default function ForgotPasswordScreen({ navigation }) {
+  const { colors } = useTheme();
   const [step, setStep] = useState(1);
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -71,7 +73,6 @@ export default function ForgotPasswordScreen({ navigation }) {
     setLoading(true);
     try {
       const res = await verifySecurityQuestion(email.trim().toLowerCase(), sqAnswer.trim());
-      // Pre-fill code and move to step 2
       setCode(res.data.reset_code);
       Alert.alert('Verified', 'Identity verified. Please choose a new password.');
       setStep(2);
@@ -114,6 +115,8 @@ export default function ForgotPasswordScreen({ navigation }) {
     return 'Enter the code you received and choose a new password.';
   };
 
+  const styles = makeStyles(colors);
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -127,7 +130,7 @@ export default function ForgotPasswordScreen({ navigation }) {
         <TextInput
           style={[styles.input, step !== 1 && styles.inputDisabled]}
           placeholder="Email"
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor={colors.placeholder}
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
@@ -153,7 +156,7 @@ export default function ForgotPasswordScreen({ navigation }) {
 
             <TouchableOpacity style={styles.outlineButton} onPress={handleUseSecurityQuestion} disabled={loading}>
               {loading
-                ? <ActivityIndicator color="#2563eb" />
+                ? <ActivityIndicator color={colors.primary} />
                 : <Text style={styles.outlineButtonText}>Use Security Question</Text>
               }
             </TouchableOpacity>
@@ -171,7 +174,7 @@ export default function ForgotPasswordScreen({ navigation }) {
             <TextInput
               style={styles.input}
               placeholder="Your answer"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.placeholder}
               value={sqAnswer}
               onChangeText={setSqAnswer}
               autoCapitalize="none"
@@ -197,7 +200,7 @@ export default function ForgotPasswordScreen({ navigation }) {
             <TextInput
               style={styles.input}
               placeholder="6-digit reset code"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.placeholder}
               value={code}
               onChangeText={setCode}
               keyboardType="number-pad"
@@ -206,7 +209,7 @@ export default function ForgotPasswordScreen({ navigation }) {
             <TextInput
               style={styles.input}
               placeholder="New password (min 8 characters)"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.placeholder}
               value={newPassword}
               onChangeText={setNewPassword}
               secureTextEntry
@@ -233,25 +236,25 @@ export default function ForgotPasswordScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
+const makeStyles = (colors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   inner: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 40 },
-  title: { fontSize: 32, fontWeight: '700', color: '#111827', marginBottom: 6, textAlign: 'center' },
-  subtitle: { fontSize: 15, color: '#6b7280', marginBottom: 32, textAlign: 'center', lineHeight: 22 },
+  title: { fontSize: 32, fontWeight: '700', color: colors.text, marginBottom: 6, textAlign: 'center' },
+  subtitle: { fontSize: 15, color: colors.textSecondary, marginBottom: 32, textAlign: 'center', lineHeight: 22 },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.inputBg,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.border,
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
     marginBottom: 14,
-    color: '#111827',
+    color: colors.text,
   },
-  inputDisabled: { backgroundColor: '#f3f4f6', color: '#6b7280' },
+  inputDisabled: { backgroundColor: colors.surfaceAlt, color: colors.textSecondary },
   button: {
-    backgroundColor: '#2563eb',
+    backgroundColor: colors.primary,
     borderRadius: 10,
     paddingVertical: 16,
     alignItems: 'center',
@@ -261,26 +264,26 @@ const styles = StyleSheet.create({
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   outlineButton: {
     borderWidth: 1.5,
-    borderColor: '#2563eb',
+    borderColor: colors.primary,
     borderRadius: 10,
     paddingVertical: 15,
     alignItems: 'center',
     marginBottom: 20,
   },
-  outlineButtonText: { color: '#2563eb', fontSize: 16, fontWeight: '600' },
+  outlineButtonText: { color: colors.primary, fontSize: 16, fontWeight: '600' },
   dividerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: '#e5e7eb' },
-  dividerText: { marginHorizontal: 12, fontSize: 14, color: '#9ca3af' },
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
+  dividerText: { marginHorizontal: 12, fontSize: 14, color: colors.textTertiary },
   questionBox: {
-    backgroundColor: '#eff6ff',
+    backgroundColor: colors.primaryLight,
     borderRadius: 10,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#bfdbfe',
+    borderColor: colors.primary,
   },
-  questionLabel: { fontSize: 12, color: '#3b82f6', fontWeight: '600', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
-  questionText: { fontSize: 16, color: '#1e40af', fontWeight: '500', lineHeight: 22 },
-  link: { textAlign: 'center', color: '#6b7280', fontSize: 15, marginBottom: 8 },
-  linkBold: { color: '#2563eb', fontWeight: '600' },
+  questionLabel: { fontSize: 12, color: colors.primary, fontWeight: '600', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
+  questionText: { fontSize: 16, color: colors.text, fontWeight: '500', lineHeight: 22 },
+  link: { textAlign: 'center', color: colors.textSecondary, fontSize: 15, marginBottom: 8 },
+  linkBold: { color: colors.primary, fontWeight: '600' },
 });

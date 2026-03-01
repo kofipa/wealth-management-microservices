@@ -10,6 +10,7 @@ import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
 
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
@@ -43,15 +44,16 @@ function ProfileButton() {
 }
 
 function MainTabs() {
+  const { colors } = useTheme();
   return (
     <Tab.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: '#fff' },
-        headerTitleStyle: { fontWeight: '700', fontSize: 18 },
+        headerStyle: { backgroundColor: colors.headerBg },
+        headerTitleStyle: { fontWeight: '700', fontSize: 18, color: colors.text },
         headerRight: () => <ProfileButton />,
-        tabBarActiveTintColor: '#2563eb',
-        tabBarInactiveTintColor: '#9ca3af',
-        tabBarStyle: { borderTopColor: '#e5e7eb' },
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textTertiary,
+        tabBarStyle: { backgroundColor: colors.tabBarBg, borderTopColor: colors.border },
       }}
     >
       <Tab.Screen
@@ -100,6 +102,7 @@ function MainTabs() {
 
 
 function AppNavigatorStack({ navigationRef }) {
+  const { colors } = useTheme();
   const [biometricLocked, setBiometricLocked] = useState(false);
   const bgTimestamp = useRef(null);
 
@@ -151,9 +154,10 @@ function AppNavigatorStack({ navigationRef }) {
           component={ProfileScreen}
           options={{
             title: 'Profile',
-            headerStyle: { backgroundColor: '#fff' },
-            headerTitleStyle: { fontWeight: '700', fontSize: 18 },
+            headerStyle: { backgroundColor: colors.headerBg },
+            headerTitleStyle: { fontWeight: '700', fontSize: 18, color: colors.text },
             headerBackTitle: 'Back',
+            headerTintColor: colors.primary,
           }}
         />
       </AppStack.Navigator>
@@ -195,6 +199,7 @@ function AuthNavigatorStack() {
 
 export default function AppNavigator() {
   const { token, loading } = useAuth();
+  const { colors } = useTheme();
   const navigationRef = useRef(null);
 
   const handleNavigationReady = async () => {
@@ -206,8 +211,8 @@ export default function AppNavigator() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#2563eb" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -219,6 +224,7 @@ export default function AppNavigator() {
   );
 }
 
+// Lock overlay always uses dark background regardless of theme
 const styles = StyleSheet.create({
   lockOverlay: {
     flex: 1,
