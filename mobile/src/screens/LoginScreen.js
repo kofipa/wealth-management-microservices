@@ -23,7 +23,21 @@ export default function LoginScreen({ navigation }) {
     try {
       await login(email.trim(), password);
     } catch (err) {
-      Alert.alert('Login failed', err.response?.data?.error || 'Invalid credentials');
+      if (err.response?.data?.unverified) {
+        Alert.alert(
+          'Email not verified',
+          'Please check your inbox and click the verification link before logging in.',
+          [
+            {
+              text: 'Resend verification email',
+              onPress: () => navigation.navigate('EmailSent', { email: email.trim() }),
+            },
+            { text: 'OK' },
+          ]
+        );
+      } else {
+        Alert.alert('Login failed', err.response?.data?.error || 'Invalid credentials');
+      }
     } finally {
       setLoading(false);
     }

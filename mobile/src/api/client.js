@@ -63,6 +63,9 @@ export const login = (email, password) =>
 export const register = (name, email, password) =>
   userClient.post('/api/users/register', { email, password });
 
+export const resendVerification = (email) =>
+  userClient.post('/api/users/resend-verification', { email });
+
 export const getProfile = () =>
   userClient.get('/api/users/profile');
 

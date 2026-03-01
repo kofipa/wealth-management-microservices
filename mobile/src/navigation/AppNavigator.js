@@ -13,6 +13,7 @@ import { useAuth } from '../context/AuthContext';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
+import EmailSentScreen from '../screens/EmailSentScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import AssetsScreen from '../screens/AssetsScreen';
 import LiabilitiesScreen from '../screens/LiabilitiesScreen';
@@ -187,6 +188,7 @@ function AuthNavigatorStack() {
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="Register" component={RegisterScreen} />
       <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      <AuthStack.Screen name="EmailSent" component={EmailSentScreen} />
     </AuthStack.Navigator>
   );
 }

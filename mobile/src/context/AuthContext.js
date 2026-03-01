@@ -91,7 +91,7 @@ export function AuthProvider({ children }) {
 
   const register = async (name, email, password) => {
     await apiRegister(name, email, password);
-    await login(email, password);
+    // Do not auto-login — user must verify their email first
   };
 
   const logout = async () => {

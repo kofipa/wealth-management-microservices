@@ -27,6 +27,7 @@ export default function RegisterScreen({ navigation }) {
     setLoading(true);
     try {
       await register(name.trim(), email.trim(), password);
+      navigation.navigate('EmailSent', { email: email.trim() });
     } catch (err) {
       console.error('Register error:', err.message, err.response?.status, err.response?.data);
       Alert.alert('Registration failed', err.response?.data?.error || err.message || 'Something went wrong');

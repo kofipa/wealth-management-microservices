@@ -12,6 +12,7 @@ const swaggerUi = require('swagger-ui-express');
 
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const sgMail = require('@sendgrid/mail');
 
 // ── PII field encryption (AES-256-GCM) ──────────────────────────────────────
 const ENC_KEY = Buffer.from(process.env.FIELD_ENCRYPTION_KEY, 'hex');
@@ -55,6 +56,18 @@ function decryptProfile(row) {
 }
 // ────────────────────────────────────────────────────────────────────────────
 
+// ── Email sending (SendGrid) ─────────────────────────────────────────────────
+async function sendEmail(to, subject, html) {
+  try {
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+    await sgMail.send({ to, from: process.env.FROM_EMAIL, subject, html });
+    console.log(`Email sent to ${to}: ${subject}`);
+  } catch (err) {
+    console.error('SendGrid error:', err.response?.body?.errors || err.message);
+  }
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 const app = express();
 app.use(helmet());
 app.use(cors({
@@ -89,6 +102,13 @@ const resetPasswordLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5,
   message: { error: 'Too many password reset attempts. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+const resendVerificationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 3,
+  message: { error: 'Too many resend requests. Please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -171,6 +191,11 @@ async function initDB() {
     await client.query(`
       ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMP;
     `);
+
+    // Email verification columns
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT false`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token VARCHAR(64)`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS token_expiry TIMESTAMP`);
 
     // Widen PII columns to TEXT for encrypted storage
     await client.query(`ALTER TABLE user_profiles ALTER COLUMN phone TYPE TEXT`);
@@ -270,12 +295,34 @@ app.post('/api/users/register', registerLimiter, async (req, res) => {
 
     const user = result.rows[0];
 
+    // Generate email verification token (24h expiry)
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await pool.query(
+      'UPDATE users SET verification_token = $1, token_expiry = $2 WHERE id = $3',
+      [verificationToken, tokenExpiry, user.id]
+    );
+
+    // Send verification email
+    const verifyUrl = `${process.env.APP_URL}/api/users/verify-email?token=${verificationToken}`;
+    await sendEmail(
+      email,
+      'Verify your Wealth Manager account',
+      `<h2>Welcome to Wealth Manager!</h2>
+       <p>Please click the button below to verify your email address. The link expires in 24 hours.</p>
+       <p style="margin:24px 0">
+         <a href="${verifyUrl}" style="background:#2563eb;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600">
+           Verify my email
+         </a>
+       </p>
+       <p style="color:#6b7280;font-size:13px">Or copy this link into your browser:<br>${verifyUrl}</p>`
+    );
+
     // Publish UserRegistered event
     await publishEvent('user.registered', { userId: user.id, email: user.email });
 
     res.status(201).json({
-      message: 'User registered successfully',
-      user: { id: user.id, email: user.email }
+      message: 'Registration successful. Please check your email to verify your account.',
     });
   } catch (err) {
     if (err.code === '23505') { // Unique violation
@@ -326,6 +373,13 @@ app.post('/api/users/login', loginLimiter, async (req, res) => {
 
     if (!validPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    if (!user.email_verified) {
+      return res.status(403).json({
+        error: 'Please verify your email address before logging in.',
+        unverified: true,
+      });
     }
 
     const token = jwt.sign(
@@ -497,6 +551,34 @@ app.post('/api/users/nominees', authenticateToken, async (req, res) => {
        RETURNING *`,
       [ownerId, email, nomineeUserId, inactivity_days, status]
     );
+
+    // Send notification email to nominee
+    const ownerProfile = await pool.query(
+      'SELECT first_name, last_name FROM user_profiles WHERE user_id = $1',
+      [ownerId]
+    );
+    const ownerRow = ownerProfile.rows[0];
+    const ownerName = ownerRow
+      ? [ownerRow.first_name, ownerRow.last_name].filter(Boolean).join(' ') || req.user.email
+      : req.user.email;
+
+    if (status === 'accepted') {
+      await sendEmail(
+        email,
+        "You've been added as a trusted contact on Wealth Manager",
+        `<h2>You're a trusted contact</h2>
+         <p><strong>${ownerName}</strong> has added you as a trusted contact on Wealth Manager.</p>
+         <p>You can log in to the app to access their delegated account if they ever activate access for you.</p>`
+      );
+    } else {
+      await sendEmail(
+        email,
+        "You've been nominated as a trusted contact on Wealth Manager",
+        `<h2>You've been nominated</h2>
+         <p><strong>${ownerName}</strong> has nominated you as a trusted contact on Wealth Manager.</p>
+         <p>Download the Wealth Manager app and register with this email address to accept the nomination.</p>`
+      );
+    }
 
     res.status(201).json({ nominee: result.rows[0] });
   } catch (err) {
@@ -955,6 +1037,91 @@ app.post('/api/users/verify-security-question', async (req, res) => {
   }
 });
 
+// ── Email verification endpoints ─────────────────────────────────────────────
+
+app.get('/api/users/verify-email', async (req, res) => {
+  const { token } = req.query;
+  if (!token) {
+    return res.status(400).send('<h2>Invalid verification link.</h2>');
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT id FROM users
+       WHERE verification_token = $1 AND email_verified = false AND token_expiry > NOW()`,
+      [token]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(400).send(`
+        <html><body style="font-family:sans-serif;text-align:center;padding:60px">
+          <h2 style="color:#dc2626">Verification link invalid or expired</h2>
+          <p>Please request a new verification email from the app.</p>
+        </body></html>`);
+    }
+
+    await pool.query(
+      `UPDATE users SET email_verified = true, verification_token = NULL, token_expiry = NULL WHERE id = $1`,
+      [result.rows[0].id]
+    );
+
+    res.send(`
+      <html><body style="font-family:sans-serif;text-align:center;padding:60px">
+        <h2 style="color:#16a34a">&#10003; Email verified!</h2>
+        <p>Your account is now active. You can log in to Wealth Manager.</p>
+      </body></html>`);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('<h2>Something went wrong. Please try again.</h2>');
+  }
+});
+
+app.post('/api/users/resend-verification', resendVerificationLimiter, async (req, res) => {
+  const { email } = req.body;
+  const GENERIC = { message: 'If that account exists and is unverified, a new email has been sent.' };
+
+  if (!email) return res.json(GENERIC);
+
+  try {
+    const result = await pool.query(
+      'SELECT id FROM users WHERE email = $1 AND email_verified = false',
+      [email]
+    );
+
+    if (result.rows.length === 0) return res.json(GENERIC);
+
+    const userId = result.rows[0].id;
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await pool.query(
+      'UPDATE users SET verification_token = $1, token_expiry = $2 WHERE id = $3',
+      [verificationToken, tokenExpiry, userId]
+    );
+
+    const verifyUrl = `${process.env.APP_URL}/api/users/verify-email?token=${verificationToken}`;
+    await sendEmail(
+      email,
+      'Verify your Wealth Manager account',
+      `<h2>Verify your email</h2>
+       <p>Click the button below to verify your email address. The link expires in 24 hours.</p>
+       <p style="margin:24px 0">
+         <a href="${verifyUrl}" style="background:#2563eb;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600">
+           Verify my email
+         </a>
+       </p>
+       <p style="color:#6b7280;font-size:13px">Or copy this link:<br>${verifyUrl}</p>`
+    );
+
+    res.json(GENERIC);
+  } catch (err) {
+    console.error(err);
+    res.json(GENERIC);
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+
 /**
  * @swagger
  * /health:
@@ -975,6 +1142,18 @@ const PORT = process.env.PORT || 3001;
 async function start() {
   if (!process.env.JWT_SECRET) {
     console.error('FATAL: JWT_SECRET environment variable is not set');
+    process.exit(1);
+  }
+  if (!process.env.SENDGRID_API_KEY) {
+    console.error('FATAL: SENDGRID_API_KEY environment variable is not set');
+    process.exit(1);
+  }
+  if (!process.env.FROM_EMAIL) {
+    console.error('FATAL: FROM_EMAIL environment variable is not set');
+    process.exit(1);
+  }
+  if (!process.env.APP_URL) {
+    console.error('FATAL: APP_URL environment variable is not set');
     process.exit(1);
   }
   await initDB();
