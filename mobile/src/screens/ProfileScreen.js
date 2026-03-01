@@ -14,7 +14,7 @@ import AppLogo from '../components/AppLogo';
 import {
   getProfile, getServiceHealth,
   getNominees, addNominee, updateNominee, removeNominee,
-  getDelegatedAccounts, updateProfile, changePassword,
+  getDelegatedAccounts, updateProfile, changePassword, changeEmail,
   setSecurityQuestion,
 } from '../api/client';
 
@@ -71,6 +71,11 @@ export default function ProfileScreen() {
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
   const [savingPw, setSavingPw] = useState(false);
   const [showPw, setShowPw] = useState({ current: false, next: false, confirm: false });
+
+  // Change email modal
+  const [emailModalVisible, setEmailModalVisible] = useState(false);
+  const [emailForm, setEmailForm] = useState({ newEmail: '', password: '' });
+  const [savingEmail, setSavingEmail] = useState(false);
 
   // Biometric
   const [biometricAvailable, setBiometricAvailable] = useState(false);
@@ -245,6 +250,24 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleChangeEmail = async () => {
+    if (!emailForm.newEmail || !emailForm.password) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+    setSavingEmail(true);
+    try {
+      const res = await changeEmail(emailForm.newEmail.trim(), emailForm.password);
+      setEmailModalVisible(false);
+      setEmailForm({ newEmail: '', password: '' });
+      Alert.alert('Check your inbox', res.data.message);
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || 'Could not change email');
+    } finally {
+      setSavingEmail(false);
+    }
+  };
+
   const toggleBiometric = async (value) => {
     await SecureStore.setItemAsync('biometricEnabled', value ? '1' : '0');
     setBiometricEnabled(value);
@@ -333,6 +356,13 @@ export default function ProfileScreen() {
       {/* Security section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Security</Text>
+        <TouchableOpacity
+          style={styles.securityRow}
+          onPress={() => { setEmailForm({ newEmail: '', password: '' }); setEmailModalVisible(true); }}
+        >
+          <Text style={styles.securityRowLabel}>Change Email</Text>
+          <Text style={styles.securityRowChevron}>›</Text>
+        </TouchableOpacity>
         <TouchableOpacity
           style={styles.securityRow}
           onPress={() => { setPwForm({ current: '', next: '', confirm: '' }); setShowPw({ current: false, next: false, confirm: false }); setPwModalVisible(true); }}
@@ -632,6 +662,49 @@ export default function ProfileScreen() {
 
             <TouchableOpacity style={styles.saveBtn} onPress={handleChangePassword} disabled={savingPw}>
               {savingPw ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Update Password</Text>}
+            </TouchableOpacity>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Change Email Modal */}
+      <Modal visible={emailModalVisible} animationType="slide" presentationStyle="pageSheet">
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Change Email</Text>
+              <TouchableOpacity onPress={() => setEmailModalVisible(false)}>
+                <Text style={styles.modalClose}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.label}>New Email Address</Text>
+            <TextInput
+              style={styles.input}
+              value={emailForm.newEmail}
+              onChangeText={(v) => setEmailForm({ ...emailForm, newEmail: v })}
+              placeholder="Enter new email"
+              placeholderTextColor="#9ca3af"
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+
+            <Text style={styles.label}>Current Password</Text>
+            <TextInput
+              style={styles.input}
+              value={emailForm.password}
+              onChangeText={(v) => setEmailForm({ ...emailForm, password: v })}
+              placeholder="Confirm your password"
+              placeholderTextColor="#9ca3af"
+              secureTextEntry
+            />
+
+            <Text style={[styles.label, { color: '#6b7280', fontSize: 13, marginTop: -4 }]}>
+              A verification link will be sent to your new address. Your email won't change until you click it.
+            </Text>
+
+            <TouchableOpacity style={styles.saveBtn} onPress={handleChangeEmail} disabled={savingEmail}>
+              {savingEmail ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Send Verification Email</Text>}
             </TouchableOpacity>
           </ScrollView>
         </KeyboardAvoidingView>

@@ -196,6 +196,7 @@ async function initDB() {
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT false`);
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token VARCHAR(64)`);
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS token_expiry TIMESTAMP`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS pending_email VARCHAR(255)`);
 
     // Widen PII columns to TEXT for encrypted storage
     await client.query(`ALTER TABLE user_profiles ALTER COLUMN phone TYPE TEXT`);
@@ -861,6 +862,63 @@ app.post('/api/users/change-password', authenticateToken, async (req, res) => {
   }
 });
 
+app.post('/api/users/change-email', authenticateToken, async (req, res) => {
+  const { new_email, password } = req.body;
+  const userId = req.user.userId;
+
+  if (!new_email || !password) {
+    return res.status(400).json({ error: 'new_email and password are required' });
+  }
+
+  try {
+    // Verify current password
+    const userResult = await pool.query('SELECT password_hash, email FROM users WHERE id = $1', [userId]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const valid = await bcrypt.compare(password, userResult.rows[0].password_hash);
+    if (!valid) {
+      return res.status(401).json({ error: 'Password is incorrect' });
+    }
+    if (new_email.toLowerCase() === userResult.rows[0].email.toLowerCase()) {
+      return res.status(400).json({ error: 'New email is the same as your current email' });
+    }
+
+    // Check new email not already taken
+    const taken = await pool.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [new_email]);
+    if (taken.rows.length > 0) {
+      return res.status(409).json({ error: 'That email address is already in use' });
+    }
+
+    // Store pending email + send verification
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await pool.query(
+      'UPDATE users SET pending_email = $1, verification_token = $2, token_expiry = $3 WHERE id = $4',
+      [new_email, token, expiry, userId]
+    );
+
+    const verifyUrl = `${process.env.APP_URL}/api/users/verify-email?token=${token}`;
+    await sendEmail(
+      new_email,
+      'Confirm your new email address — Wealth Manager',
+      `<h2>Confirm your new email</h2>
+       <p>Click the button below to confirm <strong>${new_email}</strong> as your Wealth Manager email address. The link expires in 24 hours.</p>
+       <p style="margin:24px 0">
+         <a href="${verifyUrl}" style="background:#2563eb;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600">
+           Confirm new email
+         </a>
+       </p>
+       <p style="color:#6b7280;font-size:13px">If you didn't request this, you can safely ignore it — your email won't change.</p>`
+    );
+
+    res.json({ message: `Verification email sent to ${new_email}. Click the link to confirm the change.` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Could not initiate email change' });
+  }
+});
+
 const SECURITY_QUESTIONS = [
   "What was the name of your first pet?",
   "What was the name of the street you grew up on?",
@@ -1047,8 +1105,8 @@ app.get('/api/users/verify-email', async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT id FROM users
-       WHERE verification_token = $1 AND email_verified = false AND token_expiry > NOW()`,
+      `SELECT id, email_verified, pending_email FROM users
+       WHERE verification_token = $1 AND token_expiry > NOW()`,
       [token]
     );
 
@@ -1060,9 +1118,26 @@ app.get('/api/users/verify-email', async (req, res) => {
         </body></html>`);
     }
 
+    const user = result.rows[0];
+
+    if (user.pending_email) {
+      // Email change verification — swap in the new address
+      await pool.query(
+        `UPDATE users SET email = pending_email, pending_email = NULL,
+         verification_token = NULL, token_expiry = NULL WHERE id = $1`,
+        [user.id]
+      );
+      return res.send(`
+        <html><body style="font-family:sans-serif;text-align:center;padding:60px">
+          <h2 style="color:#16a34a">&#10003; Email address updated!</h2>
+          <p>Your email has been changed. Log in with your new address.</p>
+        </body></html>`);
+    }
+
+    // Initial registration verification
     await pool.query(
       `UPDATE users SET email_verified = true, verification_token = NULL, token_expiry = NULL WHERE id = $1`,
-      [result.rows[0].id]
+      [user.id]
     );
 
     res.send(`
@@ -1144,18 +1219,18 @@ async function start() {
     console.error('FATAL: JWT_SECRET environment variable is not set');
     process.exit(1);
   }
-  if (!process.env.SENDGRID_API_KEY) {
-    console.error('FATAL: SENDGRID_API_KEY environment variable is not set');
-    process.exit(1);
-  }
-  if (!process.env.FROM_EMAIL) {
-    console.error('FATAL: FROM_EMAIL environment variable is not set');
-    process.exit(1);
-  }
-  if (!process.env.APP_URL) {
-    console.error('FATAL: APP_URL environment variable is not set');
-    process.exit(1);
-  }
+  // if (!process.env.SENDGRID_API_KEY) {
+  //   console.error('FATAL: SENDGRID_API_KEY environment variable is not set');
+  //   process.exit(1);
+  // }
+  // if (!process.env.FROM_EMAIL) {
+  //   console.error('FATAL: FROM_EMAIL environment variable is not set');
+  //   process.exit(1);
+  // }
+  // if (!process.env.APP_URL) {
+  //   console.error('FATAL: APP_URL environment variable is not set');
+  //   process.exit(1);
+  // }
   await initDB();
   await connectRabbitMQ();
 

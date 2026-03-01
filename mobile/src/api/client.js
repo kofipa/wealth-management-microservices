@@ -150,6 +150,9 @@ export const updateProfile = (data) => userClient.post('/api/users/profile', dat
 export const changePassword = (current_password, new_password) =>
   userClient.post('/api/users/change-password', { current_password, new_password });
 
+export const changeEmail = (new_email, password) =>
+  userClient.post('/api/users/change-email', { new_email, password });
+
 // Security Question
 export const setSecurityQuestion = (question, answer) =>
   userClient.post('/api/users/security-question', { question, answer });
