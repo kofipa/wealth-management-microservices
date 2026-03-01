@@ -9,8 +9,15 @@ const multer = require('multer');
 const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
 
+const helmet = require('helmet');
+const path = require('path');
+
 const app = express();
-app.use(cors());
+app.use(helmet());
+app.use(cors({
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 app.use(express.json());
 
 // Swagger setup
@@ -27,10 +34,30 @@ const swaggerSpec = swaggerJsdoc({
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Configure multer for file uploads (in-memory storage for simplicity)
+const ALLOWED_MIME_TYPES = [
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'text/plain',
+  'text/csv',
+];
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: (req, file, cb) => {
+    if (ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`File type not allowed. Accepted types: PDF, images, Word, Excel, text.`), false);
+    }
+  },
 });
 
 // Database connection
@@ -106,6 +133,9 @@ async function initDB() {
     await client.query(`
       ALTER TABLE documents ADD COLUMN IF NOT EXISTS category VARCHAR(50) DEFAULT 'other';
     `);
+    await client.query(`
+      ALTER TABLE documents ADD COLUMN IF NOT EXISTS expiry_date DATE;
+    `);
     console.log('Database initialized');
   } finally {
     client.release();
@@ -119,7 +149,7 @@ function authenticateToken(req, res, next) {
 
   if (!token) return res.status(401).json({ error: 'Access token required' });
 
-  jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key', (err, user) => {
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) return res.status(403).json({ error: 'Invalid token' });
     req.user = user;
     next();
@@ -162,24 +192,29 @@ function authenticateToken(req, res, next) {
  *       401:
  *         description: Unauthorized
  */
-app.post('/api/documents/upload', authenticateToken, upload.single('file'), async (req, res) => {
+app.post('/api/documents/upload', authenticateToken, (req, res, next) => {
+  upload.single('file')(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.message });
+    next();
+  });
+}, async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' });
   }
 
-  const { related_entity_type, related_entity_id, description, category } = req.body;
+  const { related_entity_type, related_entity_id, description, category, expiry_date } = req.body;
   const userId = req.user.userId;
 
   try {
     const result = await pool.query(
       `INSERT INTO documents (user_id, filename, original_name, mime_type, file_size, file_data,
-       related_entity_type, related_entity_id, description, category)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, filename, original_name, mime_type,
-       file_size, related_entity_type, related_entity_id, description, category, created_at`,
+       related_entity_type, related_entity_id, description, category, expiry_date)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id, filename, original_name, mime_type,
+       file_size, related_entity_type, related_entity_id, description, category, expiry_date, created_at`,
       [
         userId,
-        `${Date.now()}_${req.file.originalname}`,
-        req.file.originalname,
+        `${Date.now()}_${path.basename(req.file.originalname)}`,
+        path.basename(req.file.originalname),
         req.file.mimetype,
         req.file.size,
         req.file.buffer,
@@ -187,6 +222,7 @@ app.post('/api/documents/upload', authenticateToken, upload.single('file'), asyn
         related_entity_id || null,
         description,
         category || 'other',
+        expiry_date || null,
       ]
     );
 
@@ -228,9 +264,11 @@ app.get('/api/documents', authenticateToken, async (req, res) => {
   const userId = req.user.userId;
   const { entity_type, entity_id, category } = req.query;
 
+  const { expiring_soon } = req.query;
+
   try {
     let query = `SELECT id, filename, original_name, mime_type, file_size,
-                 related_entity_type, related_entity_id, description, category, created_at
+                 related_entity_type, related_entity_id, description, category, expiry_date, created_at
                  FROM documents WHERE user_id = $1`;
     const params = [userId];
 
@@ -247,6 +285,10 @@ app.get('/api/documents', authenticateToken, async (req, res) => {
     if (category) {
       params.push(category);
       query += ` AND category = $${params.length}`;
+    }
+
+    if (expiring_soon === 'true') {
+      query += ` AND expiry_date IS NOT NULL AND expiry_date <= (NOW() + INTERVAL '30 days')`;
     }
 
     query += ' ORDER BY created_at DESC';
@@ -371,6 +413,10 @@ app.get('/health', (req, res) => {
 const PORT = process.env.PORT || 3005;
 
 async function start() {
+  if (!process.env.JWT_SECRET) {
+    console.error('FATAL: JWT_SECRET environment variable is not set');
+    process.exit(1);
+  }
   await initDB();
   await connectRabbitMQ();
 

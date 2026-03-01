@@ -5,6 +5,7 @@ import {
   ActivityIndicator, Alert,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import AppLogo from '../components/AppLogo';
 
 export default function LoginScreen({ navigation }) {
   const { login } = useAuth();
@@ -33,8 +34,9 @@ export default function LoginScreen({ navigation }) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.inner}>
-        <Text style={styles.title}>Wealth Manager</Text>
-        <Text style={styles.subtitle}>Sign in to your account</Text>
+        <View style={styles.logoWrap}>
+          <AppLogo tagline="Your finances. Secured." />
+        </View>
 
         <TextInput
           style={styles.input}
@@ -77,8 +79,7 @@ export default function LoginScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
   inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
-  title: { fontSize: 32, fontWeight: '700', color: '#111827', marginBottom: 6, textAlign: 'center' },
-  subtitle: { fontSize: 16, color: '#6b7280', marginBottom: 32, textAlign: 'center' },
+  logoWrap: { alignItems: 'center', marginBottom: 36 },
   input: {
     backgroundColor: '#fff',
     borderWidth: 1,

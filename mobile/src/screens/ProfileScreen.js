@@ -2,15 +2,32 @@ import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
   TouchableOpacity, ActivityIndicator, Alert,
-  RefreshControl, Modal, TextInput, KeyboardAvoidingView, Platform,
+  RefreshControl, Modal, TextInput, KeyboardAvoidingView, Platform, Switch,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
+import * as SecureStore from 'expo-secure-store';
+import * as LocalAuthentication from 'expo-local-authentication';
+import Constants from 'expo-constants';
 import { useAuth } from '../context/AuthContext';
+import AppLogo from '../components/AppLogo';
 import {
   getProfile, getServiceHealth,
   getNominees, addNominee, removeNominee,
-  getDelegatedAccounts,
+  getDelegatedAccounts, updateProfile, changePassword,
+  setSecurityQuestion,
 } from '../api/client';
+
+const SECURITY_QUESTIONS = [
+  "What was the name of your first pet?",
+  "What was the name of the street you grew up on?",
+  "What is your mother's maiden name?",
+  "What was the name of your primary school?",
+  "What was the make and model of your first car?",
+  "What city were you born in?",
+  "What is the name of your oldest sibling?",
+  "What was the name of your childhood best friend?",
+];
 
 const StatusDot = ({ status }) => (
   <View style={[styles.dot, status === 'up' ? styles.dotUp : styles.dotDown]} />
@@ -33,6 +50,28 @@ export default function ProfileScreen() {
   const [nomineeEmail, setNomineeEmail] = useState('');
   const [inactivityDays, setInactivityDays] = useState(30);
   const [saving, setSaving] = useState(false);
+  const [healthExpanded, setHealthExpanded] = useState(false);
+
+  // Edit profile modal
+  const [editProfileVisible, setEditProfileVisible] = useState(false);
+  const [editForm, setEditForm] = useState({ first_name: '', last_name: '', phone: '', date_of_birth: '' });
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [showDobPicker, setShowDobPicker] = useState(false);
+
+  // Change password modal
+  const [pwModalVisible, setPwModalVisible] = useState(false);
+  const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
+  const [savingPw, setSavingPw] = useState(false);
+
+  // Biometric
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+
+  // Security question
+  const [sqModalVisible, setSqModalVisible] = useState(false);
+  const [sqForm, setSqForm] = useState({ question: '', answer: '' });
+  const [savingSq, setSavingSq] = useState(false);
+  const [showQuestionPicker, setShowQuestionPicker] = useState(false);
 
   const load = async () => {
     try {
@@ -43,11 +82,27 @@ export default function ProfileScreen() {
         getDelegatedAccounts(),
       ]);
       if (results[0].status === 'fulfilled') {
-        setProfile(results[0].value.data.profile || results[0].value.data.user || results[0].value.data);
+        const p = results[0].value.data.profile || results[0].value.data.user || results[0].value.data;
+        setProfile(p);
+        if (p) setEditForm({
+          first_name: p.first_name || '',
+          last_name: p.last_name || '',
+          phone: p.phone || '',
+          date_of_birth: p.date_of_birth ? p.date_of_birth.split('T')[0] : '',
+        });
       }
       if (results[1].status === 'fulfilled') setServices(results[1].value.data.services || []);
       if (results[2].status === 'fulfilled') setNominees(results[2].value.data.nominees || []);
       if (results[3].status === 'fulfilled') setDelegatedAccounts(results[3].value.data.accounts || []);
+
+      // Biometric check
+      const hasHw = await LocalAuthentication.hasHardwareAsync();
+      const enrolled = await LocalAuthentication.isEnrolledAsync();
+      setBiometricAvailable(hasHw && enrolled);
+      if (hasHw && enrolled) {
+        const stored = await SecureStore.getItemAsync('biometricEnabled');
+        setBiometricEnabled(stored === '1');
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -121,6 +176,69 @@ export default function ProfileScreen() {
     );
   };
 
+  const handleEditProfile = async () => {
+    setSavingProfile(true);
+    try {
+      await updateProfile(editForm);
+      setEditProfileVisible(false);
+      load();
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || 'Could not update profile');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (pwForm.next !== pwForm.confirm) {
+      Alert.alert('Error', 'New passwords do not match');
+      return;
+    }
+    if (pwForm.next.length < 8) {
+      Alert.alert('Error', 'New password must be at least 8 characters');
+      return;
+    }
+    setSavingPw(true);
+    try {
+      await changePassword(pwForm.current, pwForm.next);
+      setPwModalVisible(false);
+      setPwForm({ current: '', next: '', confirm: '' });
+      Alert.alert('Success', 'Password updated successfully');
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || 'Could not change password');
+    } finally {
+      setSavingPw(false);
+    }
+  };
+
+  const toggleBiometric = async (value) => {
+    await SecureStore.setItemAsync('biometricEnabled', value ? '1' : '0');
+    setBiometricEnabled(value);
+  };
+
+  const handleSaveSecurityQuestion = async () => {
+    if (!sqForm.question) {
+      Alert.alert('Error', 'Please select a security question');
+      return;
+    }
+    if (sqForm.answer.trim().length < 2) {
+      Alert.alert('Error', 'Please enter an answer');
+      return;
+    }
+    setSavingSq(true);
+    try {
+      await setSecurityQuestion(sqForm.question, sqForm.answer);
+      setSqModalVisible(false);
+      setSqForm({ question: '', answer: '' });
+      Alert.alert('Saved', 'Security question saved successfully');
+      load();
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || 'Could not save security question');
+    } finally {
+      setSavingSq(false);
+    }
+  };
+
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color="#2563eb" /></View>;
   }
@@ -136,9 +254,13 @@ export default function ProfileScreen() {
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
-      <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-        <Text style={styles.logoutText}>Sign Out</Text>
-      </TouchableOpacity>
+      <View style={styles.topBar}>
+        <View style={styles.topBarSpacer} />
+        <AppLogo size="small" />
+        <TouchableOpacity style={styles.topBarSignOut} onPress={handleLogout}>
+          <Text style={styles.topBarSignOutText}>Sign Out</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Avatar card */}
       <View style={styles.avatarCard}>
@@ -149,6 +271,70 @@ export default function ProfileScreen() {
         </View>
         <Text style={styles.name}>{displayName}</Text>
         <Text style={styles.email}>{displayUser?.email || ''}</Text>
+        {profile?.date_of_birth && (() => {
+          const dob = new Date(profile.date_of_birth);
+          const age = Math.floor((new Date() - dob) / (365.25 * 24 * 60 * 60 * 1000));
+          return (
+            <Text style={styles.dobText}>
+              {dob.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })} · Age {age}
+            </Text>
+          );
+        })()}
+        <TouchableOpacity
+          style={styles.editProfileBtn}
+          onPress={() => {
+            if (profile) setEditForm({
+              first_name: profile.first_name || '',
+              last_name: profile.last_name || '',
+              phone: profile.phone || '',
+              date_of_birth: profile.date_of_birth ? profile.date_of_birth.split('T')[0] : '',
+            });
+            setEditProfileVisible(true);
+          }}
+        >
+          <Text style={styles.editProfileBtnText}>Edit Profile</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Security section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Security</Text>
+        <TouchableOpacity
+          style={styles.securityRow}
+          onPress={() => { setPwForm({ current: '', next: '', confirm: '' }); setPwModalVisible(true); }}
+        >
+          <Text style={styles.securityRowLabel}>Change Password</Text>
+          <Text style={styles.securityRowChevron}>›</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.securityRow}
+          onPress={() => {
+            setSqForm({ question: profile?.security_question || '', answer: '' });
+            setShowQuestionPicker(false);
+            setSqModalVisible(true);
+          }}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={styles.securityRowLabel}>Security Question</Text>
+            {profile?.security_question ? (
+              <Text style={styles.securityRowSub} numberOfLines={1}>{profile.security_question}</Text>
+            ) : (
+              <Text style={styles.securityRowSubEmpty}>Not set — tap to add</Text>
+            )}
+          </View>
+          <Text style={styles.securityRowChevron}>›</Text>
+        </TouchableOpacity>
+        {biometricAvailable && (
+          <View style={styles.securityRow}>
+            <Text style={styles.securityRowLabel}>Face / Touch ID Unlock</Text>
+            <Switch
+              value={biometricEnabled}
+              onValueChange={toggleBiometric}
+              trackColor={{ false: '#e5e7eb', true: '#bfdbfe' }}
+              thumbColor={biometricEnabled ? '#2563eb' : '#9ca3af'}
+            />
+          </View>
+        )}
       </View>
 
       {/* Trusted Contacts — hidden when in delegated mode */}
@@ -224,8 +410,23 @@ export default function ProfileScreen() {
       {/* Service Health */}
       {services.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Service Health</Text>
-          {services.map((svc) => (
+          <TouchableOpacity
+            style={styles.sectionHeader}
+            onPress={() => setHealthExpanded(v => !v)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.serviceHealthTitle}>
+              <Text style={styles.sectionTitle}>Service Health</Text>
+              {services.some(s => s.status !== 'up') ? (
+                <View style={styles.alertDot} />
+              ) : (
+                <View style={styles.allUpDot} />
+              )}
+            </View>
+            <Text style={styles.chevron}>{healthExpanded ? '▲' : '▼'}</Text>
+          </TouchableOpacity>
+
+          {healthExpanded && services.map((svc) => (
             <View key={svc.name} style={styles.serviceRow}>
               <View style={styles.serviceLeft}>
                 <StatusDot status={svc.status} />
@@ -238,6 +439,203 @@ export default function ProfileScreen() {
           ))}
         </View>
       )}
+
+      {/* App version */}
+      <Text style={styles.versionText}>
+        Version {Constants.expoConfig?.version || '1.0.0'}
+      </Text>
+
+      {/* Edit Profile Modal */}
+      <Modal visible={editProfileVisible} animationType="slide" presentationStyle="pageSheet">
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Profile</Text>
+              <TouchableOpacity onPress={() => setEditProfileVisible(false)}>
+                <Text style={styles.modalClose}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.label}>First Name</Text>
+            <TextInput
+              style={styles.input}
+              value={editForm.first_name}
+              onChangeText={(v) => setEditForm({ ...editForm, first_name: v })}
+              placeholder="First name"
+              placeholderTextColor="#9ca3af"
+              autoCapitalize="words"
+            />
+
+            <Text style={styles.label}>Last Name</Text>
+            <TextInput
+              style={styles.input}
+              value={editForm.last_name}
+              onChangeText={(v) => setEditForm({ ...editForm, last_name: v })}
+              placeholder="Last name"
+              placeholderTextColor="#9ca3af"
+              autoCapitalize="words"
+            />
+
+            <Text style={styles.label}>Phone</Text>
+            <TextInput
+              style={styles.input}
+              value={editForm.phone}
+              onChangeText={(v) => setEditForm({ ...editForm, phone: v })}
+              placeholder="e.g. +44 7700 900000"
+              placeholderTextColor="#9ca3af"
+              keyboardType="phone-pad"
+            />
+
+            <Text style={styles.label}>Date of Birth</Text>
+            <TouchableOpacity
+              style={[styles.input, styles.datePickerBtn]}
+              onPress={() => setShowDobPicker(true)}
+            >
+              <Text style={editForm.date_of_birth ? styles.datePickerText : styles.datePickerPlaceholder}>
+                {editForm.date_of_birth
+                  ? new Date(editForm.date_of_birth).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+                  : 'Select date of birth'}
+              </Text>
+              <Text style={styles.datePickerIcon}>📅</Text>
+            </TouchableOpacity>
+            {showDobPicker && (
+              <DateTimePicker
+                value={editForm.date_of_birth ? new Date(editForm.date_of_birth) : new Date(1990, 0, 1)}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                maximumDate={new Date()}
+                onChange={(event, selectedDate) => {
+                  if (Platform.OS === 'android') setShowDobPicker(false);
+                  if (selectedDate) {
+                    setEditForm({ ...editForm, date_of_birth: selectedDate.toISOString().split('T')[0] });
+                  }
+                }}
+              />
+            )}
+            {showDobPicker && Platform.OS === 'ios' && (
+              <TouchableOpacity
+                style={styles.doneBtn}
+                onPress={() => setShowDobPicker(false)}
+              >
+                <Text style={styles.doneBtnText}>Done</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity style={styles.saveBtn} onPress={handleEditProfile} disabled={savingProfile}>
+              {savingProfile ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Save Changes</Text>}
+            </TouchableOpacity>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Change Password Modal */}
+      <Modal visible={pwModalVisible} animationType="slide" presentationStyle="pageSheet">
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Change Password</Text>
+              <TouchableOpacity onPress={() => setPwModalVisible(false)}>
+                <Text style={styles.modalClose}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.label}>Current Password</Text>
+            <TextInput
+              style={styles.input}
+              value={pwForm.current}
+              onChangeText={(v) => setPwForm({ ...pwForm, current: v })}
+              placeholder="Your current password"
+              placeholderTextColor="#9ca3af"
+              secureTextEntry
+            />
+
+            <Text style={styles.label}>New Password</Text>
+            <TextInput
+              style={styles.input}
+              value={pwForm.next}
+              onChangeText={(v) => setPwForm({ ...pwForm, next: v })}
+              placeholder="At least 8 characters"
+              placeholderTextColor="#9ca3af"
+              secureTextEntry
+            />
+
+            <Text style={styles.label}>Confirm New Password</Text>
+            <TextInput
+              style={styles.input}
+              value={pwForm.confirm}
+              onChangeText={(v) => setPwForm({ ...pwForm, confirm: v })}
+              placeholder="Repeat new password"
+              placeholderTextColor="#9ca3af"
+              secureTextEntry
+            />
+
+            <TouchableOpacity style={styles.saveBtn} onPress={handleChangePassword} disabled={savingPw}>
+              {savingPw ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Update Password</Text>}
+            </TouchableOpacity>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Security Question Modal */}
+      <Modal visible={sqModalVisible} animationType="slide" presentationStyle="pageSheet">
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Security Question</Text>
+              <TouchableOpacity onPress={() => { setSqModalVisible(false); setShowQuestionPicker(false); }}>
+                <Text style={styles.modalClose}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalDesc}>
+              Your security question can be used to verify your identity if you forget your password.
+            </Text>
+
+            <Text style={styles.label}>Question</Text>
+            <TouchableOpacity
+              style={[styles.input, styles.datePickerBtn]}
+              onPress={() => setShowQuestionPicker(v => !v)}
+            >
+              <Text style={sqForm.question ? styles.datePickerText : styles.datePickerPlaceholder} numberOfLines={2}>
+                {sqForm.question || 'Select a question…'}
+              </Text>
+              <Text style={styles.datePickerIcon}>{showQuestionPicker ? '▲' : '▼'}</Text>
+            </TouchableOpacity>
+
+            {showQuestionPicker && (
+              <View style={styles.questionList}>
+                {SECURITY_QUESTIONS.map((q) => (
+                  <TouchableOpacity
+                    key={q}
+                    style={[styles.questionItem, sqForm.question === q && styles.questionItemActive]}
+                    onPress={() => { setSqForm({ ...sqForm, question: q }); setShowQuestionPicker(false); }}
+                  >
+                    <Text style={[styles.questionItemText, sqForm.question === q && styles.questionItemTextActive]}>
+                      {q}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            <Text style={styles.label}>Your Answer</Text>
+            <TextInput
+              style={styles.input}
+              value={sqForm.answer}
+              onChangeText={(v) => setSqForm({ ...sqForm, answer: v })}
+              placeholder="Enter your answer"
+              placeholderTextColor="#9ca3af"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <Text style={styles.sqHint}>Answers are case-insensitive. Enter the same answer when resetting your password.</Text>
+
+            <TouchableOpacity style={[styles.saveBtn, { marginTop: 8 }]} onPress={handleSaveSecurityQuestion} disabled={savingSq}>
+              {savingSq ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Save Security Question</Text>}
+            </TouchableOpacity>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* Add Nominee Modal */}
       <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet">
@@ -299,7 +697,14 @@ const styles = StyleSheet.create({
   avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#2563eb', justifyContent: 'center', alignItems: 'center', marginBottom: 14 },
   avatarText: { fontSize: 30, fontWeight: '700', color: '#fff' },
   name: { fontSize: 20, fontWeight: '700', color: '#111827', marginBottom: 4 },
-  email: { fontSize: 14, color: '#6b7280' },
+  email: { fontSize: 14, color: '#6b7280', marginBottom: 6 },
+  dobText: { fontSize: 13, color: '#9ca3af', marginBottom: 16 },
+  editProfileBtn: { borderWidth: 1, borderColor: '#2563eb', borderRadius: 8, paddingHorizontal: 20, paddingVertical: 8 },
+  editProfileBtnText: { color: '#2563eb', fontSize: 14, fontWeight: '600' },
+  securityRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderTopWidth: 1, borderTopColor: '#f3f4f6', marginTop: 4 },
+  securityRowLabel: { fontSize: 15, color: '#111827' },
+  securityRowChevron: { fontSize: 22, color: '#9ca3af' },
+  versionText: { textAlign: 'center', fontSize: 12, color: '#d1d5db', marginTop: 8, marginBottom: 20 },
 
   section: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#e5e7eb' },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
@@ -331,7 +736,11 @@ const styles = StyleSheet.create({
   viewBtn: { backgroundColor: '#2563eb', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 6, marginLeft: 12 },
   viewBtnText: { color: '#fff', fontSize: 13, fontWeight: '600' },
 
-  serviceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  serviceHealthTitle: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  allUpDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#16a34a' },
+  alertDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#ef4444' },
+  chevron: { fontSize: 12, color: '#9ca3af' },
+  serviceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#f3f4f6', marginTop: 4 },
   serviceLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   dot: { width: 8, height: 8, borderRadius: 4 },
   dotUp: { backgroundColor: '#16a34a' },
@@ -341,8 +750,10 @@ const styles = StyleSheet.create({
   statusUp: { color: '#16a34a' },
   statusDown: { color: '#ef4444' },
 
-  logoutBtn: { backgroundColor: '#fff', borderRadius: 12, paddingVertical: 16, alignItems: 'center', borderWidth: 1, borderColor: '#e5e7eb' },
-  logoutText: { fontSize: 16, fontWeight: '600', color: '#ef4444' },
+  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+  topBarSpacer: { flex: 1 },
+  topBarSignOut: { flex: 1, alignItems: 'flex-end' },
+  topBarSignOutText: { fontSize: 14, fontWeight: '600', color: '#ef4444' },
 
   modal: { flex: 1, backgroundColor: '#f9fafb' },
   modalContent: { padding: 24, paddingBottom: 60 },
@@ -359,4 +770,18 @@ const styles = StyleSheet.create({
   chipTextActive: { color: '#fff' },
   saveBtn: { backgroundColor: '#2563eb', borderRadius: 10, paddingVertical: 16, alignItems: 'center' },
   saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  datePickerBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  datePickerText: { fontSize: 16, color: '#111827' },
+  datePickerPlaceholder: { fontSize: 16, color: '#9ca3af' },
+  datePickerIcon: { fontSize: 18 },
+  doneBtn: { alignSelf: 'flex-end', paddingVertical: 8, paddingHorizontal: 16, marginBottom: 12 },
+  doneBtnText: { fontSize: 16, color: '#2563eb', fontWeight: '600' },
+  securityRowSub: { fontSize: 12, color: '#6b7280', marginTop: 2 },
+  securityRowSubEmpty: { fontSize: 12, color: '#f59e0b', marginTop: 2 },
+  questionList: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, marginBottom: 20, overflow: 'hidden' },
+  questionItem: { paddingHorizontal: 14, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', backgroundColor: '#fff' },
+  questionItemActive: { backgroundColor: '#eff6ff' },
+  questionItemText: { fontSize: 14, color: '#374151', lineHeight: 20 },
+  questionItemTextActive: { color: '#2563eb', fontWeight: '600' },
+  sqHint: { fontSize: 12, color: '#9ca3af', lineHeight: 18, marginBottom: 20 },
 });

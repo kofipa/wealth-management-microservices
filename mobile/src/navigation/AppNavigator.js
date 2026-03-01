@@ -1,8 +1,13 @@
-import React from 'react';
-import { View, ActivityIndicator, TouchableOpacity, Text } from 'react-native';
+import React, { useRef, useState, useEffect } from 'react';
+import {
+  View, ActivityIndicator, TouchableOpacity, Text,
+  AppState, Modal, StyleSheet,
+} from 'react-native';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import * as SecureStore from 'expo-secure-store';
+import * as LocalAuthentication from 'expo-local-authentication';
 
 import { useAuth } from '../context/AuthContext';
 import LoginScreen from '../screens/LoginScreen';
@@ -14,6 +19,7 @@ import LiabilitiesScreen from '../screens/LiabilitiesScreen';
 import DocumentsScreen from '../screens/DocumentsScreen';
 import ServicesScreen from '../screens/ServicesScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import OnboardingScreen from '../screens/OnboardingScreen';
 
 const AppStack = createNativeStackNavigator();
 const AuthStack = createNativeStackNavigator();
@@ -115,7 +121,40 @@ function DelegationBanner() {
   );
 }
 
-function AppNavigatorStack() {
+function AppNavigatorStack({ navigationRef }) {
+  const [biometricLocked, setBiometricLocked] = useState(false);
+  const bgTimestamp = useRef(null);
+
+  useEffect(() => {
+    const handleAppStateChange = async (nextState) => {
+      if (nextState === 'background' || nextState === 'inactive') {
+        bgTimestamp.current = Date.now();
+      } else if (nextState === 'active' && bgTimestamp.current) {
+        const elapsed = Date.now() - bgTimestamp.current;
+        bgTimestamp.current = null;
+        if (elapsed > 5 * 60 * 1000) {
+          const biometricEnabled = await SecureStore.getItemAsync('biometricEnabled');
+          if (biometricEnabled === '1') {
+            const hasHw = await LocalAuthentication.hasHardwareAsync();
+            const enrolled = await LocalAuthentication.isEnrolledAsync();
+            if (hasHw && enrolled) {
+              setBiometricLocked(true);
+              const result = await LocalAuthentication.authenticateAsync({
+                promptMessage: 'Unlock Wealth Manager',
+                cancelLabel: 'Use Passcode',
+              });
+              if (result.success) {
+                setBiometricLocked(false);
+              }
+            }
+          }
+        }
+      }
+    };
+    const sub = AppState.addEventListener('change', handleAppStateChange);
+    return () => sub.remove();
+  }, []);
+
   return (
     <View style={{ flex: 1 }}>
       <DelegationBanner />
@@ -124,6 +163,11 @@ function AppNavigatorStack() {
           name="MainTabs"
           component={MainTabs}
           options={{ headerShown: false }}
+        />
+        <AppStack.Screen
+          name="Onboarding"
+          component={OnboardingScreen}
+          options={{ headerShown: false, gestureEnabled: false }}
         />
         <AppStack.Screen
           name="Profile"
@@ -136,6 +180,27 @@ function AppNavigatorStack() {
           }}
         />
       </AppStack.Navigator>
+
+      {/* Biometric lock overlay */}
+      <Modal visible={biometricLocked} transparent animationType="fade">
+        <View style={styles.lockOverlay}>
+          <Text style={styles.lockEmoji}>🔒</Text>
+          <Text style={styles.lockTitle}>Wealth Manager Locked</Text>
+          <Text style={styles.lockSub}>Authenticate to continue</Text>
+          <TouchableOpacity
+            style={styles.lockBtn}
+            onPress={async () => {
+              const result = await LocalAuthentication.authenticateAsync({
+                promptMessage: 'Unlock Wealth Manager',
+                cancelLabel: 'Cancel',
+              });
+              if (result.success) setBiometricLocked(false);
+            }}
+          >
+            <Text style={styles.lockBtnText}>Unlock</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -152,6 +217,14 @@ function AuthNavigatorStack() {
 
 export default function AppNavigator() {
   const { token, loading } = useAuth();
+  const navigationRef = useRef(null);
+
+  const handleNavigationReady = async () => {
+    const done = await SecureStore.getItemAsync('onboardingDone');
+    if (!done && navigationRef.current) {
+      navigationRef.current.navigate('Onboarding');
+    }
+  };
 
   if (loading) {
     return (
@@ -162,8 +235,28 @@ export default function AppNavigator() {
   }
 
   return (
-    <NavigationContainer>
-      {token ? <AppNavigatorStack /> : <AuthNavigatorStack />}
+    <NavigationContainer ref={navigationRef} onReady={token ? handleNavigationReady : undefined}>
+      {token ? <AppNavigatorStack navigationRef={navigationRef} /> : <AuthNavigatorStack />}
     </NavigationContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  lockOverlay: {
+    flex: 1,
+    backgroundColor: '#111827',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  lockEmoji: { fontSize: 64, marginBottom: 24 },
+  lockTitle: { fontSize: 24, fontWeight: '800', color: '#fff', marginBottom: 8 },
+  lockSub: { fontSize: 16, color: '#9ca3af', marginBottom: 40 },
+  lockBtn: {
+    backgroundColor: '#2563eb',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 48,
+  },
+  lockBtnText: { color: '#fff', fontSize: 17, fontWeight: '700' },
+});

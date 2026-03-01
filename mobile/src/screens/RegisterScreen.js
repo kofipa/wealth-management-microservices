@@ -5,6 +5,7 @@ import {
   ActivityIndicator, Alert,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import AppLogo from '../components/AppLogo';
 
 export default function RegisterScreen({ navigation }) {
   const { register } = useAuth();
@@ -18,8 +19,8 @@ export default function RegisterScreen({ navigation }) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
-    if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+    if (password.length < 8) {
+      Alert.alert('Error', 'Password must be at least 8 characters');
       return;
     }
     setLoading(true);
@@ -39,8 +40,9 @@ export default function RegisterScreen({ navigation }) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.inner}>
-        <Text style={styles.title}>Create Account</Text>
-        <Text style={styles.subtitle}>Start tracking your wealth</Text>
+        <View style={styles.logoWrap}>
+          <AppLogo size="small" tagline="Create your account" />
+        </View>
 
         <TextInput
           style={styles.input}
@@ -61,7 +63,7 @@ export default function RegisterScreen({ navigation }) {
         />
         <TextInput
           style={styles.input}
-          placeholder="Password (min 6 characters)"
+          placeholder="Password (min 8 characters)"
           placeholderTextColor="#9ca3af"
           value={password}
           onChangeText={setPassword}
@@ -87,8 +89,7 @@ export default function RegisterScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
   inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
-  title: { fontSize: 32, fontWeight: '700', color: '#111827', marginBottom: 6, textAlign: 'center' },
-  subtitle: { fontSize: 16, color: '#6b7280', marginBottom: 32, textAlign: 'center' },
+  logoWrap: { alignItems: 'center', marginBottom: 28 },
   input: {
     backgroundColor: '#fff',
     borderWidth: 1,

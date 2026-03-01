@@ -5,6 +5,7 @@ import {
   Modal, Image, SafeAreaView, ScrollView, TextInput,
   KeyboardAvoidingView,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -26,7 +27,11 @@ const CATEGORIES = [
   { id: 'other',       label: 'Other',       emoji: '📄', color: '#9ca3af' },
 ];
 
-const ALL_FILTERS = [{ id: 'all', label: 'All', emoji: '📂', color: '#6b7280' }, ...CATEGORIES];
+const ALL_FILTERS = [
+  { id: 'all',      label: 'All',           emoji: '📂', color: '#6b7280' },
+  { id: 'expiring', label: 'Expiring Soon',  emoji: '⏰', color: '#f59e0b' },
+  ...CATEGORIES,
+];
 
 const getCat = (id) => CATEGORIES.find((c) => c.id === id) || CATEGORIES[CATEGORIES.length - 1];
 
@@ -68,6 +73,8 @@ export default function DocumentsScreen() {
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
   const [uploadCategory, setUploadCategory] = useState('other');
   const [uploadDescription, setUploadDescription] = useState('');
+  const [uploadExpiryDate, setUploadExpiryDate] = useState('');
+  const [showExpiryPicker, setShowExpiryPicker] = useState(false);
 
   const load = async () => {
     try {
@@ -126,9 +133,10 @@ export default function DocumentsScreen() {
     setUploading(true);
     setUploadModalVisible(false);
     try {
-      await uploadDocument(file, uploadDescription, 'general', null, uploadCategory);
+      await uploadDocument(file, uploadDescription, 'general', null, uploadCategory, uploadExpiryDate || null);
       setUploadDescription('');
       setUploadCategory('other');
+      setUploadExpiryDate('');
       load();
     } catch (err) {
       Alert.alert('Upload failed', err.response?.data?.error || err.message || 'Could not upload file');
@@ -194,9 +202,30 @@ export default function DocumentsScreen() {
     ]);
   };
 
-  const filteredDocs = activeFilter === 'all'
-    ? documents
-    : documents.filter((d) => d.category === activeFilter);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const in30 = new Date(today);
+  in30.setDate(in30.getDate() + 30);
+
+  const getExpiryStatus = (doc) => {
+    if (!doc.expiry_date) return null;
+    const exp = new Date(doc.expiry_date);
+    exp.setHours(0, 0, 0, 0);
+    if (exp < today) return 'expired';
+    if (exp <= in30) return 'soon';
+    return null;
+  };
+
+  const filteredDocs = (() => {
+    if (activeFilter === 'all') return documents;
+    if (activeFilter === 'expiring') {
+      return documents.filter((d) => {
+        const s = getExpiryStatus(d);
+        return s === 'expired' || s === 'soon';
+      });
+    }
+    return documents.filter((d) => d.category === activeFilter);
+  })();
 
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color="#2563eb" /></View>;
@@ -261,6 +290,7 @@ export default function DocumentsScreen() {
         }
         renderItem={({ item }) => {
           const cat = getCat(item.category);
+          const expiryStatus = getExpiryStatus(item);
           return (
             <View style={styles.item}>
               <View style={styles.itemIcon}>
@@ -268,12 +298,25 @@ export default function DocumentsScreen() {
               </View>
               <View style={styles.itemLeft}>
                 <Text style={styles.itemName} numberOfLines={1}>{item.original_name || item.filename}</Text>
-                <View style={[styles.catBadge, { backgroundColor: cat.color + '18', borderColor: cat.color + '40' }]}>
-                  <Text style={[styles.catBadgeText, { color: cat.color }]}>{cat.emoji} {cat.label}</Text>
+                <View style={styles.badgeRow}>
+                  <View style={[styles.catBadge, { backgroundColor: cat.color + '18', borderColor: cat.color + '40' }]}>
+                    <Text style={[styles.catBadgeText, { color: cat.color }]}>{cat.emoji} {cat.label}</Text>
+                  </View>
+                  {expiryStatus === 'expired' && (
+                    <View style={styles.expiredBadge}>
+                      <Text style={styles.expiredBadgeText}>Expired</Text>
+                    </View>
+                  )}
+                  {expiryStatus === 'soon' && (
+                    <View style={styles.expiringSoonBadge}>
+                      <Text style={styles.expiringSoonBadgeText}>Exp soon</Text>
+                    </View>
+                  )}
                 </View>
                 {item.description ? <Text style={styles.itemDesc}>{item.description}</Text> : null}
                 <Text style={styles.itemMeta}>
                   {formatDate(item.created_at)}{item.file_size ? ` · ${formatSize(item.file_size)}` : ''}
+                  {item.expiry_date ? ` · Expires ${formatDate(item.expiry_date)}` : ''}
                 </Text>
               </View>
               <View style={styles.actions}>
@@ -325,6 +368,46 @@ export default function DocumentsScreen() {
               placeholder="e.g. Annual mortgage statement"
               placeholderTextColor="#9ca3af"
             />
+
+            <Text style={styles.label}>Expiry Date (optional)</Text>
+            <TouchableOpacity
+              style={[styles.input, styles.datePickerBtn]}
+              onPress={() => setShowExpiryPicker(true)}
+            >
+              <Text style={uploadExpiryDate ? styles.datePickerText : styles.datePickerPlaceholder}>
+                {uploadExpiryDate
+                  ? new Date(uploadExpiryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+                  : 'Select expiry date (optional)'}
+              </Text>
+              <Text style={styles.datePickerIcon}>📅</Text>
+            </TouchableOpacity>
+            {uploadExpiryDate ? (
+              <TouchableOpacity onPress={() => setUploadExpiryDate('')} style={{ marginTop: -14, marginBottom: 14, alignSelf: 'flex-end' }}>
+                <Text style={{ fontSize: 12, color: '#ef4444' }}>Clear date</Text>
+              </TouchableOpacity>
+            ) : null}
+            {showExpiryPicker && (
+              <DateTimePicker
+                value={uploadExpiryDate ? new Date(uploadExpiryDate) : new Date()}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                minimumDate={new Date()}
+                onChange={(event, selectedDate) => {
+                  if (Platform.OS === 'android') setShowExpiryPicker(false);
+                  if (selectedDate) {
+                    setUploadExpiryDate(selectedDate.toISOString().split('T')[0]);
+                  }
+                }}
+              />
+            )}
+            {showExpiryPicker && Platform.OS === 'ios' && (
+              <TouchableOpacity
+                style={styles.doneBtn}
+                onPress={() => setShowExpiryPicker(false)}
+              >
+                <Text style={styles.doneBtnText}>Done</Text>
+              </TouchableOpacity>
+            )}
 
             <Text style={styles.sectionLabel}>Choose Source</Text>
             <TouchableOpacity style={styles.sourceBtn} onPress={pickFromCamera}>
@@ -387,6 +470,11 @@ const styles = StyleSheet.create({
   itemName: { fontSize: 15, fontWeight: '600', color: '#111827', marginBottom: 4 },
   catBadge: { alignSelf: 'flex-start', borderRadius: 6, borderWidth: 1, paddingHorizontal: 7, paddingVertical: 2, marginBottom: 4 },
   catBadgeText: { fontSize: 11, fontWeight: '600' },
+  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 4 },
+  expiredBadge: { borderRadius: 6, borderWidth: 1, paddingHorizontal: 7, paddingVertical: 2, backgroundColor: '#fef2f2', borderColor: '#fca5a5' },
+  expiredBadgeText: { fontSize: 11, fontWeight: '600', color: '#dc2626' },
+  expiringSoonBadge: { borderRadius: 6, borderWidth: 1, paddingHorizontal: 7, paddingVertical: 2, backgroundColor: '#fffbeb', borderColor: '#fcd34d' },
+  expiringSoonBadgeText: { fontSize: 11, fontWeight: '600', color: '#d97706' },
   itemDesc: { fontSize: 12, color: '#6b7280', marginBottom: 2 },
   itemMeta: { fontSize: 12, color: '#9ca3af' },
   actions: { alignItems: 'flex-end', gap: 6, justifyContent: 'center' },
@@ -417,6 +505,12 @@ const styles = StyleSheet.create({
   sectionLabel: { fontSize: 13, fontWeight: '700', color: '#2563eb', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#e5e7eb' },
   sourceBtn: { backgroundColor: '#fff', borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', paddingVertical: 16, paddingHorizontal: 16, marginBottom: 10 },
   sourceBtnText: { fontSize: 16, color: '#111827', fontWeight: '500' },
+  datePickerBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  datePickerText: { fontSize: 16, color: '#111827' },
+  datePickerPlaceholder: { fontSize: 16, color: '#9ca3af' },
+  datePickerIcon: { fontSize: 18 },
+  doneBtn: { alignSelf: 'flex-end', paddingVertical: 8, paddingHorizontal: 16, marginBottom: 12 },
+  doneBtnText: { fontSize: 16, color: '#2563eb', fontWeight: '600' },
 
   // Image preview
   previewOverlay: { flex: 1, backgroundColor: '#000' },

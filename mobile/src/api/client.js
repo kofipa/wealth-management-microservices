@@ -1,5 +1,4 @@
 import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage'; // used by uploadDocument
 import { DEV_HOST } from './config';
 
 const BASE_URLS = {
@@ -16,6 +15,11 @@ const BASE_URLS = {
 let _activeToken = null;
 export const setActiveToken = (token) => { _activeToken = token; };
 
+// Auto-logout handler — set by AuthContext so it can clear state on 401/403
+let _onUnauthorized = null;
+let _unauthorizedFiring = false;
+export const setUnauthorizedHandler = (fn) => { _onUnauthorized = fn; };
+
 const createClient = (baseURL) => {
   const client = axios.create({ baseURL });
 
@@ -26,6 +30,20 @@ const createClient = (baseURL) => {
     }
     return config;
   });
+
+  // Detect expired / invalid tokens and auto-logout once
+  client.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      const status = error.response?.status;
+      if ((status === 401 || status === 403) && _onUnauthorized && !_unauthorizedFiring) {
+        _unauthorizedFiring = true;
+        _onUnauthorized();
+        setTimeout(() => { _unauthorizedFiring = false; }, 5000);
+      }
+      return Promise.reject(error);
+    },
+  );
 
   return client;
 };
@@ -64,6 +82,12 @@ export const createAsset = (data) => {
 export const updateAsset = (id, data) => assetClient.put(`/api/assets/${id}`, data);
 export const deleteAsset = (id) => assetClient.delete(`/api/assets/${id}`);
 export const getAssetTotal = () => assetClient.get('/api/assets/total/value');
+export const getPropertyValuation = (postcode) =>
+  assetClient.get('/api/assets/valuation/property', { params: { postcode } });
+export const getStockQuote = (ticker) =>
+  assetClient.get('/api/assets/price/quote', { params: { ticker } });
+export const getVehicleValuation = (reg, purchase_price, purchase_date, rate) =>
+  assetClient.get('/api/assets/valuation/vehicle', { params: { reg, purchase_price, purchase_date, rate } });
 
 // Liabilities
 export const getLiabilities = () => liabilityClient.get('/api/liabilities');
@@ -79,14 +103,13 @@ export const getLiabilityTotal = () => liabilityClient.get('/api/liabilities/tot
 // Net Worth
 export const getNetWorth = () => networthClient.get('/api/networth/calculate');
 export const getNetWorthBreakdown = () => networthClient.get('/api/networth/breakdown');
+export const getNetWorthHistory = (days = 30) =>
+  networthClient.get('/api/networth/history', { params: { days } });
 
 // Documents
 export const getDocuments = () => documentClient.get('/api/documents');
 export const deleteDocument = (id) => documentClient.delete(`/api/documents/${id}`);
-export const uploadDocument = async (file, description = '', relatedEntityType = 'general', relatedEntityId = null, category = 'other') => {
-  const delegatedToken = await AsyncStorage.getItem('delegatedToken');
-  const token = await AsyncStorage.getItem('token');
-  const authToken = delegatedToken || token;
+export const uploadDocument = async (file, description = '', relatedEntityType = 'general', relatedEntityId = null, category = 'other', expiryDate = null) => {
   const form = new FormData();
   form.append('file', {
     uri: file.uri,
@@ -97,10 +120,11 @@ export const uploadDocument = async (file, description = '', relatedEntityType =
   form.append('related_entity_type', relatedEntityType);
   if (relatedEntityId) form.append('related_entity_id', String(relatedEntityId));
   form.append('category', category);
+  if (expiryDate) form.append('expiry_date', expiryDate);
   return documentClient.post('/api/documents/upload', form, {
     headers: {
       'Content-Type': 'multipart/form-data',
-      Authorization: `Bearer ${authToken}`,
+      Authorization: `Bearer ${_activeToken}`,
     },
   });
 };
@@ -114,6 +138,19 @@ export const disconnectOpenBanking = () => openbankingClient.delete('/api/openba
 // Services
 export const getServices = () => serviceClient.get('/api/services');
 export const getServiceHealth = () => serviceClient.get('/api/services/health');
+
+// Profile + Password
+export const updateProfile = (data) => userClient.post('/api/users/profile', data);
+export const changePassword = (current_password, new_password) =>
+  userClient.post('/api/users/change-password', { current_password, new_password });
+
+// Security Question
+export const setSecurityQuestion = (question, answer) =>
+  userClient.post('/api/users/security-question', { question, answer });
+export const getSecurityQuestion = (email) =>
+  userClient.get(`/api/users/security-question/${encodeURIComponent(email)}`);
+export const verifySecurityQuestion = (email, answer) =>
+  userClient.post('/api/users/verify-security-question', { email, answer });
 
 // Nominees / Trusted Contacts
 export const addNominee = (email, inactivity_days) =>

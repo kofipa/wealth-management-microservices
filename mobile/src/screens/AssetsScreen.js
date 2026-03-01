@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   RefreshControl, ActivityIndicator, Alert, Modal,
@@ -8,7 +8,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import * as WebBrowser from 'expo-web-browser';
-import { getAssets, createAsset, updateAsset, deleteAsset, uploadDocument, createLiability, updateLiability, deleteLiability, getOpenBankingAuthUrl, getOpenBankingStatus, getOpenBankingAccounts } from '../api/client';
+import { getAssets, createAsset, updateAsset, deleteAsset, uploadDocument, createLiability, updateLiability, deleteLiability, getOpenBankingAuthUrl, getOpenBankingStatus, getOpenBankingAccounts, getPropertyValuation, getStockQuote, getVehicleValuation } from '../api/client';
 import DatePickerField from '../components/DatePickerField';
 
 const fmt = (n) =>
@@ -20,6 +20,8 @@ const EMPTY_FORM = { name: '', type: 'cash', value: '', description: '', metadat
 
 export default function AssetsScreen() {
   const [assets, setAssets] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('value_desc');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -32,6 +34,10 @@ export default function AssetsScreen() {
   const [bankAccounts, setBankAccounts] = useState([]);
   const [selectedAccounts, setSelectedAccounts] = useState({});
   const [importingBank, setImportingBank] = useState(false);
+  const [valuations, setValuations] = useState({}); // { [assetId]: { value, count, loading, error } }
+  const [quotes, setQuotes] = useState({}); // { [assetId]: { name, price_gbp, exchange, loading, error } }
+  const [vehicleVals, setVehicleVals] = useState({}); // { [assetId]: { estimated_value, make, year, loading, error } }
+  const editingAssetIdRef = useRef(null); // tracks which asset is open in edit modal
 
   const load = async () => {
     try {
@@ -39,8 +45,18 @@ export default function AssetsScreen() {
         getAssets(),
         getOpenBankingStatus(),
       ]);
-      if (assetsRes.status === 'fulfilled') setAssets(assetsRes.value.data.assets || []);
-      else Alert.alert('Error', 'Could not load assets');
+      if (assetsRes.status === 'fulfilled') {
+        const loaded = assetsRes.value.data.assets || [];
+        setAssets(loaded);
+        loaded.filter(a => a.asset_type === 'property').forEach(a => {
+          const pc = extractPostcode(a.metadata?.address);
+          if (pc) fetchValuation(a.id, pc);
+        });
+        loaded.filter(a => a.asset_type === 'investment' && a.metadata?.ticker_symbol && a.metadata?.quantity)
+          .forEach(a => fetchQuote(a.id, a.metadata.ticker_symbol, a.metadata.quantity));
+        loaded.filter(a => a.metadata?.original_type === 'vehicle' && a.metadata?.reg_plate && a.metadata?.purchase_price && a.metadata?.purchase_date)
+          .forEach(a => fetchVehicleValuation(a.id, a.metadata.reg_plate, a.metadata.purchase_price, a.metadata.purchase_date));
+      } else Alert.alert('Error', 'Could not load assets');
       if (statusRes.status === 'fulfilled') setBankConnected(statusRes.value.data.connected);
     } finally {
       setLoading(false);
@@ -64,6 +80,68 @@ export default function AssetsScreen() {
       return { ...prev, metadata: { ...prev.metadata, [key]: next } };
     });
 
+  const extractPostcode = (address) => {
+    const m = (address || '').match(/[A-Z]{1,2}[0-9][0-9A-Z]?\s?[0-9][A-Z]{2}/i);
+    return m ? m[0].toUpperCase() : null;
+  };
+
+  const fetchValuation = async (assetId, postcode) => {
+    setValuations(prev => ({ ...prev, [assetId]: { loading: true } }));
+    try {
+      const { data } = await getPropertyValuation(postcode);
+      setValuations(prev => ({
+        ...prev,
+        [assetId]: { value: data.estimated_value, count: data.comparables_count, loading: false },
+      }));
+      if (data.estimated_value != null) {
+        await updateAsset(assetId, { value: data.estimated_value });
+        setAssets(prev => prev.map(a => a.id === assetId ? { ...a, value: data.estimated_value } : a));
+        if (editingAssetIdRef.current === assetId) {
+          setForm(prev => ({ ...prev, value: String(data.estimated_value) }));
+        }
+      }
+    } catch {
+      setValuations(prev => ({ ...prev, [assetId]: { loading: false, error: true } }));
+    }
+  };
+
+  const fetchQuote = async (assetId, ticker, quantity) => {
+    setQuotes(prev => ({ ...prev, [assetId]: { loading: true } }));
+    try {
+      const { data } = await getStockQuote(ticker);
+      const value = data.price_gbp * parseFloat(quantity);
+      setQuotes(prev => ({
+        ...prev,
+        [assetId]: { name: data.name, price_gbp: data.price_gbp, exchange: data.exchange, loading: false },
+      }));
+      await updateAsset(assetId, { value });
+      setAssets(prev => prev.map(a => a.id === assetId ? { ...a, value } : a));
+      if (editingAssetIdRef.current === assetId) {
+        setForm(prev => ({ ...prev, value: String(value) }));
+      }
+    } catch {
+      setQuotes(prev => ({ ...prev, [assetId]: { loading: false, error: true } }));
+    }
+  };
+
+  const fetchVehicleValuation = async (assetId, reg, purchase_price, purchase_date) => {
+    setVehicleVals(prev => ({ ...prev, [assetId]: { loading: true } }));
+    try {
+      const { data } = await getVehicleValuation(reg, purchase_price, purchase_date);
+      setVehicleVals(prev => ({
+        ...prev,
+        [assetId]: { estimated_value: data.estimated_value, make: data.make, year: data.year_of_manufacture, loading: false },
+      }));
+      await updateAsset(assetId, { value: data.estimated_value });
+      setAssets(prev => prev.map(a => a.id === assetId ? { ...a, value: data.estimated_value } : a));
+      if (editingAssetIdRef.current === assetId) {
+        setForm(prev => ({ ...prev, value: String(data.estimated_value) }));
+      }
+    } catch {
+      setVehicleVals(prev => ({ ...prev, [assetId]: { loading: false, error: true } }));
+    }
+  };
+
   const openAddModal = () => {
     setEditingAsset(null);
     setForm(EMPTY_FORM);
@@ -71,6 +149,7 @@ export default function AssetsScreen() {
   };
 
   const openEditModal = (asset) => {
+    editingAssetIdRef.current = asset.id;
     setEditingAsset(asset);
     setForm({
       name: asset.name,
@@ -83,6 +162,7 @@ export default function AssetsScreen() {
   };
 
   const closeModal = () => {
+    editingAssetIdRef.current = null;
     setModalVisible(false);
     setEditingAsset(null);
     setForm(EMPTY_FORM);
@@ -430,6 +510,26 @@ export default function AssetsScreen() {
 
   const totalValue = assets.reduce((sum, a) => sum + parseFloat(a.value || 0), 0);
 
+  const filteredAssets = assets
+    .filter(a => {
+      const q = searchQuery.toLowerCase();
+      return !q || a.name?.toLowerCase().includes(q) || a.asset_type?.toLowerCase().includes(q);
+    })
+    .sort((a, b) => {
+      if (sortBy === 'value_desc') return parseFloat(b.value || 0) - parseFloat(a.value || 0);
+      if (sortBy === 'value_asc') return parseFloat(a.value || 0) - parseFloat(b.value || 0);
+      if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');
+      if (sortBy === 'type') return (a.asset_type || '').localeCompare(b.asset_type || '');
+      return 0;
+    });
+
+  const SORT_OPTIONS = [
+    { key: 'value_desc', label: 'Value', arrow: ' ↓' },
+    { key: 'value_asc',  label: 'Value', arrow: ' ↑' },
+    { key: 'name',       label: 'Name' },
+    { key: 'type',       label: 'Type' },
+  ];
+
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color="#2563eb" /></View>;
   }
@@ -456,18 +556,139 @@ export default function AssetsScreen() {
         </Text>
       </TouchableOpacity>
 
+      {/* Search */}
+      <View style={styles.searchRow}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search assets…"
+          placeholderTextColor="#9ca3af"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          clearButtonMode="while-editing"
+        />
+      </View>
+
+      {/* Sort chips */}
+      <View style={styles.sortRow}>
+        {SORT_OPTIONS.map(opt => (
+          <TouchableOpacity
+            key={opt.key}
+            style={[styles.sortChip, sortBy === opt.key && styles.sortChipActive]}
+            onPress={() => setSortBy(opt.key)}
+          >
+            <Text style={[styles.sortChipText, sortBy === opt.key && styles.sortChipTextActive]}>
+              {opt.label}
+              {opt.arrow && (
+                <Text style={{ color: '#f59e0b', fontWeight: '800' }}>{opt.arrow}</Text>
+              )}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
       <FlatList
-        data={assets}
+        data={filteredAssets}
         keyExtractor={(item) => String(item.id)}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         contentContainerStyle={styles.list}
-        ListEmptyComponent={<Text style={styles.empty}>No assets yet. Tap + Add to get started.</Text>}
+        ListEmptyComponent={
+          assets.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyEmoji}>💰</Text>
+              <Text style={styles.emptyTitle}>No assets yet</Text>
+              <Text style={styles.emptyBody}>Add your first asset to start tracking your wealth</Text>
+              <TouchableOpacity style={styles.emptyBtn} onPress={openAddModal}>
+                <Text style={styles.emptyBtnText}>Add Asset</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <Text style={styles.empty}>No assets match your search</Text>
+          )
+        }
         renderItem={({ item }) => (
           <View style={styles.item}>
             <View style={styles.itemLeft}>
               <Text style={styles.itemName}>{item.name}</Text>
               <Text style={styles.itemType}>{item.asset_type}</Text>
               {getMetaSummary(item)}
+              {item.asset_type === 'property' && (() => {
+                const v = valuations[item.id];
+                const postcode = extractPostcode(item.metadata?.address);
+                if (!postcode) return null;
+                return (
+                  <View style={styles.valuationRow}>
+                    {v?.loading
+                      ? <Text style={styles.valuationError}>Updating value…</Text>
+                      : v?.error
+                      ? <Text style={styles.valuationError}>Valuation unavailable</Text>
+                      : v?.value != null
+                      ? <Text style={styles.valuationError}>
+                          Land Registry · {v.count} nearby sale{v.count !== 1 ? 's' : ''}
+                        </Text>
+                      : v
+                      ? <Text style={styles.valuationError}>No recent sales data</Text>
+                      : null
+                    }
+                    {!v?.loading && (
+                      <TouchableOpacity onPress={() => fetchValuation(item.id, postcode)} style={styles.refreshBtn}>
+                        <Text style={styles.refreshIcon}>↻</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                );
+              })()}
+              {item.asset_type === 'investment' && (() => {
+                const q = quotes[item.id];
+                const ticker = item.metadata?.ticker_symbol;
+                const qty = item.metadata?.quantity;
+                if (!ticker || !qty) return null;
+                return (
+                  <View style={styles.valuationRow}>
+                    {q?.loading
+                      ? <Text style={styles.valuationError}>Fetching price…</Text>
+                      : q?.error
+                      ? <Text style={styles.valuationError}>Price unavailable</Text>
+                      : q?.price_gbp != null
+                      ? <Text style={styles.valuationError}>
+                          {fmt(q.price_gbp)} × {qty} · {q.exchange || 'Live'}
+                        </Text>
+                      : null
+                    }
+                    {!q?.loading && (
+                      <TouchableOpacity onPress={() => fetchQuote(item.id, ticker, qty)} style={styles.refreshBtn}>
+                        <Text style={styles.refreshIcon}>↻</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                );
+              })()}
+              {item.metadata?.original_type === 'vehicle' && (() => {
+                const vv = vehicleVals[item.id];
+                const reg = item.metadata?.reg_plate;
+                const pp = item.metadata?.purchase_price;
+                const pd = item.metadata?.purchase_date;
+                if (!reg || !pp || !pd) return null;
+                const label = vv?.make
+                  ? `${vv.make}${vv.year ? ` ${vv.year}` : ''} · 15%/yr depreciation`
+                  : '15%/yr depreciation estimate';
+                return (
+                  <View style={styles.valuationRow}>
+                    {vv?.loading
+                      ? <Text style={styles.valuationError}>Estimating value…</Text>
+                      : vv?.error
+                      ? <Text style={styles.valuationError}>Valuation unavailable</Text>
+                      : vv?.estimated_value != null
+                      ? <Text style={styles.valuationError}>{label}</Text>
+                      : null
+                    }
+                    {!vv?.loading && (
+                      <TouchableOpacity onPress={() => fetchVehicleValuation(item.id, reg, pp, pd)} style={styles.refreshBtn}>
+                        <Text style={styles.refreshIcon}>↻</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                );
+              })()}
               {item.description ? <Text style={styles.itemDesc}>{item.description}</Text> : null}
             </View>
             <View style={styles.itemRight}>
@@ -813,6 +1034,19 @@ export default function AssetsScreen() {
                   placeholderTextColor="#9ca3af"
                   autoCapitalize="words"
                 />
+                {form.type === 'vehicle' && (
+                  <>
+                    <Text style={styles.label}>Registration Plate</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={form.metadata.reg_plate || ''}
+                      onChangeText={(v) => setMeta('reg_plate', v.toUpperCase())}
+                      placeholder="e.g. AA19 AAA"
+                      placeholderTextColor="#9ca3af"
+                      autoCapitalize="characters"
+                    />
+                  </>
+                )}
                 <Text style={styles.label}>Purchase Price (£)</Text>
                 <TextInput
                   style={styles.input}
@@ -1061,8 +1295,26 @@ const styles = StyleSheet.create({
   attachBtn: { borderWidth: 1, borderColor: '#d1d5db', borderStyle: 'dashed', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginBottom: 16 },
   attachBtnText: { fontSize: 14, color: '#6b7280' },
   multiHint: { fontSize: 12, fontWeight: '400', color: '#9ca3af' },
+  valuationRow: { flexDirection: 'row', alignItems: 'center', marginTop: 3 },
+  valuationText: { fontSize: 12, color: '#059669', flex: 1 },
+  valuationError: { fontSize: 12, color: '#9ca3af', flex: 1 },
+  refreshBtn: { paddingHorizontal: 6, paddingVertical: 2 },
+  refreshIcon: { fontSize: 15, color: '#6b7280' },
   connectBankBtn: { backgroundColor: '#eff6ff', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 16, alignItems: 'center', marginHorizontal: 16, marginTop: 12, marginBottom: 4, borderWidth: 1, borderColor: '#bfdbfe' },
   connectBankBtnText: { fontSize: 14, color: '#1d4ed8', fontWeight: '600' },
   accountRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   accountCheck: { width: 24, height: 24, borderRadius: 4, borderWidth: 2, borderColor: '#2563eb', marginRight: 12, alignItems: 'center', justifyContent: 'center' },
+  searchRow: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  searchInput: { backgroundColor: '#f3f4f6', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: '#111827' },
+  sortRow: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#fff', gap: 8, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
+  sortChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb' },
+  sortChipActive: { backgroundColor: '#eff6ff', borderColor: '#2563eb' },
+  sortChipText: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
+  sortChipTextActive: { color: '#2563eb', fontWeight: '600' },
+  emptyState: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 32 },
+  emptyEmoji: { fontSize: 56, marginBottom: 16 },
+  emptyTitle: { fontSize: 20, fontWeight: '700', color: '#111827', marginBottom: 8 },
+  emptyBody: { fontSize: 15, color: '#6b7280', textAlign: 'center', lineHeight: 22, marginBottom: 24 },
+  emptyBtn: { backgroundColor: '#2563eb', borderRadius: 10, paddingVertical: 14, paddingHorizontal: 32 },
+  emptyBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
 });

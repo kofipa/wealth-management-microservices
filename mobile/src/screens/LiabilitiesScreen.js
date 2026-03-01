@@ -25,8 +25,17 @@ const EMPTY_FORM = {
   name: '', type: 'short-term', amount: '', interest_rate: '', due_date: '', description: '',
 };
 
+const SORT_OPTIONS = [
+  { key: 'amount_desc', label: 'Amount', arrow: ' ↓' },
+  { key: 'amount_asc',  label: 'Amount', arrow: ' ↑' },
+  { key: 'name',        label: 'Name' },
+  { key: 'type',        label: 'Type' },
+];
+
 export default function LiabilitiesScreen() {
   const [liabilities, setLiabilities] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('amount_desc');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -163,6 +172,19 @@ export default function LiabilitiesScreen() {
 
   const totalAmount = liabilities.reduce((sum, l) => sum + parseFloat(l.amount || 0), 0);
 
+  const filteredLiabilities = liabilities
+    .filter(l => {
+      const q = searchQuery.toLowerCase();
+      return !q || l.name?.toLowerCase().includes(q) || l.liability_type?.toLowerCase().includes(q);
+    })
+    .sort((a, b) => {
+      if (sortBy === 'amount_desc') return parseFloat(b.amount || 0) - parseFloat(a.amount || 0);
+      if (sortBy === 'amount_asc') return parseFloat(a.amount || 0) - parseFloat(b.amount || 0);
+      if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');
+      if (sortBy === 'type') return (a.liability_type || '').localeCompare(b.liability_type || '');
+      return 0;
+    });
+
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color="#2563eb" /></View>;
   }
@@ -179,12 +201,55 @@ export default function LiabilitiesScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Search */}
+      <View style={styles.searchRow}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search liabilities…"
+          placeholderTextColor="#9ca3af"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          clearButtonMode="while-editing"
+        />
+      </View>
+
+      {/* Sort chips */}
+      <View style={styles.sortRow}>
+        {SORT_OPTIONS.map(opt => (
+          <TouchableOpacity
+            key={opt.key}
+            style={[styles.sortChip, sortBy === opt.key && styles.sortChipActive]}
+            onPress={() => setSortBy(opt.key)}
+          >
+            <Text style={[styles.sortChipText, sortBy === opt.key && styles.sortChipTextActive]}>
+              {opt.label}
+              {opt.arrow && (
+                <Text style={{ color: '#ef4444', fontWeight: '800' }}>{opt.arrow}</Text>
+              )}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
       <FlatList
-        data={liabilities}
+        data={filteredLiabilities}
         keyExtractor={(item) => String(item.id)}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         contentContainerStyle={styles.list}
-        ListEmptyComponent={<Text style={styles.empty}>No liabilities yet. Tap + Add to get started.</Text>}
+        ListEmptyComponent={
+          liabilities.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyEmoji}>📋</Text>
+              <Text style={styles.emptyTitle}>No liabilities yet</Text>
+              <Text style={styles.emptyBody}>Track loans, mortgages and other debts to see your true net worth</Text>
+              <TouchableOpacity style={styles.emptyBtn} onPress={() => setModalVisible(true)}>
+                <Text style={styles.emptyBtnText}>Add Liability</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <Text style={styles.empty}>No liabilities match your search</Text>
+          )
+        }
         renderItem={({ item }) => (
           <View style={styles.item}>
             <View style={styles.itemTop}>
@@ -386,4 +451,17 @@ const styles = StyleSheet.create({
     paddingVertical: 16, alignItems: 'center', marginTop: 8,
   },
   saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  searchRow: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  searchInput: { backgroundColor: '#f3f4f6', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: '#111827' },
+  sortRow: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#fff', gap: 8, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
+  sortChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb' },
+  sortChipActive: { backgroundColor: '#fff1f2', borderColor: '#ef4444' },
+  sortChipText: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
+  sortChipTextActive: { color: '#ef4444', fontWeight: '600' },
+  emptyState: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 32 },
+  emptyEmoji: { fontSize: 56, marginBottom: 16 },
+  emptyTitle: { fontSize: 20, fontWeight: '700', color: '#111827', marginBottom: 8 },
+  emptyBody: { fontSize: 15, color: '#6b7280', textAlign: 'center', lineHeight: 22, marginBottom: 24 },
+  emptyBtn: { backgroundColor: '#ef4444', borderRadius: 10, paddingVertical: 14, paddingHorizontal: 32 },
+  emptyBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
 });

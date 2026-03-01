@@ -34,7 +34,9 @@
     },
     "plugins": [
       "expo-asset",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-secure-store",
+      "@react-native-community/datetimepicker"
     ]
   }
 }

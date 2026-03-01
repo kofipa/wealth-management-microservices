@@ -8,8 +8,14 @@ const jwt = require('jsonwebtoken');
 const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
 
+const helmet = require('helmet');
+
 const app = express();
-app.use(cors());
+app.use(helmet());
+app.use(cors({
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 app.use(express.json());
 
 // Swagger setup
@@ -112,7 +118,7 @@ function authenticateToken(req, res, next) {
 
   if (!token) return res.status(401).json({ error: 'Access token required' });
 
-  jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key', (err, user) => {
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) return res.status(403).json({ error: 'Invalid token' });
     req.user = user;
     next();
@@ -486,6 +492,10 @@ app.get('/health', (req, res) => {
 const PORT = process.env.PORT || 3003;
 
 async function start() {
+  if (!process.env.JWT_SECRET) {
+    console.error('FATAL: JWT_SECRET environment variable is not set');
+    process.exit(1);
+  }
   await initDB();
   await connectRabbitMQ();
 

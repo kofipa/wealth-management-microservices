@@ -7,9 +7,16 @@ const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
+const { Pool } = require('pg');
+
+const helmet = require('helmet');
 
 const app = express();
-app.use(cors());
+app.use(helmet());
+app.use(cors({
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 app.use(express.json());
 
 // Swagger setup
@@ -28,6 +35,39 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // Service URLs
 const ASSET_SERVICE_URL = process.env.ASSET_SERVICE_URL || 'http://asset-service:3002';
 const LIABILITY_SERVICE_URL = process.env.LIABILITY_SERVICE_URL || 'http://liability-service:3003';
+
+// Database connection for history snapshots
+const pool = new Pool({
+  host: process.env.DB_HOST || 'localhost',
+  port: process.env.DB_PORT || 5432,
+  database: process.env.DB_NAME || 'networthdb',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'postgres123',
+});
+
+async function initDB() {
+  const client = await pool.connect();
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS networth_snapshots (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        net_worth NUMERIC(15,2) NOT NULL,
+        total_assets NUMERIC(15,2) NOT NULL,
+        total_liabilities NUMERIC(15,2) NOT NULL,
+        snapshot_date DATE NOT NULL DEFAULT CURRENT_DATE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, snapshot_date)
+      );
+      CREATE INDEX IF NOT EXISTS idx_snapshots_user_date ON networth_snapshots(user_id, snapshot_date);
+    `);
+    console.log('NetWorth DB initialized');
+  } catch (err) {
+    console.error('DB init error:', err.message);
+  } finally {
+    client.release();
+  }
+}
 
 // RabbitMQ connection
 let channel;
@@ -82,7 +122,7 @@ function authenticateToken(req, res, next) {
 
   if (!token) return res.status(401).json({ error: 'Access token required' });
 
-  jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key', (err, user) => {
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) return res.status(403).json({ error: 'Invalid token' });
     req.user = user;
     next();
@@ -151,11 +191,29 @@ app.get('/api/networth/calculate', authenticateToken, async (req, res) => {
       calculatedAt: new Date()
     };
 
+    // Upsert daily snapshot
+    try {
+      await pool.query(
+        `INSERT INTO networth_snapshots (user_id, net_worth, total_assets, total_liabilities, snapshot_date)
+         VALUES ($1, $2, $3, $4, CURRENT_DATE)
+         ON CONFLICT (user_id, snapshot_date)
+         DO UPDATE SET net_worth = $2, total_assets = $3, total_liabilities = $4`,
+        [userId, netWorth, totalAssets, totalLiabilities]
+      );
+    } catch (dbErr) {
+      console.error('Snapshot upsert error:', dbErr.message);
+    }
+
     // Publish NetWorthCalculated event
     await publishEvent('networth.calculated', result);
 
     res.json(result);
   } catch (err) {
+    // Propagate auth failures from downstream services so the client can re-login
+    const downstream = err.response?.status;
+    if (downstream === 401 || downstream === 403) {
+      return res.status(downstream).json({ error: err.response.data?.error || 'Unauthorized' });
+    }
     console.error('Error calculating net worth:', err.message);
     res.status(500).json({ error: 'Failed to calculate net worth' });
   }
@@ -221,8 +279,52 @@ app.get('/api/networth/breakdown', authenticateToken, async (req, res) => {
       calculatedAt: new Date()
     });
   } catch (err) {
+    // Propagate auth failures from downstream services so the client can re-login
+    const downstream = err.response?.status;
+    if (downstream === 401 || downstream === 403) {
+      return res.status(downstream).json({ error: err.response.data?.error || 'Unauthorized' });
+    }
     console.error('Error getting net worth breakdown:', err.message);
     res.status(500).json({ error: 'Failed to get net worth breakdown' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/networth/history:
+ *   get:
+ *     summary: Get net worth history snapshots
+ *     tags: [Net Worth]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: days
+ *         schema:
+ *           type: integer
+ *           default: 30
+ *     responses:
+ *       200:
+ *         description: Array of daily net worth snapshots ordered by date ASC
+ */
+app.get('/api/networth/history', authenticateToken, async (req, res) => {
+  const userId = req.user.userId;
+  const days = parseInt(req.query.days) || 30;
+
+  try {
+    const result = await pool.query(
+      `SELECT snapshot_date AS date,
+              net_worth, total_assets, total_liabilities
+       FROM networth_snapshots
+       WHERE user_id = $1
+         AND snapshot_date >= CURRENT_DATE - ($2 || ' days')::INTERVAL
+       ORDER BY snapshot_date ASC`,
+      [userId, days]
+    );
+    res.json({ history: result.rows });
+  } catch (err) {
+    console.error('Error fetching history:', err.message);
+    res.status(500).json({ error: 'Failed to fetch history' });
   }
 });
 
@@ -244,6 +346,11 @@ app.get('/health', (req, res) => {
 const PORT = process.env.PORT || 3004;
 
 async function start() {
+  if (!process.env.JWT_SECRET) {
+    console.error('FATAL: JWT_SECRET environment variable is not set');
+    process.exit(1);
+  }
+  await initDB();
   await connectRabbitMQ();
 
   app.listen(PORT, () => {
