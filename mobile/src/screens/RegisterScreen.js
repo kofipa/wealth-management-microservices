@@ -13,6 +13,7 @@ export default function RegisterScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleRegister = async () => {
     if (!name || !email || !password) {
@@ -61,14 +62,22 @@ export default function RegisterScreen({ navigation }) {
           autoCapitalize="none"
           keyboardType="email-address"
         />
-        <TextInput
-          style={styles.input}
-          placeholder="Password (min 8 characters)"
-          placeholderTextColor="#9ca3af"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
+        <View style={styles.passwordWrap}>
+          <TextInput
+            style={styles.passwordInput}
+            placeholder="Password (min 8 characters)"
+            placeholderTextColor="#9ca3af"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!showPassword}
+          />
+          <TouchableOpacity
+            style={styles.eyeButton}
+            onPress={() => setShowPassword((v) => !v)}
+          >
+            <Text style={styles.eyeText}>{showPassword ? '🙈' : '👁️'}</Text>
+          </TouchableOpacity>
+        </View>
 
         <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={loading}>
           {loading ? (
@@ -101,6 +110,24 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     color: '#111827',
   },
+  passwordWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 10,
+    marginBottom: 14,
+  },
+  passwordInput: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: '#111827',
+  },
+  eyeButton: { paddingHorizontal: 14, paddingVertical: 14 },
+  eyeText: { fontSize: 18 },
   button: {
     backgroundColor: '#2563eb',
     borderRadius: 10,

@@ -62,6 +62,7 @@ export default function ProfileScreen() {
   const [pwModalVisible, setPwModalVisible] = useState(false);
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
   const [savingPw, setSavingPw] = useState(false);
+  const [showPw, setShowPw] = useState({ current: false, next: false, confirm: false });
 
   // Biometric
   const [biometricAvailable, setBiometricAvailable] = useState(false);
@@ -301,7 +302,7 @@ export default function ProfileScreen() {
         <Text style={styles.sectionTitle}>Security</Text>
         <TouchableOpacity
           style={styles.securityRow}
-          onPress={() => { setPwForm({ current: '', next: '', confirm: '' }); setPwModalVisible(true); }}
+          onPress={() => { setPwForm({ current: '', next: '', confirm: '' }); setShowPw({ current: false, next: false, confirm: false }); setPwModalVisible(true); }}
         >
           <Text style={styles.securityRowLabel}>Change Password</Text>
           <Text style={styles.securityRowChevron}>›</Text>
@@ -540,34 +541,58 @@ export default function ProfileScreen() {
             </View>
 
             <Text style={styles.label}>Current Password</Text>
-            <TextInput
-              style={styles.input}
-              value={pwForm.current}
-              onChangeText={(v) => setPwForm({ ...pwForm, current: v })}
-              placeholder="Your current password"
-              placeholderTextColor="#9ca3af"
-              secureTextEntry
-            />
+            <View style={styles.pwWrap}>
+              <TextInput
+                style={styles.pwInput}
+                value={pwForm.current}
+                onChangeText={(v) => setPwForm({ ...pwForm, current: v })}
+                placeholder="Your current password"
+                placeholderTextColor="#9ca3af"
+                secureTextEntry={!showPw.current}
+              />
+              <TouchableOpacity
+                style={styles.pwEye}
+                onPress={() => setShowPw((s) => ({ ...s, current: !s.current }))}
+              >
+                <Text style={styles.pwEyeText}>{showPw.current ? '🙈' : '👁️'}</Text>
+              </TouchableOpacity>
+            </View>
 
             <Text style={styles.label}>New Password</Text>
-            <TextInput
-              style={styles.input}
-              value={pwForm.next}
-              onChangeText={(v) => setPwForm({ ...pwForm, next: v })}
-              placeholder="At least 8 characters"
-              placeholderTextColor="#9ca3af"
-              secureTextEntry
-            />
+            <View style={styles.pwWrap}>
+              <TextInput
+                style={styles.pwInput}
+                value={pwForm.next}
+                onChangeText={(v) => setPwForm({ ...pwForm, next: v })}
+                placeholder="At least 8 characters"
+                placeholderTextColor="#9ca3af"
+                secureTextEntry={!showPw.next}
+              />
+              <TouchableOpacity
+                style={styles.pwEye}
+                onPress={() => setShowPw((s) => ({ ...s, next: !s.next }))}
+              >
+                <Text style={styles.pwEyeText}>{showPw.next ? '🙈' : '👁️'}</Text>
+              </TouchableOpacity>
+            </View>
 
             <Text style={styles.label}>Confirm New Password</Text>
-            <TextInput
-              style={styles.input}
-              value={pwForm.confirm}
-              onChangeText={(v) => setPwForm({ ...pwForm, confirm: v })}
-              placeholder="Repeat new password"
-              placeholderTextColor="#9ca3af"
-              secureTextEntry
-            />
+            <View style={styles.pwWrap}>
+              <TextInput
+                style={styles.pwInput}
+                value={pwForm.confirm}
+                onChangeText={(v) => setPwForm({ ...pwForm, confirm: v })}
+                placeholder="Repeat new password"
+                placeholderTextColor="#9ca3af"
+                secureTextEntry={!showPw.confirm}
+              />
+              <TouchableOpacity
+                style={styles.pwEye}
+                onPress={() => setShowPw((s) => ({ ...s, confirm: !s.confirm }))}
+              >
+                <Text style={styles.pwEyeText}>{showPw.confirm ? '🙈' : '👁️'}</Text>
+              </TouchableOpacity>
+            </View>
 
             <TouchableOpacity style={styles.saveBtn} onPress={handleChangePassword} disabled={savingPw}>
               {savingPw ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Update Password</Text>}
@@ -763,6 +788,10 @@ const styles = StyleSheet.create({
   modalDesc: { fontSize: 14, color: '#6b7280', lineHeight: 20, marginBottom: 24 },
   label: { fontSize: 14, fontWeight: '500', color: '#374151', marginBottom: 8 },
   input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: '#111827', marginBottom: 20 },
+  pwWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, marginBottom: 20 },
+  pwInput: { flex: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: '#111827' },
+  pwEye: { paddingHorizontal: 14, paddingVertical: 12 },
+  pwEyeText: { fontSize: 18 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 28 },
   chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb' },
   chipActive: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
