@@ -389,18 +389,18 @@ export default function ProfileScreen() {
           ) : (
             nominees.map((n) => (
               <View key={n.id} style={styles.nomineeRow}>
-                <View style={styles.nomineeLeft}>
+                <View style={styles.nomineeTopRow}>
                   <Text style={styles.nomineeEmail}>{n.nominee_email}</Text>
-                  <Text style={styles.nomineeMeta}>
-                    {n.inactivity_days === 0 ? 'Immediate access when activated' : `Access after ${n.inactivity_days} days inactive`}
-                  </Text>
-                </View>
-                <View style={styles.nomineeRight}>
                   <View style={[styles.statusBadge, n.status === 'accepted' ? styles.badgeActive : styles.badgePending]}>
                     <Text style={[styles.badgeText, n.status === 'accepted' ? styles.badgeTextActive : styles.badgeTextPending]}>
                       {n.status === 'accepted' ? 'Active' : 'Pending'}
                     </Text>
                   </View>
+                </View>
+                <Text style={styles.nomineeMeta}>
+                  {n.inactivity_days === 0 ? 'Immediate access when activated' : `Access after ${n.inactivity_days} days inactive`}
+                </Text>
+                <View style={styles.nomineeActions}>
                   <TouchableOpacity onPress={() => handleEditNomineeOpen(n)}>
                     <Text style={styles.editNomineeText}>Edit</Text>
                   </TouchableOpacity>
@@ -820,11 +820,11 @@ const styles = StyleSheet.create({
   addBtn: { backgroundColor: '#2563eb', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 6 },
   addBtnText: { color: '#fff', fontSize: 13, fontWeight: '600' },
 
-  nomineeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
-  nomineeLeft: { flex: 1 },
+  nomineeRow: { paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
+  nomineeTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  nomineeActions: { flexDirection: 'row', gap: 12, marginTop: 6 },
   nomineeEmail: { fontSize: 14, color: '#111827', fontWeight: '500' },
   nomineeMeta: { fontSize: 12, color: '#6b7280', marginTop: 2 },
-  nomineeRight: { alignItems: 'flex-end', gap: 6 },
   statusBadge: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
   badgeActive: { backgroundColor: '#dcfce7' },
   badgePending: { backgroundColor: '#fef9c3' },
@@ -832,7 +832,7 @@ const styles = StyleSheet.create({
   badgeTextActive: { color: '#16a34a' },
   badgeTextPending: { color: '#92400e' },
   removeText: { fontSize: 12, color: '#ef4444' },
-  editNomineeText: { fontSize: 12, color: '#2563eb', marginBottom: 4 },
+  editNomineeText: { fontSize: 12, color: '#2563eb' },
 
   delegatedRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
   delegatedLeft: { flex: 1 },
