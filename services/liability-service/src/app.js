@@ -12,7 +12,9 @@ const helmet = require('helmet');
 
 const app = express();
 app.use(helmet());
+const _corsOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()) : true;
 app.use(cors({
+  origin: _corsOrigins,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
@@ -64,6 +66,11 @@ async function connectRabbitMQ() {
 
         if (event.eventType === 'user.registered') {
           console.log(`User ${event.data.userId} registered - ready to track liabilities`);
+        }
+
+        if (event.eventType === 'user.deleted') {
+          await pool.query('DELETE FROM liabilities WHERE user_id = $1', [event.data.userId]);
+          console.log(`Deleted liabilities for user ${event.data.userId}`);
         }
 
         channel.ack(msg);

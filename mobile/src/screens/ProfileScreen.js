@@ -14,7 +14,7 @@ import AppLogo from '../components/AppLogo';
 import {
   getProfile, getServiceHealth,
   getNominees, addNominee, updateNominee, removeNominee,
-  getDelegatedAccounts, updateProfile, changePassword, changeEmail,
+  getDelegatedAccounts, updateProfile, changePassword, changeEmail, deleteAccount,
   setSecurityQuestion,
 } from '../api/client';
 
@@ -76,6 +76,11 @@ export default function ProfileScreen() {
   const [emailModalVisible, setEmailModalVisible] = useState(false);
   const [emailForm, setEmailForm] = useState({ newEmail: '', password: '' });
   const [savingEmail, setSavingEmail] = useState(false);
+
+  // Delete account modal
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   // Biometric
   const [biometricAvailable, setBiometricAvailable] = useState(false);
@@ -265,6 +270,23 @@ export default function ProfileScreen() {
       Alert.alert('Error', err.response?.data?.error || 'Could not change email');
     } finally {
       setSavingEmail(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deletePassword) {
+      Alert.alert('Error', 'Please enter your password to confirm');
+      return;
+    }
+    setDeletingAccount(true);
+    try {
+      await deleteAccount(deletePassword);
+      setDeleteModalVisible(false);
+      await logout();
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || 'Could not delete account');
+    } finally {
+      setDeletingAccount(false);
     }
   };
 
@@ -506,6 +528,16 @@ export default function ProfileScreen() {
           ))}
         </View>
       )}
+
+      {/* Delete Account */}
+      <View style={styles.section}>
+        <TouchableOpacity
+          style={styles.deleteAccountBtn}
+          onPress={() => { setDeletePassword(''); setDeleteModalVisible(true); }}
+        >
+          <Text style={styles.deleteAccountText}>Delete Account</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* App version */}
       <Text style={styles.versionText}>
@@ -771,6 +803,47 @@ export default function ProfileScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
+      {/* Delete Account Modal */}
+      <Modal visible={deleteModalVisible} animationType="slide" presentationStyle="pageSheet">
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: '#dc2626' }]}>Delete Account</Text>
+              <TouchableOpacity onPress={() => setDeleteModalVisible(false)}>
+                <Text style={styles.modalClose}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[styles.label, { color: '#dc2626', fontWeight: '600', marginBottom: 4 }]}>
+              This action is permanent and cannot be undone.
+            </Text>
+            <Text style={[styles.label, { color: '#6b7280', fontSize: 13, marginBottom: 20 }]}>
+              All your assets, liabilities, documents, and account data will be permanently deleted.
+            </Text>
+
+            <Text style={styles.label}>Enter your password to confirm</Text>
+            <TextInput
+              style={styles.input}
+              value={deletePassword}
+              onChangeText={setDeletePassword}
+              placeholder="Your current password"
+              placeholderTextColor="#9ca3af"
+              secureTextEntry
+            />
+
+            <TouchableOpacity
+              style={[styles.saveBtn, { backgroundColor: '#dc2626' }]}
+              onPress={handleDeleteAccount}
+              disabled={deletingAccount}
+            >
+              {deletingAccount
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={styles.saveBtnText}>Permanently Delete My Account</Text>}
+            </TouchableOpacity>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </Modal>
+
       {/* Add Nominee Modal */}
       <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet">
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -883,6 +956,14 @@ const styles = StyleSheet.create({
   securityRowLabel: { fontSize: 15, color: '#111827' },
   securityRowChevron: { fontSize: 22, color: '#9ca3af' },
   versionText: { textAlign: 'center', fontSize: 12, color: '#d1d5db', marginTop: 8, marginBottom: 20 },
+  deleteAccountBtn: {
+    borderWidth: 1,
+    borderColor: '#dc2626',
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  deleteAccountText: { color: '#dc2626', fontSize: 15, fontWeight: '600' },
 
   section: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#e5e7eb' },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },

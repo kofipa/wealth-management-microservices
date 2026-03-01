@@ -153,6 +153,9 @@ export const changePassword = (current_password, new_password) =>
 export const changeEmail = (new_email, password) =>
   userClient.post('/api/users/change-email', { new_email, password });
 
+export const deleteAccount = (password) =>
+  userClient.delete('/api/users/me', { data: { password } });
+
 // Security Question
 export const setSecurityQuestion = (question, answer) =>
   userClient.post('/api/users/security-question', { question, answer });

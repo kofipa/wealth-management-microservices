@@ -14,10 +14,12 @@ if (!process.env.JWT_SECRET) {
   process.exit(1);
 }
 
+const amqp = require('amqplib');
 const helmet = require('helmet');
 const app = express();
 app.use(helmet());
-app.use(cors());
+const _corsOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()) : true;
+app.use(cors({ origin: _corsOrigins, methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization'] }));
 app.use(express.json());
 
 // Swagger setup
@@ -400,9 +402,38 @@ app.delete('/api/openbanking/disconnect', authenticateToken, async (req, res) =>
   }
 });
 
+async function connectRabbitMQ() {
+  try {
+    const connection = await amqp.connect(process.env.RABBITMQ_URL || 'amqp://rabbitmq:5672', { connectionTimeout: 5000 });
+    const ch = await connection.createChannel();
+    await ch.assertExchange('wealth_management_events', 'topic', { durable: true });
+
+    const queue = await ch.assertQueue('openbanking_service_queue', { durable: true });
+    await ch.bindQueue(queue.queue, 'wealth_management_events', 'user.#');
+
+    ch.consume(queue.queue, async (msg) => {
+      if (msg) {
+        const event = JSON.parse(msg.content.toString());
+        if (event.eventType === 'user.deleted') {
+          await pool.query('DELETE FROM bank_connections WHERE user_id = $1', [event.data.userId]);
+          await pool.query('DELETE FROM auth_states WHERE user_id = $1', [event.data.userId]);
+          console.log(`Deleted open banking data for user ${event.data.userId}`);
+        }
+        ch.ack(msg);
+      }
+    });
+
+    console.log('Open Banking Service connected to RabbitMQ');
+  } catch (err) {
+    console.error('RabbitMQ connection error:', err.message);
+    setTimeout(connectRabbitMQ, 5000);
+  }
+}
+
 const PORT = process.env.PORT || 3007;
 app.listen(PORT, async () => {
   await initDB();
+  connectRabbitMQ();
   console.log(`Open Banking Service running on port ${PORT}`);
 });
 

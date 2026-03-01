@@ -70,7 +70,9 @@ async function sendEmail(to, subject, html) {
 
 const app = express();
 app.use(helmet());
+const _corsOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()) : true;
 app.use(cors({
+  origin: _corsOrigins,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
@@ -1094,6 +1096,41 @@ app.post('/api/users/verify-security-question', async (req, res) => {
     res.status(500).json({ error: 'Could not verify answer' });
   }
 });
+
+// ── Account deletion ─────────────────────────────────────────────────────────
+
+app.delete('/api/users/me', authenticateToken, async (req, res) => {
+  const { password } = req.body;
+  const userId = req.user.userId;
+
+  if (!password) {
+    return res.status(400).json({ error: 'Password is required to confirm account deletion' });
+  }
+
+  try {
+    const result = await pool.query('SELECT password_hash FROM users WHERE id = $1', [userId]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const valid = await bcrypt.compare(password, result.rows[0].password_hash);
+    if (!valid) {
+      return res.status(401).json({ error: 'Password is incorrect' });
+    }
+
+    // Delete user — CASCADE removes user_profiles, nominees (owned), password_reset_tokens
+    await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+
+    // Publish event so other services clean up their data
+    await publishEvent('user.deleted', { userId });
+
+    res.json({ message: 'Account deleted successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Could not delete account' });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────────────
 
 // ── Email verification endpoints ─────────────────────────────────────────────
 

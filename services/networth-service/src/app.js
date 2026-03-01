@@ -14,7 +14,9 @@ const PDFDocument = require('pdfkit');
 
 const app = express();
 app.use(helmet());
+const _corsOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()) : true;
 app.use(cors({
+  origin: _corsOrigins,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
@@ -87,6 +89,7 @@ async function connectRabbitMQ() {
     const queue = await channel.assertQueue('networth_service_queue', { durable: true });
     await channel.bindQueue(queue.queue, EXCHANGE_NAME, 'asset.#');
     await channel.bindQueue(queue.queue, EXCHANGE_NAME, 'liability.#');
+    await channel.bindQueue(queue.queue, EXCHANGE_NAME, 'user.#');
 
     channel.consume(queue.queue, async (msg) => {
       if (msg) {
@@ -97,6 +100,11 @@ async function connectRabbitMQ() {
         if (event.eventType.startsWith('asset.') || event.eventType.startsWith('liability.')) {
           console.log(`Financial data changed for user ${event.data.userId}`);
           // Could implement automatic net worth calculation trigger here
+        }
+
+        if (event.eventType === 'user.deleted') {
+          await pool.query('DELETE FROM networth_snapshots WHERE user_id = $1', [event.data.userId]);
+          console.log(`Deleted networth snapshots for user ${event.data.userId}`);
         }
 
         channel.ack(msg);
