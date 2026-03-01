@@ -44,6 +44,9 @@ const pool = new Pool({
   database: process.env.DB_NAME || 'networthdb',
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD || 'postgres123',
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
 });
 
 async function initDB() {
@@ -76,7 +79,7 @@ const EXCHANGE_NAME = 'wealth_management_events';
 
 async function connectRabbitMQ() {
   try {
-    const connection = await amqp.connect(process.env.RABBITMQ_URL || 'amqp://rabbitmq:5672');
+    const connection = await amqp.connect(process.env.RABBITMQ_URL || 'amqp://rabbitmq:5672', { connectionTimeout: 5000 });
     channel = await connection.createChannel();
     await channel.assertExchange(EXCHANGE_NAME, 'topic', { durable: true });
 

@@ -37,7 +37,10 @@ const pool = new Pool({
   port: process.env.DB_PORT || 5432,
   database: process.env.DB_NAME || 'liabilitydb',
   user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'postgres'
+  password: process.env.DB_PASSWORD || 'postgres',
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
 });
 
 // RabbitMQ connection
@@ -46,7 +49,7 @@ const EXCHANGE_NAME = 'wealth_management_events';
 
 async function connectRabbitMQ() {
   try {
-    const connection = await amqp.connect(process.env.RABBITMQ_URL || 'amqp://rabbitmq:5672');
+    const connection = await amqp.connect(process.env.RABBITMQ_URL || 'amqp://rabbitmq:5672', { connectionTimeout: 5000 });
     channel = await connection.createChannel();
     await channel.assertExchange(EXCHANGE_NAME, 'topic', { durable: true });
 
@@ -111,6 +114,15 @@ async function initDB() {
   }
 }
 
+// Shared validators
+function validateStringField(value, fieldName, { required = false, maxLength = 255 } = {}) {
+  if (required && (!value || !String(value).trim())) return `${fieldName} is required`;
+  if (value !== undefined && value !== null && String(value).trim().length > maxLength) {
+    return `${fieldName} must be ${maxLength} characters or fewer`;
+  }
+  return null;
+}
+
 // Middleware to verify JWT token
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
@@ -165,6 +177,10 @@ function authenticateToken(req, res, next) {
 app.post('/api/liabilities/short-term', authenticateToken, async (req, res) => {
   const { name, amount, currency, interest_rate, due_date, description } = req.body;
   const userId = req.user.userId;
+
+  const nameErr = validateStringField(name, 'name', { required: true });
+  const descErr = validateStringField(description, 'description', { maxLength: 500 });
+  if (nameErr || descErr) return res.status(400).json({ error: nameErr || descErr });
 
   try {
     const result = await pool.query(
@@ -223,6 +239,10 @@ app.post('/api/liabilities/short-term', authenticateToken, async (req, res) => {
 app.post('/api/liabilities/long-term', authenticateToken, async (req, res) => {
   const { name, amount, currency, interest_rate, due_date, description } = req.body;
   const userId = req.user.userId;
+
+  const nameErr = validateStringField(name, 'name', { required: true });
+  const descErr = validateStringField(description, 'description', { maxLength: 500 });
+  if (nameErr || descErr) return res.status(400).json({ error: nameErr || descErr });
 
   try {
     const result = await pool.query(
@@ -286,6 +306,10 @@ app.put('/api/liabilities/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { name, amount, currency, interest_rate, due_date, description } = req.body;
   const userId = req.user.userId;
+
+  const nameErr = validateStringField(name, 'name', { maxLength: 255 });
+  const descErr = validateStringField(description, 'description', { maxLength: 500 });
+  if (nameErr || descErr) return res.status(400).json({ error: nameErr || descErr });
 
   try {
     const result = await pool.query(

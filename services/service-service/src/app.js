@@ -72,7 +72,7 @@ const EXCHANGE_NAME = 'wealth_management_events';
 
 async function connectRabbitMQ() {
   try {
-    const connection = await amqp.connect(process.env.RABBITMQ_URL || 'amqp://rabbitmq:5672');
+    const connection = await amqp.connect(process.env.RABBITMQ_URL || 'amqp://rabbitmq:5672', { connectionTimeout: 5000 });
     channel = await connection.createChannel();
     await channel.assertExchange(EXCHANGE_NAME, 'topic', { durable: true });
     console.log('Connected to RabbitMQ');

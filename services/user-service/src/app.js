@@ -112,7 +112,10 @@ const pool = new Pool({
   port: process.env.DB_PORT || 5432,
   database: process.env.DB_NAME || 'userdb',
   user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'postgres'
+  password: process.env.DB_PASSWORD || 'postgres',
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
 });
 
 // RabbitMQ connection
@@ -121,7 +124,7 @@ const EXCHANGE_NAME = 'wealth_management_events';
 
 async function connectRabbitMQ() {
   try {
-    const connection = await amqp.connect(process.env.RABBITMQ_URL || 'amqp://rabbitmq:5672');
+    const connection = await amqp.connect(process.env.RABBITMQ_URL || 'amqp://rabbitmq:5672', { connectionTimeout: 5000 });
     channel = await connection.createChannel();
     await channel.assertExchange(EXCHANGE_NAME, 'topic', { durable: true });
     console.log('Connected to RabbitMQ');
@@ -666,8 +669,10 @@ app.post('/api/users/forgot-password', forgotPasswordLimiter, async (req, res) =
       [userId, code]
     );
 
-    // In production this would be emailed. Log to server console only.
-    console.log(`[DEV] Reset code for ${email}: ${code}`);
+    // In production this would be emailed. Only log in development.
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[DEV] Reset code for ${email}: ${code}`);
+    }
     res.json({ message: 'If that email exists, a reset code has been sent.' });
   } catch (err) {
     console.error(err);
