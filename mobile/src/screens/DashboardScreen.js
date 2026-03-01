@@ -7,6 +7,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getNetWorthBreakdown, getNetWorthHistory } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import TrendChart from '../components/TrendChart';
+import { buildRecommendations } from '../utils/recommendations';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -15,98 +16,6 @@ const fmt = (n) =>
 
 const fmtLabel = (s) =>
   s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-
-const buildRecommendations = (data) => {
-  const totalAssets = parseFloat(data?.totalAssets ?? 0);
-  const totalLiabilities = parseFloat(data?.totalLiabilities ?? 0);
-  const netWorth = totalAssets - totalLiabilities;
-  const hasProperty = (data?.assetsByType?.property ?? 0) > 0;
-  const hasInvestments = (data?.assetsByType?.investment ?? 0) > 0;
-  const hasShortTermDebt = (data?.liabilitiesByType?.short_term ?? 0) > 0;
-  const isLowAssets = totalAssets < 5000;
-  const isHighDebt = totalLiabilities > 0 && (totalLiabilities > totalAssets * 0.5 || netWorth < 0);
-
-  const recs = [];
-
-  // Credit score — surface early for users with little wealth or any debt
-  if (isLowAssets || hasShortTermDebt || isHighDebt) {
-    recs.push({
-      id: 'loans', icon: '⭐', title: 'Check Your Credit Score',
-      nudge: 'See your score for free and find ways to improve it',
-      color: '#0891b2', bg: '#ecfeff',
-    });
-  }
-
-  // Debt management — when liabilities are significant relative to assets
-  if (isHighDebt || hasShortTermDebt) {
-    recs.push({
-      id: 'loans', icon: '🧾', title: 'Debt Management',
-      nudge: totalLiabilities > totalAssets
-        ? `Your liabilities exceed your assets — explore debt consolidation`
-        : 'Consolidate or reduce your debts with expert help',
-      color: '#dc2626', bg: '#fef2f2',
-    });
-  }
-
-  if (totalAssets > 10000 || hasProperty) {
-    recs.push({
-      id: 'will-creation', icon: '📜', title: 'Will Creation',
-      nudge: `Protect your ${fmt(totalAssets)} estate for your loved ones`,
-      color: '#7c3aed', bg: '#f5f3ff',
-    });
-  }
-
-  recs.push({
-    id: 'pension-planning', icon: '🏦', title: 'Pension Planning',
-    nudge: 'Consolidate old pots and plan for retirement',
-    color: '#d97706', bg: '#fffbeb',
-  });
-
-  recs.push({
-    id: 'life-insurance', icon: '🛡️', title: 'Life Insurance',
-    nudge: "Protect your family's financial future",
-    color: '#16a34a', bg: '#f0fdf4',
-  });
-
-  if (totalAssets > 5000 || hasInvestments) {
-    recs.push({
-      id: 'investment-advice', icon: '📈', title: 'Investment Advice',
-      nudge: 'Get expert guidance to grow your wealth',
-      color: '#ea580c', bg: '#fff7ed',
-    });
-  }
-
-  if (hasProperty) {
-    recs.push({
-      id: 'mortgages', icon: '🏠', title: 'Mortgages',
-      nudge: 'Check if you could get a better deal',
-      color: '#2563eb', bg: '#eff6ff',
-    });
-  }
-
-  recs.push({
-    id: 'income-protection', icon: '🔒', title: 'Income Protection',
-    nudge: 'Cover yourself if you cannot work',
-    color: '#6d28d9', bg: '#f5f3ff',
-  });
-
-  recs.push({
-    id: 'tax-advisory', icon: '📋', title: 'Tax Advisory',
-    nudge: 'Optimise your tax position with a professional',
-    color: '#dc2626', bg: '#fef2f2',
-  });
-
-  // Personal loans only for users without property and without debt management card
-  if (!hasProperty && !isHighDebt && !hasShortTermDebt) {
-    recs.push({
-      id: 'loans', icon: '💳', title: 'Personal Loans',
-      nudge: 'Compare competitive personal loan rates',
-      color: '#0891b2', bg: '#ecfeff',
-    });
-  }
-
-  return recs;
-};
 
 const ROTATION_MS = 4000;
 

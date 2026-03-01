@@ -6,7 +6,8 @@ import {
 import * as WebBrowser from 'expo-web-browser';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
-import { createLiability } from '../api/client';
+import { createLiability, getNetWorthBreakdown } from '../api/client';
+import { getRecommendedServiceIds } from '../utils/recommendations';
 
 // Providers for each service, keyed by service id
 const SERVICE_PROVIDERS = {
@@ -80,12 +81,38 @@ const SERVICE_PROVIDERS = {
       bg: '#ecfdf5',
     },
     {
+      id: 'tesco-loans',
+      name: 'Tesco Bank',
+      description: 'Flexible personal loans from £1,000 to £35,000 with fixed monthly repayments.',
+      url: 'https://www.tescobank.com/loans/',
+      color: '#dc2626',
+      bg: '#fef2f2',
+    },
+  ],
+  'credit-score': [
+    {
       id: 'clearscore',
       name: 'ClearScore',
-      description: 'See loans you are likely to be accepted for, tailored to your credit profile.',
-      url: 'https://www.clearscore.com/loans',
+      description: 'Check your credit score for free and see offers you are likely to be accepted for.',
+      url: 'https://www.clearscore.com/',
       color: '#0891b2',
       bg: '#ecfeff',
+    },
+    {
+      id: 'experian',
+      name: 'Experian',
+      description: 'Free Experian credit score with monthly updates and personalised tips to improve it.',
+      url: 'https://www.experian.co.uk/consumer/free-credit-score.html',
+      color: '#7c3aed',
+      bg: '#f5f3ff',
+    },
+    {
+      id: 'checkmyfile',
+      name: 'CheckMyFile',
+      description: 'See your credit report data from all four UK credit reference agencies in one place.',
+      url: 'https://www.checkmyfile.com/',
+      color: '#16a34a',
+      bg: '#f0fdf4',
     },
   ],
   'life-insurance': [
@@ -256,6 +283,15 @@ const SERVICES = [
     bg: '#ecfeff',
   },
   {
+    id: 'credit-score',
+    icon: '⭐',
+    title: 'Credit Score',
+    description: 'Check your credit score for free, monitor changes, and find ways to improve it.',
+    tag: 'Credit',
+    color: '#0891b2',
+    bg: '#ecfeff',
+  },
+  {
     id: 'life-insurance',
     icon: '🛡️',
     title: 'Life Insurance',
@@ -319,6 +355,11 @@ export default function ServicesScreen({ route }) {
   const [insurancePrompt, setInsurancePrompt] = useState({ visible: false, provider: null });
   const [monthlyPremium, setMonthlyPremium] = useState('');
   const [savingPremium, setSavingPremium] = useState(false);
+  const [breakdown, setBreakdown] = useState(null);
+
+  useEffect(() => {
+    getNetWorthBreakdown().then((r) => setBreakdown(r.data)).catch(() => {});
+  }, []);
 
   // Auto-open a service when navigated from the recommendations carousel
   useEffect(() => {
@@ -446,30 +487,56 @@ export default function ServicesScreen({ route }) {
           <Text style={styles.introSub}>Everything you need to manage and grow your wealth in one place.</Text>
         </View>
 
-        {SERVICES.map((svc) => (
-          <TouchableOpacity
-            key={svc.id}
-            style={styles.card}
-            onPress={() => handlePress(svc)}
-            activeOpacity={0.75}
-          >
-            <View style={[styles.iconBox, { backgroundColor: svc.bg }]}>
-              <Text style={styles.icon}>{svc.icon}</Text>
-            </View>
-            <View style={styles.cardBody}>
-              <View style={styles.cardTop}>
-                <Text style={styles.cardTitle}>{svc.title}</Text>
-                <View style={[styles.tag, { backgroundColor: svc.bg }]}>
-                  <Text style={[styles.tagText, { color: svc.color }]}>{svc.tag}</Text>
-                </View>
+        {(() => {
+          const recommendedIds = getRecommendedServiceIds(breakdown);
+          const recommended = recommendedIds.map((id) => SERVICES.find((s) => s.id === id)).filter(Boolean);
+          const others = SERVICES.filter((s) => !recommendedIds.includes(s.id));
+
+          const renderCard = (svc, isRecommended = false) => (
+            <TouchableOpacity
+              key={svc.id}
+              style={[styles.card, isRecommended && styles.cardRecommended]}
+              onPress={() => handlePress(svc)}
+              activeOpacity={0.75}
+            >
+              <View style={[styles.iconBox, { backgroundColor: svc.bg }]}>
+                <Text style={styles.icon}>{svc.icon}</Text>
               </View>
-              <Text style={styles.cardDesc}>{svc.description}</Text>
-              <Text style={[styles.cta, { color: svc.color }]}>
-                {SERVICE_PROVIDERS[svc.id] ? 'Find a provider →' : 'Learn more →'}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        ))}
+              <View style={styles.cardBody}>
+                <View style={styles.cardTop}>
+                  <Text style={styles.cardTitle}>{svc.title}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    {isRecommended && (
+                      <View style={styles.recBadge}>
+                        <Text style={styles.recBadgeText}>For you</Text>
+                      </View>
+                    )}
+                    <View style={[styles.tag, { backgroundColor: svc.bg }]}>
+                      <Text style={[styles.tagText, { color: svc.color }]}>{svc.tag}</Text>
+                    </View>
+                  </View>
+                </View>
+                <Text style={styles.cardDesc}>{svc.description}</Text>
+                <Text style={[styles.cta, { color: svc.color }]}>
+                  {SERVICE_PROVIDERS[svc.id] ? 'Find a provider →' : 'Learn more →'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          );
+
+          return (
+            <>
+              {recommended.length > 0 && (
+                <>
+                  <Text style={styles.sectionLabel}>Recommended for you</Text>
+                  {recommended.map((svc) => renderCard(svc, true))}
+                  <Text style={styles.sectionLabel}>All Services</Text>
+                </>
+              )}
+              {others.map((svc) => renderCard(svc, false))}
+            </>
+          );
+        })()}
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>More services coming soon</Text>
@@ -628,6 +695,26 @@ const styles = StyleSheet.create({
   cta: { fontSize: 13, fontWeight: '600' },
   footer: { alignItems: 'center', marginTop: 8 },
   footerText: { fontSize: 13, color: '#9ca3af' },
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#6b7280',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: 10,
+    marginTop: 4,
+  },
+  cardRecommended: {
+    borderColor: '#2563eb',
+    borderWidth: 1.5,
+  },
+  recBadge: {
+    backgroundColor: '#2563eb',
+    borderRadius: 20,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  recBadgeText: { fontSize: 10, fontWeight: '700', color: '#fff' },
 
   // Provider modal
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
