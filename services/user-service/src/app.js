@@ -14,9 +14,18 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { Resend } = require('resend');
 
+// ── startup env check ────────────────────────────────────────────────────────
+const REQUIRED_VARS = ['FIELD_ENCRYPTION_KEY', 'JWT_SECRET', 'DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD', 'RABBITMQ_URL'];
+const missing = REQUIRED_VARS.filter(k => !process.env[k]);
+if (missing.length > 0) {
+  console.error('FATAL: Missing required environment variables:', missing.join(', '));
+  process.exit(1);
+}
+console.log('Env check OK. Keys present:', REQUIRED_VARS.map(k => k + '=' + (process.env[k] ? '***' : 'MISSING')).join(', '));
+
 // ── PII field encryption (AES-256-GCM) ──────────────────────────────────────
 const ENC_KEY = Buffer.from(process.env.FIELD_ENCRYPTION_KEY, 'hex');
-if (!process.env.FIELD_ENCRYPTION_KEY || ENC_KEY.length !== 32) {
+if (ENC_KEY.length !== 32) {
   console.error('FATAL: FIELD_ENCRYPTION_KEY must be a 64-character hex string (32 bytes)');
   process.exit(1);
 }
