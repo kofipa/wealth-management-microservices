@@ -12,7 +12,7 @@ const swaggerUi = require('swagger-ui-express');
 
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const sgMail = require('@sendgrid/mail');
+const { Resend } = require('resend');
 
 // ── PII field encryption (AES-256-GCM) ──────────────────────────────────────
 const ENC_KEY = Buffer.from(process.env.FIELD_ENCRYPTION_KEY, 'hex');
@@ -56,14 +56,20 @@ function decryptProfile(row) {
 }
 // ────────────────────────────────────────────────────────────────────────────
 
-// ── Email sending (SendGrid) ─────────────────────────────────────────────────
+// ── Email sending (Resend) ───────────────────────────────────────────────────
+const _resend = new Resend(process.env.RESEND_API_KEY);
+
 async function sendEmail(to, subject, html) {
   try {
-    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-    await sgMail.send({ to, from: process.env.FROM_EMAIL, subject, html });
+    await _resend.emails.send({
+      from: process.env.FROM_EMAIL,
+      to,
+      subject,
+      html,
+    });
     console.log(`Email sent to ${to}: ${subject}`);
   } catch (err) {
-    console.error('SendGrid error:', err.response?.body?.errors || err.message);
+    console.error('Resend error:', err.message);
   }
 }
 // ────────────────────────────────────────────────────────────────────────────
