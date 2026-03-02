@@ -1,0 +1,5 @@
+[build]
+buildCommand = "cd services/$SERVICE_NAME && npm install --production"
+
+[deploy]
+startCommand = "node services/$SERVICE_NAME/src/app.js"
