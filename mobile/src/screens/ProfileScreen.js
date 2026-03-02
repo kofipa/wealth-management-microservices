@@ -462,10 +462,10 @@ export default function ProfileScreen() {
                   {n.inactivity_days === 0 ? 'Immediate access when activated' : `Access after ${n.inactivity_days} days inactive`}
                 </Text>
                 <View style={styles.nomineeActions}>
-                  <TouchableOpacity onPress={() => handleEditNomineeOpen(n)}>
+                  <TouchableOpacity style={styles.editNomineeBtn} onPress={() => handleEditNomineeOpen(n)}>
                     <Text style={styles.editNomineeText}>Edit</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => handleRemoveNominee(n.id, n.nominee_email)}>
+                  <TouchableOpacity style={styles.removeBtn} onPress={() => handleRemoveNominee(n.id, n.nominee_email)}>
                     <Text style={styles.removeText}>Remove</Text>
                   </TouchableOpacity>
                 </View>
@@ -988,8 +988,16 @@ const makeStyles = (colors) => StyleSheet.create({
   badgeText: { fontSize: 11, fontWeight: '600' },
   badgeTextActive: { color: '#16a34a' },
   badgeTextPending: { color: '#92400e' },
-  removeText: { fontSize: 12, color: '#ef4444' },
-  editNomineeText: { fontSize: 12, color: colors.primary },
+  editNomineeBtn: {
+    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
+    backgroundColor: colors.primaryLight, borderWidth: 1, borderColor: colors.primary,
+  },
+  editNomineeText: { fontSize: 13, color: colors.primary, fontWeight: '500' },
+  removeBtn: {
+    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
+    backgroundColor: colors.dangerLight, borderWidth: 1, borderColor: colors.danger,
+  },
+  removeText: { fontSize: 13, color: colors.danger, fontWeight: '500' },
 
   delegatedRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.surfaceAlt },
   delegatedLeft: { flex: 1 },
