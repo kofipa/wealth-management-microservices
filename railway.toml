@@ -1,1 +1,5 @@
-# Build and start commands are configured per-service in Railway UI
+[build]
+buildCommand = "cd services/user-service && npm install --production"
+
+[deploy]
+startCommand = "node services/user-service/src/app.js"
