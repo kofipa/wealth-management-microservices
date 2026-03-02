@@ -1,6 +1,5 @@
 [build]
-builder = "dockerfile"
-dockerfilePath = "Dockerfile"
+buildCommand = "npm install --production"
 
 [deploy]
-startCommand = "npm start"
+startCommand = "node src/app.js"
