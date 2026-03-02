@@ -2,6 +2,9 @@
   "name": "wealth-management",
   "version": "1.0.0",
   "private": true,
+  "scripts": {
+    "start": "node services/user-service/src/app.js"
+  },
   "engines": {
     "node": ">=18"
   }
