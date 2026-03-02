@@ -1,5 +1,1 @@
-[build]
-buildCommand = "cd services/$SERVICE_NAME && npm install --production"
-
-[deploy]
-startCommand = "sh -c 'node services/$SERVICE_NAME/src/app.js'"
+# Build and start commands are configured per-service in Railway UI
