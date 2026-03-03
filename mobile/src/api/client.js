@@ -1,15 +1,5 @@
 import axios from 'axios';
-import { DEV_HOST } from './config';
-
-const BASE_URLS = {
-  user: `http://${DEV_HOST}:3001`,
-  asset: `http://${DEV_HOST}:3002`,
-  liability: `http://${DEV_HOST}:3003`,
-  networth: `http://${DEV_HOST}:3004`,
-  document: `http://${DEV_HOST}:3005`,
-  service: `http://${DEV_HOST}:3006`,
-  openbanking: `http://${DEV_HOST}:3007`,
-};
+import { BASE_URLS } from './config';
 
 // Synchronous token cache — updated by AuthContext on login/logout
 let _activeToken = null;
