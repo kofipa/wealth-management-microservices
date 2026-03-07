@@ -916,7 +916,7 @@ export default function AssetsScreen() {
                   style={styles.input}
                   value={form.metadata.ticker_symbol || ''}
                   onChangeText={(v) => setMeta('ticker_symbol', v.toUpperCase())}
-                  placeholder="e.g. VWRL"
+                  placeholder="e.g. VWRL.L (LSE) or AAPL (US)"
                   placeholderTextColor={colors.placeholder}
                   autoCapitalize="characters"
                 />
@@ -1297,18 +1297,22 @@ const makeStyles = (colors) => StyleSheet.create({
   addBtnText: { color: colors.surface, fontWeight: '600', fontSize: 14 },
   list: { padding: 16, paddingBottom: 40 },
   empty: { textAlign: 'center', color: colors.textTertiary, marginTop: 60, fontSize: 15 },
-  item: { backgroundColor: colors.surface, borderRadius: 12, padding: 16, marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between', borderWidth: 1, borderColor: colors.border },
+  item: {
+    backgroundColor: colors.surface, borderRadius: 12, padding: 16, marginBottom: 10,
+    flexDirection: 'row', justifyContent: 'space-between', borderWidth: 1, borderColor: colors.border,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
+  },
   itemLeft: { flex: 1, marginRight: 8 },
   itemName: { fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 2 },
   itemType: { fontSize: 12, color: colors.textSecondary, textTransform: 'capitalize', marginBottom: 2 },
   itemDesc: { fontSize: 12, color: colors.textTertiary, marginTop: 2 },
   itemRight: { alignItems: 'flex-end' },
-  itemValue: { fontSize: 16, fontWeight: '700', color: '#16a34a', marginBottom: 6 },
+  itemValue: { fontSize: 16, fontWeight: '700', color: colors.success, marginBottom: 6 },
   itemActions: { flexDirection: 'row', gap: 8, marginTop: 8 },
   editBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: colors.primaryLight, borderWidth: 1, borderColor: colors.primary },
   editBtnText: { fontSize: 13, color: colors.primary, fontWeight: '600' },
-  deleteBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: '#fff1f2', borderWidth: 1, borderColor: '#fecdd3' },
-  deleteBtnText: { fontSize: 13, color: '#ef4444', fontWeight: '600' },
+  deleteBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: colors.dangerLight, borderWidth: 1, borderColor: colors.danger },
+  deleteBtnText: { fontSize: 13, color: colors.danger, fontWeight: '600' },
   modal: { flex: 1, backgroundColor: colors.background },
   modalContent: { padding: 24, paddingBottom: 60 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
@@ -1332,7 +1336,7 @@ const makeStyles = (colors) => StyleSheet.create({
   attachBtnText: { fontSize: 14, color: colors.textSecondary },
   multiHint: { fontSize: 12, fontWeight: '400', color: colors.textTertiary },
   valuationRow: { flexDirection: 'row', alignItems: 'center', marginTop: 3 },
-  valuationText: { fontSize: 12, color: '#059669', flex: 1 },
+  valuationText: { fontSize: 12, color: colors.success, flex: 1 },
   valuationError: { fontSize: 12, color: colors.textTertiary, flex: 1 },
   refreshBtn: { paddingHorizontal: 6, paddingVertical: 2 },
   refreshIcon: { fontSize: 15, color: colors.textSecondary },

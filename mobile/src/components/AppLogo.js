@@ -13,9 +13,8 @@ const TEAL = '#3DD9B8';
  * Anatomy:
  *  • C arc  — large circular arc open on the right, navy stroke
  *  • Teal accent — small arc at the top of the C
- *  • W — letter W whose final stroke turns into an upward trend arrow
- *
- * viewBox "0 0 80 58" centred around the two glyphs.
+ *  • W body — first three strokes of the W in navy
+ *  • Trend arrow — final rising stroke + tip in teal (the brand accent)
  */
 function CWMark({ sz, dark = false }) {
   const stroke = dark ? '#ffffff' : NAVY;
@@ -23,9 +22,8 @@ function CWMark({ sz, dark = false }) {
   const sw = sz / 10; // stroke width scales with size
 
   return (
-    <Svg width={sz} height={sz * 0.73} viewBox="0 0 80 58">
+    <Svg width={sz} height={sz * 0.76} viewBox="-5 -5 90 68">
       {/* ── C arc (navy / white on dark) ─────────────────────────────── */}
-      {/* Circle centre (20, 30) r=20. Opens right at ±30° from east */}
       <Path
         d="M 37 20 A 20 20 0 1 0 37 40"
         fill="none"
@@ -33,8 +31,7 @@ function CWMark({ sz, dark = false }) {
         strokeWidth={sw}
         strokeLinecap="round"
       />
-      {/* ── Teal accent — small top segment ──────────────────────────── */}
-      {/* From 12-o'clock (20,10) clockwise to NE opening (37,20) */}
+      {/* ── Teal accent — small top segment of C ─────────────────────── */}
       <Path
         d="M 20 10 A 20 20 0 0 1 37 20"
         fill="none"
@@ -42,22 +39,28 @@ function CWMark({ sz, dark = false }) {
         strokeWidth={sw}
         strokeLinecap="round"
       />
-      {/* ── W + upward trend arrow ────────────────────────────────────── */}
-      {/* Four strokes: down-right, up-left to mid-peak, down-right,
-          then rises steeply up-right as the arrow */}
+      {/* ── W body (navy / white) ─────────────────────────────────────── */}
       <Path
-        d="M 38 14 L 44 46 L 51 24 L 58 46 L 69 10"
+        d="M 38 14 L 44 46 L 51 24 L 58 46"
         fill="none"
         stroke={stroke}
         strokeWidth={sw * 0.9}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      {/* Arrow tip at (69, 10) — barbs symmetric to stroke direction (58,46)→(69,10) */}
+      {/* ── Trend arrow stroke (teal) ─────────────────────────────────── */}
+      <Path
+        d="M 58 46 L 69 10"
+        fill="none"
+        stroke={accent}
+        strokeWidth={sw * 0.9}
+        strokeLinecap="round"
+      />
+      {/* ── Arrow tip (teal) ──────────────────────────────────────────── */}
       <Path
         d="M 69 10 L 71 20 M 69 10 L 62 17"
         fill="none"
-        stroke={stroke}
+        stroke={accent}
         strokeWidth={sw * 0.9}
         strokeLinecap="round"
       />
@@ -79,11 +82,10 @@ export default function AppLogo({ size = 'large', tagline, onDark = false }) {
   const large = size === 'large';
   const showTagline = tagline !== undefined ? !!tagline : large;
 
-  const markSize   = large ? 72 : 44;
-  const wordSize   = large ? 28 : 17;
-  const dotComSize = large ? 13 : 9;
-  const tagSize    = large ? 13 : 10;
-  const wordColor  = dark ? '#ffffff' : NAVY;
+  const markSize  = large ? 72 : 44;
+  const wordSize  = large ? 28 : 17;
+  const tagSize   = large ? 13 : 10;
+  const wordColor = dark ? '#ffffff' : NAVY;
 
   return (
     <View style={styles.wrapper}>
@@ -98,9 +100,6 @@ export default function AppLogo({ size = 'large', tagline, onDark = false }) {
         <Text style={[styles.word, { fontSize: wordSize, color: TEAL }]}>
           Welth
         </Text>
-        <Text style={[styles.dotcom, { fontSize: dotComSize, color: wordColor, opacity: 0.55 }]}>
-          .com
-        </Text>
       </View>
 
       {/* Tagline */}
@@ -109,7 +108,7 @@ export default function AppLogo({ size = 'large', tagline, onDark = false }) {
           styles.tagline,
           { fontSize: tagSize, color: dark ? 'rgba(255,255,255,0.55)' : colors.textSecondary },
         ]}>
-          No more silent assets
+          {typeof tagline === 'string' ? tagline : 'No more silent assets'}
         </Text>
       )}
     </View>
@@ -120,6 +119,5 @@ const styles = StyleSheet.create({
   wrapper:  { alignItems: 'center' },
   wordRow:  { flexDirection: 'row', alignItems: 'flex-end', marginTop: 8, marginBottom: 4 },
   word:     { fontWeight: '800', letterSpacing: -0.5 },
-  dotcom:   { fontWeight: '600', marginLeft: 1, marginBottom: 2 },
   tagline:  { fontStyle: 'italic', letterSpacing: 0.1 },
 });

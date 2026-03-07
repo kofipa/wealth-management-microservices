@@ -4,7 +4,7 @@ import {
   RefreshControl, ActivityIndicator, TouchableOpacity, Animated,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { getNetWorthBreakdown, getNetWorthHistory } from '../api/client';
+import { getNetWorthBreakdown, getNetWorthHistory, getAssets } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import TrendChart from '../components/TrendChart';
@@ -27,6 +27,7 @@ export default function DashboardScreen() {
   const navigation = useNavigation();
   const [data, setData] = useState(null);
   const [history, setHistory] = useState([]);
+  const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -69,9 +70,10 @@ export default function DashboardScreen() {
   const load = async () => {
     try {
       setError(null);
-      const [breakdownRes, historyRes] = await Promise.allSettled([
+      const [breakdownRes, historyRes, assetsRes] = await Promise.allSettled([
         getNetWorthBreakdown(),
         getNetWorthHistory(30),
+        getAssets(),
       ]);
       if (breakdownRes.status === 'fulfilled') {
         setData(breakdownRes.value.data);
@@ -81,6 +83,9 @@ export default function DashboardScreen() {
       }
       if (historyRes.status === 'fulfilled') {
         setHistory(historyRes.value.data.history || []);
+      }
+      if (assetsRes.status === 'fulfilled') {
+        setAssets(assetsRes.value.data.assets || []);
       }
     } finally {
       setLoading(false);
@@ -147,6 +152,22 @@ export default function DashboardScreen() {
     color: ASSET_COLORS[type] || '#9ca3af',
   }));
 
+  const PERF_COLORS = { investment: '#7c3aed', property: '#16a34a', vehicle: '#f59e0b', insurance: '#0891b2', cash: '#2563eb', other: '#9ca3af' };
+  const performanceItems = assets
+    .filter(a => { const c = parseFloat(a.metadata?.purchase_price); return !isNaN(c) && c > 0; })
+    .map(a => {
+      const meta = a.metadata || {};
+      const type = meta.original_type || a.asset_type;
+      const purchasePrice = parseFloat(meta.purchase_price);
+      const qty = parseFloat(meta.quantity) || 1;
+      const totalCost = type === 'investment' && meta.quantity ? purchasePrice * qty : purchasePrice;
+      const currentValue = parseFloat(a.value || 0);
+      const gain = currentValue - totalCost;
+      const pct = totalCost > 0 ? (gain / totalCost) * 100 : 0;
+      return { id: a.id, name: a.name, type, gain, pct };
+    })
+    .sort((a, b) => b.pct - a.pct);
+
   const currentIndex = recommendations.length > 0 ? recIndex % recommendations.length : 0;
   const svc = recommendations[currentIndex];
 
@@ -189,14 +210,14 @@ export default function DashboardScreen() {
         <View style={[styles.summaryCard, styles.cardGreen]}>
           <Text style={styles.cardLabel}>Total Assets</Text>
           <Text style={styles.cardValue}>{fmt(totalAssets)}</Text>
-          <Text style={{ fontSize: 12, fontWeight: '600', marginTop: 4, color: assetsTrend === null ? colors.textTertiary : assetsTrend >= 0 ? '#15803d' : '#dc2626' }}>
+          <Text style={{ fontSize: 12, fontWeight: '600', marginTop: 4, color: assetsTrend === null ? colors.textTertiary : assetsTrend >= 0 ? colors.success : colors.danger }}>
             {assetsTrend === null ? '— 30-day trend' : `${assetsTrend >= 0 ? '↑' : '↓'} ${assetsTrend >= 0 ? '+' : ''}${fmt(assetsTrend)}`}
           </Text>
         </View>
         <View style={[styles.summaryCard, styles.cardRed]}>
           <Text style={styles.cardLabel}>Total Liabilities</Text>
           <Text style={styles.cardValue}>{fmt(totalLiabilities)}</Text>
-          <Text style={{ fontSize: 12, fontWeight: '600', marginTop: 4, color: liabsTrend === null ? colors.textTertiary : liabsTrend <= 0 ? '#15803d' : '#dc2626' }}>
+          <Text style={{ fontSize: 12, fontWeight: '600', marginTop: 4, color: liabsTrend === null ? colors.textTertiary : liabsTrend <= 0 ? colors.success : colors.danger }}>
             {liabsTrend === null ? '— 30-day trend' : `${liabsTrend <= 0 ? '↓' : '↑'} ${liabsTrend > 0 ? '+' : ''}${fmt(liabsTrend)}`}
           </Text>
         </View>
@@ -310,36 +331,73 @@ export default function DashboardScreen() {
           </View>
         );
       })()}
+
+      {performanceItems.length > 0 && (() => {
+        const maxAbsPct = Math.max(...performanceItems.map(p => Math.abs(p.pct)), 1);
+        return (
+          <View style={[styles.section, { marginBottom: 24 }]}>
+            <Text style={styles.sectionTitle}>Portfolio Performance</Text>
+            {performanceItems.map(item => {
+              const isGain = item.gain >= 0;
+              const barColor = isGain ? '#16a34a' : '#ef4444';
+              const barWidth = (Math.abs(item.pct) / maxAbsPct) * 100;
+              return (
+                <View key={item.id} style={styles.perfRow}>
+                  <View style={styles.perfLabelRow}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                      <View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: PERF_COLORS[item.type] || '#9ca3af', marginRight: 6 }} />
+                      <Text style={styles.perfName} numberOfLines={1}>{item.name}</Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={[styles.perfPct, { color: barColor }]}>{isGain ? '+' : ''}{item.pct.toFixed(1)}%</Text>
+                      <Text style={[styles.perfGain, { color: barColor }]}>{isGain ? '+' : ''}{fmt(item.gain)}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.perfBarBg}>
+                    <View style={[styles.perfBar, { width: `${barWidth}%`, backgroundColor: barColor }]} />
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        );
+      })()}
     </ScrollView>
   );
 }
 
 const makeStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  content: { padding: 20, paddingBottom: 40 },
+  content: { padding: 16, paddingBottom: 40 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
-  greeting: { fontSize: 24, fontWeight: '700', color: colors.text, marginBottom: 8 },
+  greeting: { fontSize: 22, fontWeight: '700', color: colors.text, marginBottom: 12 },
   error: { color: colors.danger, textAlign: 'center', marginBottom: 16 },
-  netWorthCard: { borderRadius: 16, padding: 28, alignItems: 'center', marginBottom: 16 },
+  netWorthCard: {
+    borderRadius: 16, padding: 24, alignItems: 'center', marginBottom: 16,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.18, shadowRadius: 12, elevation: 6,
+  },
   positive: { backgroundColor: '#1d4ed8' },
   negative: { backgroundColor: '#dc2626' },
-  netWorthLabel: { fontSize: 14, color: 'rgba(255,255,255,0.8)', marginBottom: 8 },
-  netWorthValue: { fontSize: 40, fontWeight: '800', color: '#fff', marginBottom: 6 },
+  netWorthLabel: { fontSize: 13, color: 'rgba(255,255,255,0.75)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
+  netWorthValue: { fontSize: 38, fontWeight: '800', color: '#fff', marginBottom: 6 },
   netWorthSub: { fontSize: 13, color: 'rgba(255,255,255,0.7)' },
   netWorthDelta: { fontSize: 14, fontWeight: '600', marginBottom: 4 },
   deltaPos: { color: 'rgba(134,239,172,1)' },
   deltaNeg: { color: 'rgba(252,165,165,1)' },
   trendWrap: { marginTop: 12, opacity: 0.9 },
-  row: { flexDirection: 'row', gap: 12, marginBottom: 24 },
-  summaryCard: { flex: 1, borderRadius: 12, padding: 18 },
-  cardGreen: { backgroundColor: '#dcfce7' },
-  cardRed: { backgroundColor: '#fee2e2' },
-  cardLabel: { fontSize: 12, color: '#374151', marginBottom: 6 },
-  cardValue: { fontSize: 18, fontWeight: '700', color: '#111827' },
+  row: { flexDirection: 'row', gap: 12, marginBottom: 20 },
+  summaryCard: {
+    flex: 1, borderRadius: 12, padding: 16,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 6, elevation: 3,
+  },
+  cardGreen: { backgroundColor: colors.successLight },
+  cardRed: { backgroundColor: colors.dangerLight },
+  cardLabel: { fontSize: 12, color: colors.textSecondary, marginBottom: 6 },
+  cardValue: { fontSize: 18, fontWeight: '700', color: colors.text },
 
   // Carousel
-  recsSection: { marginBottom: 24 },
-  recsSectionTitle: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 12 },
+  recsSection: { marginBottom: 20 },
+  recsSectionTitle: { fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 10 },
   recCard: {
     backgroundColor: colors.surface,
     borderRadius: 14,
@@ -348,20 +406,32 @@ const makeStyles = (colors) => StyleSheet.create({
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
   },
   recIconBox: {
-    width: 48, height: 48, borderRadius: 12,
-    justifyContent: 'center', alignItems: 'center', marginRight: 14, flexShrink: 0,
+    width: 44, height: 44, borderRadius: 12,
+    justifyContent: 'center', alignItems: 'center', marginRight: 12, flexShrink: 0,
   },
-  recIcon: { fontSize: 24 },
+  recIcon: { fontSize: 22 },
   recTextBox: { flex: 1 },
-  recTitle: { fontSize: 15, fontWeight: '700', marginBottom: 3 },
+  recTitle: { fontSize: 14, fontWeight: '700', marginBottom: 3 },
   recNudge: { fontSize: 12, color: colors.textSecondary, lineHeight: 17 },
-  recArrow: { fontSize: 20, fontWeight: '700', marginLeft: 10 },
-  dots: { flexDirection: 'row', justifyContent: 'center', marginTop: 12, gap: 6 },
+  recArrow: { fontSize: 20, fontWeight: '700', marginLeft: 8 },
+  dots: { flexDirection: 'row', justifyContent: 'center', marginTop: 10, gap: 6 },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.border },
   dotActive: { width: 20 },
 
-  section: { backgroundColor: colors.surface, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: colors.border },
-  sectionTitle: { fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 12 },
+  section: {
+    backgroundColor: colors.surface, borderRadius: 12, padding: 16,
+    borderWidth: 1, borderColor: colors.border,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
+  },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 14 },
+  perfRow: { marginBottom: 12 },
+  perfLabelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 5 },
+  perfName: { fontSize: 13, color: colors.text, fontWeight: '500', flex: 1, marginRight: 8 },
+  perfPct: { fontSize: 13, fontWeight: '700' },
+  perfGain: { fontSize: 11, fontWeight: '500' },
+  perfBarBg: { height: 6, backgroundColor: colors.surfaceAlt, borderRadius: 3 },
+  perfBar: { height: 6, borderRadius: 3 },
 });

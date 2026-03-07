@@ -2,9 +2,10 @@ import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   RefreshControl, ActivityIndicator, Alert, Platform,
-  Modal, Image, SafeAreaView, ScrollView, TextInput,
+  Modal, Image, ScrollView, TextInput,
   KeyboardAvoidingView, Linking,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
@@ -15,7 +16,7 @@ import * as IntentLauncher from 'expo-intent-launcher';
 import * as Sharing from 'expo-sharing';
 import * as SecureStore from 'expo-secure-store';
 import { getDocuments, deleteDocument, uploadDocument } from '../api/client';
-import { DEV_HOST } from '../api/config';
+import { BASE_URLS } from '../api/config';
 import { useTheme } from '../context/ThemeContext';
 
 const CATEGORIES = [
@@ -105,7 +106,7 @@ export default function DocumentsScreen() {
       const authToken = delegatedToken || rawToken;
       const rawName = item.original_name || item.filename || 'document';
       const safeName = rawName.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const url = `http://${DEV_HOST}:3005/api/documents/${item.id}/download`;
+      const url = `${BASE_URLS.document}/api/documents/${item.id}/download`;
 
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${authToken}` },
@@ -409,7 +410,7 @@ export default function DocumentsScreen() {
             </TouchableOpacity>
             {uploadExpiryDate ? (
               <TouchableOpacity onPress={() => setUploadExpiryDate('')} style={{ marginTop: -14, marginBottom: 14, alignSelf: 'flex-end' }}>
-                <Text style={{ fontSize: 12, color: '#ef4444' }}>Clear date</Text>
+                <Text style={{ fontSize: 12, color: colors.danger }}>Clear date</Text>
               </TouchableOpacity>
             ) : null}
             {showExpiryPicker && (
@@ -489,7 +490,11 @@ const makeStyles = (colors) => StyleSheet.create({
   emptySub: { fontSize: 13, color: colors.textTertiary, textAlign: 'center' },
 
   // Document card
-  item: { backgroundColor: colors.surface, borderRadius: 12, padding: 14, marginBottom: 10, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: colors.border },
+  item: {
+    backgroundColor: colors.surface, borderRadius: 12, padding: 14, marginBottom: 10,
+    flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: colors.border,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
+  },
   itemIcon: { width: 40, height: 40, borderRadius: 8, backgroundColor: colors.surfaceAlt, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   fileIcon: { fontSize: 20 },
   itemLeft: { flex: 1 },
@@ -497,10 +502,10 @@ const makeStyles = (colors) => StyleSheet.create({
   catBadge: { alignSelf: 'flex-start', borderRadius: 6, borderWidth: 1, paddingHorizontal: 7, paddingVertical: 2, marginBottom: 4 },
   catBadgeText: { fontSize: 11, fontWeight: '600' },
   badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 4 },
-  expiredBadge: { borderRadius: 6, borderWidth: 1, paddingHorizontal: 7, paddingVertical: 2, backgroundColor: '#fef2f2', borderColor: '#fca5a5' },
-  expiredBadgeText: { fontSize: 11, fontWeight: '600', color: '#dc2626' },
-  expiringSoonBadge: { borderRadius: 6, borderWidth: 1, paddingHorizontal: 7, paddingVertical: 2, backgroundColor: '#fffbeb', borderColor: '#fcd34d' },
-  expiringSoonBadgeText: { fontSize: 11, fontWeight: '600', color: '#d97706' },
+  expiredBadge: { borderRadius: 6, borderWidth: 1, paddingHorizontal: 7, paddingVertical: 2, backgroundColor: colors.dangerLight, borderColor: colors.danger },
+  expiredBadgeText: { fontSize: 11, fontWeight: '600', color: colors.danger },
+  expiringSoonBadge: { borderRadius: 6, borderWidth: 1, paddingHorizontal: 7, paddingVertical: 2, backgroundColor: colors.warningLight, borderColor: colors.warning },
+  expiringSoonBadgeText: { fontSize: 11, fontWeight: '600', color: colors.warning },
   itemDesc: { fontSize: 12, color: colors.textSecondary, marginBottom: 2 },
   itemMeta: { fontSize: 12, color: colors.textTertiary },
   actions: { alignItems: 'flex-end', gap: 6, justifyContent: 'center' },
@@ -511,9 +516,9 @@ const makeStyles = (colors) => StyleSheet.create({
   viewText: { fontSize: 13, color: colors.primary, fontWeight: '500' },
   deleteBtn: {
     paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
-    backgroundColor: '#fff1f2', borderWidth: 1, borderColor: '#fecdd3',
+    backgroundColor: colors.dangerLight, borderWidth: 1, borderColor: colors.danger,
   },
-  deleteText: { fontSize: 13, color: '#ef4444', fontWeight: '500' },
+  deleteText: { fontSize: 13, color: colors.danger, fontWeight: '500' },
 
   // Upload modal
   modal: { flex: 1, backgroundColor: colors.background },
