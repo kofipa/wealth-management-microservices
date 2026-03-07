@@ -769,10 +769,15 @@ app.post('/api/users/forgot-password', forgotPasswordLimiter, async (req, res) =
       [userId, code]
     );
 
-    // In production this would be emailed. Only log in development.
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`[DEV] Reset code for ${email}: ${code}`);
-    }
+    await sendEmail(
+      email,
+      'Your Wealth Manager password reset code',
+      `<h2>Password Reset</h2>
+       <p>Your 6-digit reset code is:</p>
+       <h1 style="letter-spacing:8px;font-size:36px;">${code}</h1>
+       <p>This code expires in 15 minutes. If you didn't request a reset, you can ignore this email.</p>`
+    );
+
     res.json({ message: 'If that email exists, a reset code has been sent.' });
   } catch (err) {
     console.error(err);
@@ -1105,7 +1110,16 @@ app.post('/api/users/verify-security-question', async (req, res) => {
       [result.rows[0].id, resetCode]
     );
 
-    res.json({ reset_code: resetCode, message: 'Answer verified. Use the reset code to set a new password.' });
+    await sendEmail(
+      email,
+      'Your Wealth Manager password reset code',
+      `<h2>Password Reset</h2>
+       <p>Your identity was verified via your security question. Your 6-digit reset code is:</p>
+       <h1 style="letter-spacing:8px;font-size:36px;">${resetCode}</h1>
+       <p>This code expires in 15 minutes. If you didn't request a reset, you can ignore this email.</p>`
+    );
+
+    res.json({ message: 'If verified, a reset code has been sent to your email.' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Could not verify answer' });
@@ -1271,18 +1285,18 @@ async function start() {
     console.error('FATAL: JWT_SECRET environment variable is not set');
     process.exit(1);
   }
-  // if (!process.env.SENDGRID_API_KEY) {
-  //   console.error('FATAL: SENDGRID_API_KEY environment variable is not set');
-  //   process.exit(1);
-  // }
-  // if (!process.env.FROM_EMAIL) {
-  //   console.error('FATAL: FROM_EMAIL environment variable is not set');
-  //   process.exit(1);
-  // }
-  // if (!process.env.APP_URL) {
-  //   console.error('FATAL: APP_URL environment variable is not set');
-  //   process.exit(1);
-  // }
+  if (!process.env.RESEND_API_KEY) {
+    console.error('FATAL: RESEND_API_KEY environment variable is not set');
+    process.exit(1);
+  }
+  if (!process.env.FROM_EMAIL) {
+    console.error('FATAL: FROM_EMAIL environment variable is not set');
+    process.exit(1);
+  }
+  if (!process.env.APP_URL) {
+    console.error('FATAL: APP_URL environment variable is not set');
+    process.exit(1);
+  }
   await initDB();
   await connectRabbitMQ();
 

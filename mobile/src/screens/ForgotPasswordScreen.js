@@ -27,13 +27,7 @@ export default function ForgotPasswordScreen({ navigation }) {
     }
     setLoading(true);
     try {
-      const res = await forgotPassword(email.trim().toLowerCase());
-      if (res.data.devCode) {
-        Alert.alert('Reset Code', `Your reset code is: ${res.data.devCode}`);
-      } else {
-        Alert.alert('Not Found', 'No account found with that email address.');
-        return;
-      }
+      await forgotPassword(email.trim().toLowerCase());
       setStep(2);
     } catch (err) {
       Alert.alert('Error', err.response?.data?.error || err.message || 'Could not send reset code');
@@ -72,9 +66,8 @@ export default function ForgotPasswordScreen({ navigation }) {
     }
     setLoading(true);
     try {
-      const res = await verifySecurityQuestion(email.trim().toLowerCase(), sqAnswer.trim());
-      setCode(res.data.reset_code);
-      Alert.alert('Verified', 'Identity verified. Please choose a new password.');
+      await verifySecurityQuestion(email.trim().toLowerCase(), sqAnswer.trim());
+      Alert.alert('Verified', 'Identity verified. A reset code has been sent to your email.');
       setStep(2);
     } catch (err) {
       if (err.response?.status === 401) {
@@ -112,7 +105,7 @@ export default function ForgotPasswordScreen({ navigation }) {
   const getSubtitle = () => {
     if (step === 1) return "Enter your email and we'll send you a reset code.";
     if (step === 'sq') return 'Answer your security question to verify your identity.';
-    return 'Enter the code you received and choose a new password.';
+    return 'Enter the 6-digit code from your email and choose a new password.';
   };
 
   const styles = makeStyles(colors);
