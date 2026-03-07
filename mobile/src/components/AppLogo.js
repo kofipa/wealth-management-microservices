@@ -1,45 +1,114 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { useTheme } from '../context/ThemeContext';
 
+// Brand colours — fixed, do not change per theme
+const NAVY = '#0D2040';
+const TEAL = '#3DD9B8';
+
 /**
- * AppLogo — pure React Native logo, no image assets required.
+ * CW monogram — SVG replica of the ClearWelth logo mark.
+ *
+ * Anatomy:
+ *  • C arc  — large circular arc open on the right, navy stroke
+ *  • Teal accent — small arc at the top of the C
+ *  • W — letter W whose final stroke turns into an upward trend arrow
+ *
+ * viewBox "0 0 80 58" centred around the two glyphs.
+ */
+function CWMark({ sz, onDark = false }) {
+  const stroke = onDark ? '#ffffff' : NAVY;
+  const accent = TEAL;
+  const sw = sz / 10; // stroke width scales with size
+
+  return (
+    <Svg width={sz} height={sz * 0.73} viewBox="0 0 80 58">
+      {/* ── C arc (navy / white on dark) ─────────────────────────────── */}
+      {/* Circle centre (20, 30) r=20. Opens right: NE → (arc CCW) → SE */}
+      <Path
+        d="M 37 16 A 20 20 0 1 0 37 44"
+        fill="none"
+        stroke={stroke}
+        strokeWidth={sw}
+        strokeLinecap="round"
+      />
+      {/* ── Teal accent — small top segment ──────────────────────────── */}
+      {/* From 12-o'clock (20,10) clockwise to NE opening (37,16) */}
+      <Path
+        d="M 20 10 A 20 20 0 0 1 37 16"
+        fill="none"
+        stroke={accent}
+        strokeWidth={sw}
+        strokeLinecap="round"
+      />
+      {/* ── W + upward trend arrow ────────────────────────────────────── */}
+      {/* Four strokes: down-right, up-left to mid-peak, down-right,
+          then rises steeply up-right as the arrow */}
+      <Path
+        d="M 38 14 L 44 46 L 51 24 L 58 46 L 69 10"
+        fill="none"
+        stroke={stroke}
+        strokeWidth={sw * 0.9}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {/* Arrow tip at (69, 10) */}
+      <Path
+        d="M 69 10 L 62 14 M 69 10 L 67 18"
+        fill="none"
+        stroke={stroke}
+        strokeWidth={sw * 0.9}
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
+/**
+ * AppLogo — ClearWelth brand logo component.
  *
  * Props:
- *   size     'large' (default) | 'small'
- *   tagline  optional string shown beneath the wordmark
+ *   size      'large' (default) | 'small'
+ *   tagline   show "No more silent assets" when truthy (default true for large)
+ *   onDark    render white version for dark backgrounds (e.g. splash)
  */
-export default function AppLogo({ size = 'large', tagline }) {
+export default function AppLogo({ size = 'large', tagline, onDark = false }) {
   const { colors } = useTheme();
   const large = size === 'large';
+  const showTagline = tagline !== undefined ? !!tagline : large;
+
+  const markSize  = large ? 72 : 44;
+  const wordSize  = large ? 28 : 17;
+  const dotComSize = large ? 13 : 9;
+  const tagSize   = large ? 13 : 10;
+  const wordColor = onDark ? '#ffffff' : NAVY;
 
   return (
     <View style={styles.wrapper}>
-      {/* Icon badge — rising bar chart inside a blue rounded square */}
-      <View style={[styles.badge, large ? styles.badgeLarge : styles.badgeSmall]}>
-        {/* Decorative ring */}
-        <View style={[styles.ring, large ? styles.ringLarge : styles.ringSmall]} />
-        {/* Rising bars */}
-        <View style={styles.bars}>
-          <View style={[styles.bar, large ? styles.barLarge : styles.barSmall, { height: large ? 10 : 7,  opacity: 0.35 }]} />
-          <View style={[styles.bar, large ? styles.barLarge : styles.barSmall, { height: large ? 16 : 11, opacity: 0.55 }]} />
-          <View style={[styles.bar, large ? styles.barLarge : styles.barSmall, { height: large ? 24 : 17, opacity: 0.78 }]} />
-          <View style={[styles.bar, large ? styles.barLarge : styles.barSmall, { height: large ? 32 : 23, opacity: 1   }]} />
-        </View>
-        {/* Upward trend arrow */}
-        <Text style={[styles.arrow, large ? styles.arrowLarge : styles.arrowSmall]}>↗</Text>
+      {/* CW monogram */}
+      <CWMark sz={markSize} onDark={onDark} />
+
+      {/* Wordmark: Clear + Welth */}
+      <View style={styles.wordRow}>
+        <Text style={[styles.word, { fontSize: wordSize, color: wordColor }]}>
+          Clear
+        </Text>
+        <Text style={[styles.word, { fontSize: wordSize, color: TEAL }]}>
+          Welth
+        </Text>
+        <Text style={[styles.dotcom, { fontSize: dotComSize, color: wordColor, opacity: 0.55 }]}>
+          .com
+        </Text>
       </View>
 
-      {/* Wordmark */}
-      <Text style={[styles.wordmark, large ? styles.wordmarkLarge : styles.wordmarkSmall]}>
-        <Text style={[styles.wordDark, { color: colors.text }]}>Wealth</Text>
-        <Text style={styles.wordBlue}>Manager</Text>
-      </Text>
-
-      {/* Optional tagline */}
-      {!!tagline && (
-        <Text style={[styles.tagline, large ? styles.taglineLarge : styles.taglineSmall, { color: colors.textSecondary }]}>
-          {tagline}
+      {/* Tagline */}
+      {showTagline && (
+        <Text style={[
+          styles.tagline,
+          { fontSize: tagSize, color: onDark ? 'rgba(255,255,255,0.55)' : colors.textSecondary },
+        ]}>
+          No more silent assets
         </Text>
       )}
     </View>
@@ -47,43 +116,9 @@ export default function AppLogo({ size = 'large', tagline }) {
 }
 
 const styles = StyleSheet.create({
-  wrapper: { alignItems: 'center' },
-
-  // Badge — always blue regardless of theme
-  badge: {
-    backgroundColor: '#1d4ed8',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  badgeLarge: { width: 80, height: 80, borderRadius: 22, marginBottom: 16, padding: 12 },
-  badgeSmall: { width: 48, height: 48, borderRadius: 14, marginBottom: 10, padding: 7 },
-
-  ring: {
-    position: 'absolute',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 999,
-  },
-  ringLarge: { width: 96, height: 96, top: -20, right: -20 },
-  ringSmall: { width: 58, height: 58, top: -12, right: -12 },
-
-  bars: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, zIndex: 1 },
-  bar: { backgroundColor: '#ffffff', borderRadius: 2 },
-  barLarge: { width: 7 },
-  barSmall: { width: 5 },
-
-  arrow: { position: 'absolute', color: 'rgba(255,255,255,0.55)', fontWeight: '700' },
-  arrowLarge: { fontSize: 15, top: 8, right: 10 },
-  arrowSmall: { fontSize: 10, top: 5, right: 6 },
-
-  wordmark: { fontWeight: '800', letterSpacing: -0.5 },
-  wordmarkLarge: { fontSize: 30, marginBottom: 6 },
-  wordmarkSmall: { fontSize: 18, marginBottom: 4 },
-  wordDark: { color: '#111827' }, // overridden inline with colors.text
-  wordBlue: { color: '#2563eb' },
-
-  tagline: { textAlign: 'center' },
-  taglineLarge: { fontSize: 14, lineHeight: 20 },
-  taglineSmall: { fontSize: 11 },
+  wrapper:  { alignItems: 'center' },
+  wordRow:  { flexDirection: 'row', alignItems: 'flex-end', marginTop: 8, marginBottom: 4 },
+  word:     { fontWeight: '800', letterSpacing: -0.5 },
+  dotcom:   { fontWeight: '600', marginLeft: 1, marginBottom: 2 },
+  tagline:  { fontStyle: 'italic', letterSpacing: 0.1 },
 });
