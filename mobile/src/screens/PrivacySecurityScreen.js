@@ -78,19 +78,36 @@ export default function PrivacySecurityScreen() {
           </View>
         ))}
 
-        {/* Privacy Policy link */}
+        {/* Privacy Policy */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionIcon}>📄</Text>
             <Text style={styles.sectionTitle}>Privacy Policy</Text>
           </View>
-          <TouchableOpacity
-            style={styles.linkRow}
-            onPress={() => Linking.openURL('https://clearwelth.com/privacy')}
-          >
-            <Text style={styles.linkText}>Read our full Privacy Policy</Text>
-            <Text style={styles.linkChevron}>›</Text>
-          </TouchableOpacity>
+          <View style={[styles.item, styles.itemBorder]}>
+            <Text style={styles.itemLabel}>Data controller</Text>
+            <Text style={styles.itemDetail}>KPA Group Ltd, trading as Clearwelth</Text>
+          </View>
+          <View style={[styles.item, styles.itemBorder]}>
+            <Text style={styles.itemLabel}>Purpose of processing</Text>
+            <Text style={styles.itemDetail}>To provide you with a personal wealth management service, including tracking assets, liabilities, and documents.</Text>
+          </View>
+          <View style={[styles.item, styles.itemBorder]}>
+            <Text style={styles.itemLabel}>Legal basis</Text>
+            <Text style={styles.itemDetail}>Performance of a contract (providing the service you signed up for) and legitimate interests in keeping your data secure.</Text>
+          </View>
+          <View style={[styles.item, styles.itemBorder]}>
+            <Text style={styles.itemLabel}>Data sharing</Text>
+            <Text style={styles.itemDetail}>We do not sell or share your personal data with third parties for marketing purposes. Infrastructure providers (Railway/AWS) process data on our behalf under data processing agreements.</Text>
+          </View>
+          <View style={[styles.item, styles.itemBorder]}>
+            <Text style={styles.itemLabel}>Retention</Text>
+            <Text style={styles.itemDetail}>Your data is retained for as long as your account is active. On account deletion, all personal data is permanently removed.</Text>
+          </View>
+          <View style={styles.item}>
+            <Text style={styles.itemLabel}>Your rights</Text>
+            <Text style={styles.itemDetail}>Under UK GDPR you have the right to access, rectify, erase, and port your data. To exercise these rights contact us at privacy@clearwelth.com.</Text>
+          </View>
         </View>
 
         {/* UK Data Protection */}
@@ -101,7 +118,7 @@ export default function PrivacySecurityScreen() {
           </View>
           <View style={styles.item}>
             <Text style={styles.itemDetail}>
-              Clearwelth is committed to compliance with the UK General Data Protection Regulation (UK GDPR) and the Data Protection Act 2018. We are registered with the Information Commissioner's Office (ICO).
+              Clearwelth is committed to compliance with the UK General Data Protection Regulation (UK GDPR) and the Data Protection Act 2018. If you have a complaint about how we handle your data, you can contact the Information Commissioner's Office (ICO) at ico.org.uk.
             </Text>
           </View>
         </View>
