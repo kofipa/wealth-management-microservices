@@ -6,6 +6,7 @@ const { Pool } = require('pg');
 const amqp = require('amqplib');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
+const yahooFinance = require('yahoo-finance2').default;
 
 // In-memory valuation cache (postcode → { data, timestamp })
 const valuationCache = new Map();
@@ -471,26 +472,21 @@ app.get('/api/assets/price/quote', authenticateToken, async (req, res) => {
   }
 
   try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}`;
-    const { data } = await axios.get(url, {
-      timeout: 8000,
-      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' },
-    });
+    const quote = await yahooFinance.quote(ticker);
+    if (!quote || quote.regularMarketPrice == null) {
+      return res.status(404).json({ error: 'Ticker not found' });
+    }
 
-    const meta = data?.chart?.result?.[0]?.meta;
-    if (!meta) return res.status(404).json({ error: 'Ticker not found' });
-
-    const rawPrice = meta.regularMarketPrice;
-    const currencyRaw = meta.currency || 'GBP';
+    const currencyRaw = quote.currency || 'GBP';
     // UK LSE stocks quoted in GBp (pence) — convert to GBP
-    const price_gbp = currencyRaw === 'GBp' ? rawPrice / 100 : rawPrice;
+    const price_gbp = currencyRaw === 'GBp' ? quote.regularMarketPrice / 100 : quote.regularMarketPrice;
 
     const result = {
       ticker,
-      name: meta.shortName || meta.longName || ticker,
+      name: quote.shortName || quote.longName || ticker,
       price_gbp,
       currency_raw: currencyRaw,
-      exchange: meta.exchangeName || '',
+      exchange: quote.fullExchangeName || quote.exchange || '',
       last_updated: new Date().toISOString(),
     };
     priceCache.set(ticker, { data: result, timestamp: Date.now() });

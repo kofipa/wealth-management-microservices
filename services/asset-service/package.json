@@ -21,7 +21,8 @@
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.11.3",
     "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^5.0.1"
+    "swagger-ui-express": "^5.0.1",
+    "yahoo-finance2": "^3.13.2"
   },
   "devDependencies": {
     "jest": "^30.2.0",
