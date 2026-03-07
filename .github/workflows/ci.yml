@@ -21,6 +21,7 @@ jobs:
       DB_USER: postgres
       DB_PASSWORD: postgres
       RABBITMQ_URL: amqp://localhost
+      RESEND_API_KEY: re_test_placeholder
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
