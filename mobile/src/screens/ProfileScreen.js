@@ -430,6 +430,12 @@ export default function ProfileScreen() {
             thumbColor={isDark ? colors.primary : colors.textTertiary}
           />
         </View>
+
+        {/* Privacy & Security */}
+        <TouchableOpacity style={styles.securityRow} onPress={() => navigation.navigate('PrivacySecurity')}>
+          <Text style={styles.securityRowLabel}>Privacy & Security</Text>
+          <Text style={styles.securityRowChevron}>›</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Trusted Contacts — hidden when in delegated mode */}

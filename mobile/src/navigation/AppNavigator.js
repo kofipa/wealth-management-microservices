@@ -22,6 +22,7 @@ import DocumentsScreen from '../screens/DocumentsScreen';
 import ServicesScreen from '../screens/ServicesScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
+import PrivacySecurityScreen from '../screens/PrivacySecurityScreen';
 
 const AppStack = createNativeStackNavigator();
 const AuthStack = createNativeStackNavigator();
@@ -159,6 +160,11 @@ function AppNavigatorStack({ navigationRef }) {
             headerBackTitle: 'Back',
             headerTintColor: colors.primary,
           }}
+        />
+        <AppStack.Screen
+          name="PrivacySecurity"
+          component={PrivacySecurityScreen}
+          options={{ headerShown: false }}
         />
       </AppStack.Navigator>
 
