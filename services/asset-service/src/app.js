@@ -113,6 +113,8 @@ async function initDB() {
       CREATE INDEX IF NOT EXISTS idx_assets_user_id ON assets(user_id);
       CREATE INDEX IF NOT EXISTS idx_assets_type ON assets(asset_type);
     `);
+    // Idempotent migrations
+    await client.query(`ALTER TABLE assets ADD COLUMN IF NOT EXISTS metadata JSONB`);
     console.log('Database initialized');
   } finally {
     client.release();

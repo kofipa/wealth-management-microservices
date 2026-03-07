@@ -17,26 +17,26 @@ const TEAL = '#3DD9B8';
  *
  * viewBox "0 0 80 58" centred around the two glyphs.
  */
-function CWMark({ sz, onDark = false }) {
-  const stroke = onDark ? '#ffffff' : NAVY;
+function CWMark({ sz, dark = false }) {
+  const stroke = dark ? '#ffffff' : NAVY;
   const accent = TEAL;
   const sw = sz / 10; // stroke width scales with size
 
   return (
     <Svg width={sz} height={sz * 0.73} viewBox="0 0 80 58">
       {/* ── C arc (navy / white on dark) ─────────────────────────────── */}
-      {/* Circle centre (20, 30) r=20. Opens right: NE → (arc CCW) → SE */}
+      {/* Circle centre (20, 30) r=20. Opens right at ±30° from east */}
       <Path
-        d="M 37 16 A 20 20 0 1 0 37 44"
+        d="M 37 20 A 20 20 0 1 0 37 40"
         fill="none"
         stroke={stroke}
         strokeWidth={sw}
         strokeLinecap="round"
       />
       {/* ── Teal accent — small top segment ──────────────────────────── */}
-      {/* From 12-o'clock (20,10) clockwise to NE opening (37,16) */}
+      {/* From 12-o'clock (20,10) clockwise to NE opening (37,20) */}
       <Path
-        d="M 20 10 A 20 20 0 0 1 37 16"
+        d="M 20 10 A 20 20 0 0 1 37 20"
         fill="none"
         stroke={accent}
         strokeWidth={sw}
@@ -53,9 +53,9 @@ function CWMark({ sz, onDark = false }) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      {/* Arrow tip at (69, 10) */}
+      {/* Arrow tip at (69, 10) — barbs symmetric to stroke direction (58,46)→(69,10) */}
       <Path
-        d="M 69 10 L 62 14 M 69 10 L 67 18"
+        d="M 69 10 L 71 20 M 69 10 L 62 17"
         fill="none"
         stroke={stroke}
         strokeWidth={sw * 0.9}
@@ -74,20 +74,21 @@ function CWMark({ sz, onDark = false }) {
  *   onDark    render white version for dark backgrounds (e.g. splash)
  */
 export default function AppLogo({ size = 'large', tagline, onDark = false }) {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
+  const dark = onDark || isDark; // auto-adapt to dark theme or explicit override
   const large = size === 'large';
   const showTagline = tagline !== undefined ? !!tagline : large;
 
-  const markSize  = large ? 72 : 44;
-  const wordSize  = large ? 28 : 17;
+  const markSize   = large ? 72 : 44;
+  const wordSize   = large ? 28 : 17;
   const dotComSize = large ? 13 : 9;
-  const tagSize   = large ? 13 : 10;
-  const wordColor = onDark ? '#ffffff' : NAVY;
+  const tagSize    = large ? 13 : 10;
+  const wordColor  = dark ? '#ffffff' : NAVY;
 
   return (
     <View style={styles.wrapper}>
       {/* CW monogram */}
-      <CWMark sz={markSize} onDark={onDark} />
+      <CWMark sz={markSize} dark={dark} />
 
       {/* Wordmark: Clear + Welth */}
       <View style={styles.wordRow}>
@@ -106,7 +107,7 @@ export default function AppLogo({ size = 'large', tagline, onDark = false }) {
       {showTagline && (
         <Text style={[
           styles.tagline,
-          { fontSize: tagSize, color: onDark ? 'rgba(255,255,255,0.55)' : colors.textSecondary },
+          { fontSize: tagSize, color: dark ? 'rgba(255,255,255,0.55)' : colors.textSecondary },
         ]}>
           No more silent assets
         </Text>
