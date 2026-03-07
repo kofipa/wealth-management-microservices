@@ -45,6 +45,7 @@ export default function LiabilitiesScreen() {
   const [editingLiability, setEditingLiability] = useState(null);
   const [pendingFile, setPendingFile] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const load = async () => {
     setLoading(true);
@@ -68,6 +69,7 @@ export default function LiabilitiesScreen() {
     setEditingLiability(null);
     setPendingFile(null);
     setForm(EMPTY_FORM);
+    setFieldErrors({});
   };
 
   const openEditModal = (item) => {
@@ -87,10 +89,14 @@ export default function LiabilitiesScreen() {
   };
 
   const handleSave = async () => {
-    if (!form.name || !form.amount) {
-      Alert.alert('Error', 'Name and amount are required');
+    const errors = {};
+    if (!form.name.trim()) errors.name = 'Name is required';
+    if (!form.amount) errors.amount = 'Amount is required';
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
+    setFieldErrors({});
     setSaving(true);
     try {
       const payload = {
@@ -292,12 +298,13 @@ export default function LiabilitiesScreen() {
 
             <Text style={styles.label}>Name *</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, fieldErrors.name && styles.inputError]}
               value={form.name}
-              onChangeText={(v) => setForm({ ...form, name: v })}
+              onChangeText={(v) => { setForm({ ...form, name: v }); setFieldErrors(e => ({ ...e, name: null })); }}
               placeholder="e.g. Car Loan"
               placeholderTextColor={colors.placeholder}
             />
+            {fieldErrors.name ? <Text style={styles.fieldError}>{fieldErrors.name}</Text> : null}
 
             <Text style={styles.label}>Type</Text>
             <View style={styles.typeRow}>
@@ -316,13 +323,14 @@ export default function LiabilitiesScreen() {
 
             <Text style={styles.label}>Amount (GBP) *</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, fieldErrors.amount && styles.inputError]}
               value={form.amount}
-              onChangeText={(v) => setForm({ ...form, amount: v })}
+              onChangeText={(v) => { setForm({ ...form, amount: v }); setFieldErrors(e => ({ ...e, amount: null })); }}
               placeholder="0.00"
               placeholderTextColor={colors.placeholder}
               keyboardType="decimal-pad"
             />
+            {fieldErrors.amount ? <Text style={styles.fieldError}>{fieldErrors.amount}</Text> : null}
 
             <Text style={styles.label}>Interest Rate (%)</Text>
             <TextInput
@@ -428,8 +436,10 @@ const makeStyles = (colors) => StyleSheet.create({
   input: {
     backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.border,
     borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 16, color: colors.text, marginBottom: 16,
+    fontSize: 16, color: colors.text, marginBottom: 4,
   },
+  inputError: { borderColor: '#ef4444' },
+  fieldError: { fontSize: 12, color: '#ef4444', marginBottom: 12 },
   textArea: { height: 80, textAlignVertical: 'top' },
   typeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
   typeChip: {

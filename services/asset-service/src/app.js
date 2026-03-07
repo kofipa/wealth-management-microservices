@@ -157,7 +157,7 @@ function validateStringField(value, fieldName, { required = false, maxLength = 2
 
 // Add Cash Asset
 app.post('/api/assets/cash', authenticateToken, async (req, res) => {
-  const { name, value, currency, description } = req.body;
+  const { name, value, currency, description, metadata } = req.body;
   const userId = req.user.userId;
   const valErr = validateAssetValue(value);
   const nameErr = validateStringField(name, 'name', { required: true });
@@ -168,16 +168,13 @@ app.post('/api/assets/cash', authenticateToken, async (req, res) => {
 
   try {
     const result = await pool.query(
-      `INSERT INTO assets (user_id, asset_type, name, value, currency, description)
-       VALUES ($1, 'cash', $2, $3, $4, $5) RETURNING *`,
-      [userId, name, value, currency || 'USD', description]
+      `INSERT INTO assets (user_id, asset_type, name, value, currency, description, metadata)
+       VALUES ($1, 'cash', $2, $3, $4, $5, $6) RETURNING *`,
+      [userId, name, value, currency || 'GBP', description, metadata !== undefined ? JSON.stringify(metadata) : null]
     );
 
     const asset = result.rows[0];
-
-    // Publish CashAssetAdded event
     await publishEvent('asset.cash.added', { userId, asset });
-
     res.status(201).json({ asset });
   } catch (err) {
     console.error(err);
@@ -187,7 +184,7 @@ app.post('/api/assets/cash', authenticateToken, async (req, res) => {
 
 // Add Investment Asset
 app.post('/api/assets/investment', authenticateToken, async (req, res) => {
-  const { name, value, currency, description } = req.body;
+  const { name, value, currency, description, metadata } = req.body;
   const userId = req.user.userId;
   const valErr = validateAssetValue(value);
   const nameErr = validateStringField(name, 'name', { required: true });
@@ -196,16 +193,13 @@ app.post('/api/assets/investment', authenticateToken, async (req, res) => {
 
   try {
     const result = await pool.query(
-      `INSERT INTO assets (user_id, asset_type, name, value, currency, description)
-       VALUES ($1, 'investment', $2, $3, $4, $5) RETURNING *`,
-      [userId, name, value, currency || 'USD', description]
+      `INSERT INTO assets (user_id, asset_type, name, value, currency, description, metadata)
+       VALUES ($1, 'investment', $2, $3, $4, $5, $6) RETURNING *`,
+      [userId, name, value, currency || 'GBP', description, metadata !== undefined ? JSON.stringify(metadata) : null]
     );
 
     const asset = result.rows[0];
-
-    // Publish InvestmentAssetAdded event
     await publishEvent('asset.investment.added', { userId, asset });
-
     res.status(201).json({ asset });
   } catch (err) {
     console.error(err);
@@ -215,7 +209,7 @@ app.post('/api/assets/investment', authenticateToken, async (req, res) => {
 
 // Add Property Asset
 app.post('/api/assets/property', authenticateToken, async (req, res) => {
-  const { name, value, currency, description } = req.body;
+  const { name, value, currency, description, metadata } = req.body;
   const userId = req.user.userId;
   const valErr = validateAssetValue(value);
   const nameErr = validateStringField(name, 'name', { required: true });
@@ -224,16 +218,13 @@ app.post('/api/assets/property', authenticateToken, async (req, res) => {
 
   try {
     const result = await pool.query(
-      `INSERT INTO assets (user_id, asset_type, name, value, currency, description)
-       VALUES ($1, 'property', $2, $3, $4, $5) RETURNING *`,
-      [userId, name, value, currency || 'USD', description]
+      `INSERT INTO assets (user_id, asset_type, name, value, currency, description, metadata)
+       VALUES ($1, 'property', $2, $3, $4, $5, $6) RETURNING *`,
+      [userId, name, value, currency || 'GBP', description, metadata !== undefined ? JSON.stringify(metadata) : null]
     );
 
     const asset = result.rows[0];
-
-    // Publish PropertyAssetAdded event
     await publishEvent('asset.property.added', { userId, asset });
-
     res.status(201).json({ asset });
   } catch (err) {
     console.error(err);
@@ -243,7 +234,7 @@ app.post('/api/assets/property', authenticateToken, async (req, res) => {
 
 // Add Other Asset
 app.post('/api/assets/other', authenticateToken, async (req, res) => {
-  const { name, value, currency, description } = req.body;
+  const { name, value, currency, description, metadata } = req.body;
   const userId = req.user.userId;
   const valErr = validateAssetValue(value);
   const nameErr = validateStringField(name, 'name', { required: true });
@@ -252,16 +243,13 @@ app.post('/api/assets/other', authenticateToken, async (req, res) => {
 
   try {
     const result = await pool.query(
-      `INSERT INTO assets (user_id, asset_type, name, value, currency, description)
-       VALUES ($1, 'other', $2, $3, $4, $5) RETURNING *`,
-      [userId, name, value, currency || 'USD', description]
+      `INSERT INTO assets (user_id, asset_type, name, value, currency, description, metadata)
+       VALUES ($1, 'other', $2, $3, $4, $5, $6) RETURNING *`,
+      [userId, name, value, currency || 'GBP', description, metadata !== undefined ? JSON.stringify(metadata) : null]
     );
 
     const asset = result.rows[0];
-
-    // Publish OtherAssetAdded event
     await publishEvent('asset.other.added', { userId, asset });
-
     res.status(201).json({ asset });
   } catch (err) {
     console.error(err);
