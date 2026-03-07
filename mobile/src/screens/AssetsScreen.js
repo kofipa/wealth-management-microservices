@@ -645,7 +645,7 @@ export default function AssetsScreen() {
           <View style={styles.item}>
             <View style={styles.itemLeft}>
               <Text style={styles.itemName}>{item.name}</Text>
-              <Text style={styles.itemType}>{item.asset_type}</Text>
+              <Text style={styles.itemType}>{item.metadata?.original_type || item.asset_type}</Text>
               {getMetaSummary(item)}
               {item.asset_type === 'property' && (() => {
                 const v = valuations[item.id];
