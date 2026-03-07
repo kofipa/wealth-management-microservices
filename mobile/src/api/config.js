@@ -1,13 +1,13 @@
 const IS_PRODUCTION = true;
 
 export const BASE_URLS = IS_PRODUCTION ? {
-  user: 'https://wealth-management-microservices-production.up.railway.app',
-  asset: 'https://devoted-art-production.up.railway.app',
-  liability: 'https://exemplary-curiosity-production.up.railway.app',
-  networth: 'https://victorious-laughter-production.up.railway.app',
-  document: 'https://robust-dedication-production-1fd0.up.railway.app',
-  service: 'https://brave-harmony-production-357c.up.railway.app',
-  openbanking: 'https://daring-embrace-production.up.railway.app',
+  user: 'https://user.api.clearwelth.com',
+  asset: 'https://asset.api.clearwelth.com',
+  liability: 'https://liability.api.clearwelth.com',
+  networth: 'https://networth.api.clearwelth.com',
+  document: 'https://document.api.clearwelth.com',
+  service: 'https://services.api.clearwelth.com',
+  openbanking: 'https://openbanking.api.clearwelth.com',
 } : {
   user: 'http://192.168.0.6:3001',
   asset: 'http://192.168.0.6:3002',
