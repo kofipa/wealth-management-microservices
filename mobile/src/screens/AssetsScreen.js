@@ -422,14 +422,23 @@ export default function AssetsScreen() {
     }
   };
 
-  const handleDelete = (id, name) => {
-    Alert.alert('Delete Asset', `Delete "${name}"?`, [
+  const handleDelete = (item) => {
+    Alert.alert('Delete Asset', `Delete "${item.name}"?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete', style: 'destructive',
         onPress: async () => {
           try {
-            await deleteAsset(id);
+            await deleteAsset(item.id);
+            // Clean up any linked liabilities
+            const linkedIds = [
+              item.metadata?.mortgage_liability_id,
+              item.metadata?.finance_liability_id,
+              item.metadata?.insurance_liability_id,
+            ].filter(Boolean);
+            for (const liabilityId of linkedIds) {
+              try { await deleteLiability(liabilityId); } catch { /* ignore if already gone */ }
+            }
             load();
           } catch {
             Alert.alert('Error', 'Could not delete asset');
@@ -724,7 +733,7 @@ export default function AssetsScreen() {
                 <TouchableOpacity style={styles.editBtn} onPress={() => openEditModal(item)}>
                   <Text style={styles.editBtnText}>Edit</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item.id, item.name)}>
+                <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item)}>
                   <Text style={styles.deleteBtnText}>Delete</Text>
                 </TouchableOpacity>
               </View>
