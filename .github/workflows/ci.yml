@@ -13,6 +13,14 @@ jobs:
     defaults:
       run:
         working-directory: services/user-service
+    env:
+      JWT_SECRET: your-secret-key
+      FIELD_ENCRYPTION_KEY: deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef
+      DB_HOST: localhost
+      DB_NAME: userdb
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      RABBITMQ_URL: amqp://localhost
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -29,6 +37,8 @@ jobs:
     defaults:
       run:
         working-directory: services/asset-service
+    env:
+      JWT_SECRET: your-secret-key
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -45,6 +55,8 @@ jobs:
     defaults:
       run:
         working-directory: services/liability-service
+    env:
+      JWT_SECRET: your-secret-key
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -61,6 +73,8 @@ jobs:
     defaults:
       run:
         working-directory: services/networth-service
+    env:
+      JWT_SECRET: your-secret-key
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -77,6 +91,8 @@ jobs:
     defaults:
       run:
         working-directory: services/document-service
+    env:
+      JWT_SECRET: your-secret-key
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -93,6 +109,8 @@ jobs:
     defaults:
       run:
         working-directory: services/service-service
+    env:
+      JWT_SECRET: your-secret-key
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
