@@ -234,18 +234,24 @@ app.post('/api/assets/property', authenticateToken, async (req, res) => {
 
 // Add Other Asset
 app.post('/api/assets/other', authenticateToken, async (req, res) => {
-  const { name, value, currency, description, metadata } = req.body;
+  const { name, value, currency, description, metadata, type } = req.body;
   const userId = req.user.userId;
   const valErr = validateAssetValue(value);
   const nameErr = validateStringField(name, 'name', { required: true });
   const descErr = validateStringField(description, 'description', { maxLength: 500 });
   if (nameErr || valErr || descErr) return res.status(400).json({ error: nameErr || valErr || descErr });
 
+  // Always persist original_type from the client's type field so vehicle/insurance
+  // assets can round-trip their display type correctly (asset_type is hardcoded 'other')
+  const storedMetadata = type
+    ? { ...(metadata || {}), original_type: type }
+    : (metadata !== undefined ? metadata : null);
+
   try {
     const result = await pool.query(
       `INSERT INTO assets (user_id, asset_type, name, value, currency, description, metadata)
        VALUES ($1, 'other', $2, $3, $4, $5, $6) RETURNING *`,
-      [userId, name, value, currency || 'GBP', description, metadata !== undefined ? JSON.stringify(metadata) : null]
+      [userId, name, value, currency || 'GBP', description, storedMetadata !== null ? JSON.stringify(storedMetadata) : null]
     );
 
     const asset = result.rows[0];
