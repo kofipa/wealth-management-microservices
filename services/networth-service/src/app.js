@@ -279,6 +279,19 @@ app.get('/api/networth/breakdown', authenticateToken, async (req, res) => {
     const totalLiabilities = liabilities.reduce((sum, liability) => sum + parseFloat(liability.amount), 0);
     const netWorth = totalAssets - totalLiabilities;
 
+    // Upsert daily snapshot (same as /calculate so history is always current)
+    try {
+      await pool.query(
+        `INSERT INTO networth_snapshots (user_id, net_worth, total_assets, total_liabilities, snapshot_date)
+         VALUES ($1, $2, $3, $4, CURRENT_DATE)
+         ON CONFLICT (user_id, snapshot_date)
+         DO UPDATE SET net_worth = $2, total_assets = $3, total_liabilities = $4`,
+        [userId, netWorth, totalAssets, totalLiabilities]
+      );
+    } catch (dbErr) {
+      console.error('Snapshot upsert error:', dbErr.message);
+    }
+
     res.json({
       userId,
       netWorth,
