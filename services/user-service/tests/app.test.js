@@ -71,14 +71,17 @@ describe('POST /api/users/register', () => {
   });
 
   it('returns 201 on successful registration', async () => {
+    // INSERT users row
     mockQuery.mockResolvedValueOnce({
       rows: [{ id: 1, email: 'test@test.com', created_at: new Date() }]
     });
+    // UPDATE verification_token (no rows needed)
+    mockQuery.mockResolvedValueOnce({ rows: [] });
     const res = await request(app)
       .post('/api/users/register')
       .send({ email: 'test@test.com', password: 'password123' });
     expect(res.status).toBe(201);
-    expect(res.body.user.email).toBe('test@test.com');
+    expect(res.body.message).toBeDefined();
   });
 
   it('returns 409 when user already exists', async () => {
@@ -103,7 +106,7 @@ describe('POST /api/users/login', () => {
 
   it('returns token on successful login', async () => {
     mockQuery.mockResolvedValueOnce({
-      rows: [{ id: 1, email: 'test@test.com', password_hash: 'hashed' }]
+      rows: [{ id: 1, email: 'test@test.com', password_hash: 'hashed', email_verified: true }]
     });
     const res = await request(app)
       .post('/api/users/login')
