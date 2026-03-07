@@ -8,7 +8,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import * as WebBrowser from 'expo-web-browser';
-import { getAssets, createAsset, updateAsset, deleteAsset, uploadDocument, createLiability, updateLiability, deleteLiability, getOpenBankingAuthUrl, getOpenBankingStatus, getOpenBankingAccounts, getPropertyValuation, getStockQuote, getVehicleValuation } from '../api/client';
+import { getAssets, createAsset, updateAsset, deleteAsset, uploadDocument, getLiabilities, createLiability, updateLiability, deleteLiability, getOpenBankingAuthUrl, getOpenBankingStatus, getOpenBankingAccounts, getPropertyValuation, getStockQuote, getVehicleValuation } from '../api/client';
 import DatePickerField from '../components/DatePickerField';
 import { useTheme } from '../context/ThemeContext';
 
@@ -228,6 +228,15 @@ export default function AssetsScreen() {
         }
       }
 
+      // Fetch existing liabilities once for sync deduplication (edit mode only)
+      let existingLiabilities = [];
+      if (editingAsset) {
+        try {
+          const liabRes = await getLiabilities();
+          existingLiabilities = liabRes.data.liabilities || [];
+        } catch { /* ignore */ }
+      }
+
       // ── Mortgage liability sync ──
       if (form.type === 'property') {
         const hasMortgage = form.metadata.has_mortgage === true;
@@ -259,14 +268,17 @@ export default function AssetsScreen() {
               Alert.alert('Warning', 'Asset saved but mortgage liability could not be updated.');
             }
           } else {
-            // Create a new liability and store the ID back on the asset
             try {
-              const liabilityRes = await createLiability(liabilityPayload);
-              const liabilityId = liabilityRes.data.liability?.id;
-              if (liabilityId) {
-                await updateAsset(savedAsset.id, {
-                  metadata: { ...savedAsset.metadata, mortgage_liability_id: liabilityId },
-                });
+              const match = existingLiabilities.find(l => l.name === liabilityPayload.name);
+              if (match) {
+                await updateLiability(match.id, liabilityPayload);
+                await updateAsset(savedAsset.id, { metadata: { ...savedAsset.metadata, mortgage_liability_id: match.id } });
+              } else {
+                const liabilityRes = await createLiability(liabilityPayload);
+                const liabilityId = liabilityRes.data.liability?.id;
+                if (liabilityId) {
+                  await updateAsset(savedAsset.id, { metadata: { ...savedAsset.metadata, mortgage_liability_id: liabilityId } });
+                }
               }
             } catch {
               Alert.alert('Warning', 'Asset saved but mortgage liability could not be created.');
@@ -317,12 +329,16 @@ export default function AssetsScreen() {
             }
           } else {
             try {
-              const liabilityRes = await createLiability(liabilityPayload);
-              const liabilityId = liabilityRes.data.liability?.id;
-              if (liabilityId) {
-                await updateAsset(savedAsset.id, {
-                  metadata: { ...savedAsset.metadata, finance_liability_id: liabilityId },
-                });
+              const match = existingLiabilities.find(l => l.name === liabilityPayload.name);
+              if (match) {
+                await updateLiability(match.id, liabilityPayload);
+                await updateAsset(savedAsset.id, { metadata: { ...savedAsset.metadata, finance_liability_id: match.id } });
+              } else {
+                const liabilityRes = await createLiability(liabilityPayload);
+                const liabilityId = liabilityRes.data.liability?.id;
+                if (liabilityId) {
+                  await updateAsset(savedAsset.id, { metadata: { ...savedAsset.metadata, finance_liability_id: liabilityId } });
+                }
               }
             } catch {
               Alert.alert('Warning', 'Asset saved but finance liability could not be created.');
@@ -370,12 +386,16 @@ export default function AssetsScreen() {
             }
           } else {
             try {
-              const liabilityRes = await createLiability(liabilityPayload);
-              const liabilityId = liabilityRes.data.liability?.id;
-              if (liabilityId) {
-                await updateAsset(savedAsset.id, {
-                  metadata: { ...savedAsset.metadata, insurance_liability_id: liabilityId },
-                });
+              const match = existingLiabilities.find(l => l.name === liabilityPayload.name);
+              if (match) {
+                await updateLiability(match.id, liabilityPayload);
+                await updateAsset(savedAsset.id, { metadata: { ...savedAsset.metadata, insurance_liability_id: match.id } });
+              } else {
+                const liabilityRes = await createLiability(liabilityPayload);
+                const liabilityId = liabilityRes.data.liability?.id;
+                if (liabilityId) {
+                  await updateAsset(savedAsset.id, { metadata: { ...savedAsset.metadata, insurance_liability_id: liabilityId } });
+                }
               }
             } catch {
               Alert.alert('Warning', 'Asset saved but insurance premium liability could not be created.');
