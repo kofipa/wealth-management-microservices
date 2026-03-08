@@ -75,7 +75,7 @@ export default function RegisterScreen({ navigation }) {
           <View style={styles.passwordWrap}>
             <TextInput
               style={styles.passwordInput}
-              placeholder="Password (min 8 characters)"
+              placeholder="Password (min 10 characters)"
               placeholderTextColor={colors.placeholder}
               value={password}
               onChangeText={setPassword}
