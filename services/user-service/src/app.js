@@ -14,6 +14,30 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { Resend } = require('resend');
 
+// ── password validation ───────────────────────────────────────────────────────
+const BLOCKED_PASSWORDS = new Set([
+  'password', 'password1', 'password12', 'password123', 'password1234',
+  'passw0rd', 'p@ssword', 'p@ssw0rd',
+  '12345678', '123456789', '1234567890', '87654321',
+  'qwerty123', 'qwertyuiop',
+  'abc123456', 'abc12345',
+  'letmein', 'letmein1',
+  'welcome1', 'welcome123',
+  'iloveyou', 'iloveyou1',
+  'clearwelth', 'clearwelth1',
+  'monkey123', 'dragon123', 'sunshine1',
+]);
+
+function validatePassword(password) {
+  if (!password || password.length < 10) {
+    return 'Password must be at least 10 characters';
+  }
+  if (BLOCKED_PASSWORDS.has(password.toLowerCase())) {
+    return 'This password is too easy to guess — try a longer phrase or mix in some numbers';
+  }
+  return null;
+}
+
 // ── startup env check ────────────────────────────────────────────────────────
 const REQUIRED_VARS = ['FIELD_ENCRYPTION_KEY', 'JWT_SECRET', 'DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD', 'RABBITMQ_URL'];
 const missing = REQUIRED_VARS.filter(k => !process.env[k]);
@@ -300,9 +324,8 @@ app.post('/api/users/register', registerLimiter, async (req, res) => {
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password required' });
   }
-  if (password.length < 8) {
-    return res.status(400).json({ error: 'Password must be at least 8 characters' });
-  }
+  const pwErr = validatePassword(password);
+  if (pwErr) return res.status(400).json({ error: pwErr });
 
   try {
     const passwordHash = await bcrypt.hash(password, 12);
@@ -791,9 +814,8 @@ app.post('/api/users/reset-password', resetPasswordLimiter, async (req, res) => 
   if (!email || !token || !newPassword) {
     return res.status(400).json({ error: 'email, token and newPassword are required' });
   }
-  if (newPassword.length < 8) {
-    return res.status(400).json({ error: 'Password must be at least 8 characters' });
-  }
+  const pwErr = validatePassword(newPassword);
+  if (pwErr) return res.status(400).json({ error: pwErr });
 
   try {
     const result = await pool.query(
@@ -862,9 +884,8 @@ app.post('/api/users/change-password', authenticateToken, async (req, res) => {
   if (!current_password || !new_password) {
     return res.status(400).json({ error: 'current_password and new_password are required' });
   }
-  if (new_password.length < 8) {
-    return res.status(400).json({ error: 'New password must be at least 8 characters' });
-  }
+  const pwErr = validatePassword(new_password);
+  if (pwErr) return res.status(400).json({ error: pwErr });
 
   try {
     const result = await pool.query('SELECT password_hash FROM users WHERE id = $1', [userId]);

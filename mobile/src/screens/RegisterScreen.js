@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, KeyboardAvoidingView, Platform,
+  StyleSheet, ScrollView,
   ActivityIndicator, Alert,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { validatePassword } from '../utils/validatePassword';
 import { useTheme } from '../context/ThemeContext';
 import AppLogo from '../components/AppLogo';
+
+const NAVY = '#0D2040';
 
 export default function RegisterScreen({ navigation }) {
   const { register } = useAuth();
@@ -22,10 +25,8 @@ export default function RegisterScreen({ navigation }) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
-    if (password.length < 8) {
-      Alert.alert('Error', 'Password must be at least 8 characters');
-      return;
-    }
+    const pwErr = validatePassword(password);
+    if (pwErr) { Alert.alert('Error', pwErr); return; }
     setLoading(true);
     try {
       await register(name.trim(), email.trim(), password);
@@ -41,69 +42,90 @@ export default function RegisterScreen({ navigation }) {
   const styles = makeStyles(colors);
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <View style={styles.inner}>
-        <View style={styles.logoWrap}>
-          <AppLogo size="small" tagline="Create your account" />
-        </View>
-
-        <TextInput
-          style={styles.input}
-          placeholder="Full Name"
-          placeholderTextColor={colors.placeholder}
-          value={name}
-          onChangeText={setName}
-          autoCapitalize="words"
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          placeholderTextColor={colors.placeholder}
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
-        <View style={styles.passwordWrap}>
-          <TextInput
-            style={styles.passwordInput}
-            placeholder="Password (min 8 characters)"
-            placeholderTextColor={colors.placeholder}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry={!showPassword}
-          />
-          <TouchableOpacity
-            style={styles.eyeButton}
-            onPress={() => setShowPassword((v) => !v)}
-          >
-            <Text style={styles.eyeText}>{showPassword ? '🙈' : '👁️'}</Text>
-          </TouchableOpacity>
-        </View>
-
-        <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={loading}>
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Create Account</Text>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-          <Text style={styles.link}>Already have an account? <Text style={styles.linkBold}>Sign In</Text></Text>
-        </TouchableOpacity>
+    <View style={styles.container}>
+      {/* ── Brand panel ── */}
+      <View style={styles.brandPanel}>
+        <AppLogo size="small" onDark tagline="Create your account" />
       </View>
-    </KeyboardAvoidingView>
+
+      {/* ── Form panel ── */}
+      <View style={styles.formPanel}>
+        <ScrollView
+          contentContainerStyle={styles.formContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <TextInput
+            style={styles.input}
+            placeholder="Full Name"
+            placeholderTextColor={colors.placeholder}
+            value={name}
+            onChangeText={setName}
+            autoCapitalize="words"
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor={colors.placeholder}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+          />
+          <View style={styles.passwordWrap}>
+            <TextInput
+              style={styles.passwordInput}
+              placeholder="Password (min 8 characters)"
+              placeholderTextColor={colors.placeholder}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+            />
+            <TouchableOpacity
+              style={styles.eyeButton}
+              onPress={() => setShowPassword((v) => !v)}
+            >
+              <Text style={styles.eyeText}>{showPassword ? '🙈' : '👁️'}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={loading}>
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Create Account</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+            <Text style={styles.link}>Already have an account? <Text style={styles.linkBold}>Sign In</Text></Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+    </View>
   );
 }
 
 const makeStyles = (colors) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
-  logoWrap: { alignItems: 'center', marginBottom: 28 },
+  container: { flex: 1, backgroundColor: NAVY },
+  brandPanel: {
+    paddingTop: 52,
+    paddingBottom: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  formPanel: {
+    flex: 1,
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    overflow: 'hidden',
+  },
+  formContent: {
+    padding: 28,
+    paddingTop: 32,
+    paddingBottom: 48,
+  },
   input: {
     backgroundColor: colors.inputBg,
     borderWidth: 1,

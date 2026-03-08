@@ -5,6 +5,7 @@ import {
   ActivityIndicator, Alert, ScrollView,
 } from 'react-native';
 import { forgotPassword, resetPassword, getSecurityQuestion, verifySecurityQuestion } from '../api/client';
+import { validatePassword } from '../utils/validatePassword';
 import { useTheme } from '../context/ThemeContext';
 
 // step: 1=email, 'sq'=security question, 2=code+new password
@@ -85,10 +86,8 @@ export default function ForgotPasswordScreen({ navigation }) {
       Alert.alert('Error', 'Please enter the reset code and a new password');
       return;
     }
-    if (newPassword.length < 8) {
-      Alert.alert('Error', 'Password must be at least 8 characters');
-      return;
-    }
+    const pwErr = validatePassword(newPassword);
+    if (pwErr) { Alert.alert('Error', pwErr); return; }
     setLoading(true);
     try {
       await resetPassword(email.trim().toLowerCase(), code.trim(), newPassword);
@@ -201,7 +200,7 @@ export default function ForgotPasswordScreen({ navigation }) {
             />
             <TextInput
               style={styles.input}
-              placeholder="New password (min 8 characters)"
+              placeholder="New password (min 10 characters)"
               placeholderTextColor={colors.placeholder}
               value={newPassword}
               onChangeText={setNewPassword}

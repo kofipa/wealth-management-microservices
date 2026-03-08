@@ -12,6 +12,7 @@ import Constants from 'expo-constants';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import AppLogo from '../components/AppLogo';
+import { validatePassword } from '../utils/validatePassword';
 import {
   getProfile, getServiceHealth,
   getNominees, addNominee, updateNominee, removeNominee,
@@ -235,10 +236,8 @@ export default function ProfileScreen() {
       Alert.alert('Error', 'New passwords do not match');
       return;
     }
-    if (pwForm.next.length < 8) {
-      Alert.alert('Error', 'New password must be at least 8 characters');
-      return;
-    }
+    const pwErr = validatePassword(pwForm.next);
+    if (pwErr) { Alert.alert('Error', pwErr); return; }
     setSavingPw(true);
     try {
       await changePassword(pwForm.current, pwForm.next);
@@ -823,13 +822,13 @@ export default function ProfileScreen() {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: '#dc2626' }]}>Delete Account</Text>
+              <Text style={[styles.modalTitle, { color: colors.danger }]}>Delete Account</Text>
               <TouchableOpacity onPress={() => setDeleteModalVisible(false)}>
                 <Text style={styles.modalClose}>Cancel</Text>
               </TouchableOpacity>
             </View>
 
-            <Text style={[styles.label, { color: '#dc2626', fontWeight: '600', marginBottom: 4 }]}>
+            <Text style={[styles.label, { color: colors.danger, fontWeight: '600', marginBottom: 4 }]}>
               This action is permanent and cannot be undone.
             </Text>
             <Text style={[styles.label, { color: colors.textSecondary, fontSize: 13, marginBottom: 20 }]}>
@@ -847,7 +846,7 @@ export default function ProfileScreen() {
             />
 
             <TouchableOpacity
-              style={[styles.saveBtn, { backgroundColor: '#dc2626' }]}
+              style={[styles.saveBtn, { backgroundColor: colors.danger }]}
               onPress={handleDeleteAccount}
               disabled={deletingAccount}
             >
@@ -959,7 +958,11 @@ const makeStyles = (colors) => StyleSheet.create({
   content: { padding: 20, paddingBottom: 60 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
 
-  avatarCard: { backgroundColor: colors.surface, borderRadius: 16, padding: 28, alignItems: 'center', marginBottom: 16, borderWidth: 1, borderColor: colors.border },
+  avatarCard: {
+    backgroundColor: colors.surface, borderRadius: 16, padding: 28, alignItems: 'center', marginBottom: 16,
+    borderWidth: 1, borderColor: colors.border,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 8, elevation: 3,
+  },
   avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center', marginBottom: 14 },
   avatarText: { fontSize: 30, fontWeight: '700', color: '#fff' },
   name: { fontSize: 20, fontWeight: '700', color: colors.text, marginBottom: 4 },
@@ -971,10 +974,14 @@ const makeStyles = (colors) => StyleSheet.create({
   securityRowLabel: { fontSize: 15, color: colors.text },
   securityRowChevron: { fontSize: 22, color: colors.textTertiary },
   versionText: { textAlign: 'center', fontSize: 12, color: colors.border, marginTop: 8, marginBottom: 20 },
-  deleteAccountBtn: { borderWidth: 1, borderColor: '#dc2626', borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
-  deleteAccountText: { color: '#dc2626', fontSize: 15, fontWeight: '600' },
+  deleteAccountBtn: { borderWidth: 1, borderColor: colors.danger, borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
+  deleteAccountText: { color: colors.danger, fontSize: 15, fontWeight: '600' },
 
-  section: { backgroundColor: colors.surface, borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: colors.border },
+  section: {
+    backgroundColor: colors.surface, borderRadius: 12, padding: 16, marginBottom: 16,
+    borderWidth: 1, borderColor: colors.border,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
+  },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   sectionTitle: { fontSize: 16, fontWeight: '600', color: colors.text },
   sectionSub: { fontSize: 12, color: colors.textTertiary, marginBottom: 14, lineHeight: 18 },
@@ -989,11 +996,11 @@ const makeStyles = (colors) => StyleSheet.create({
   nomineeEmail: { fontSize: 14, color: colors.text, fontWeight: '500' },
   nomineeMeta: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
   statusBadge: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
-  badgeActive: { backgroundColor: '#dcfce7' },
-  badgePending: { backgroundColor: '#fef9c3' },
+  badgeActive: { backgroundColor: colors.successLight },
+  badgePending: { backgroundColor: colors.warningLight },
   badgeText: { fontSize: 11, fontWeight: '600' },
-  badgeTextActive: { color: '#16a34a' },
-  badgeTextPending: { color: '#92400e' },
+  badgeTextActive: { color: colors.success },
+  badgeTextPending: { color: colors.warning },
   editNomineeBtn: {
     paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
     backgroundColor: colors.primaryLight, borderWidth: 1, borderColor: colors.primary,
@@ -1008,26 +1015,26 @@ const makeStyles = (colors) => StyleSheet.create({
   delegatedRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.surfaceAlt },
   delegatedLeft: { flex: 1 },
   delegatedEmail: { fontSize: 14, color: colors.text, fontWeight: '500' },
-  accessAvailable: { fontSize: 12, color: '#16a34a', marginTop: 2 },
+  accessAvailable: { fontSize: 12, color: colors.success, marginTop: 2 },
   accessPending: { fontSize: 12, color: colors.textTertiary, marginTop: 2 },
   viewBtn: { backgroundColor: colors.primary, borderRadius: 6, paddingHorizontal: 12, paddingVertical: 6, marginLeft: 12 },
   viewBtnText: { color: '#fff', fontSize: 13, fontWeight: '600' },
 
   serviceHealthTitle: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  allUpDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#16a34a' },
-  alertDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#ef4444' },
+  allUpDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.success },
+  alertDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.danger },
   chevron: { fontSize: 12, color: colors.textTertiary },
   serviceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.surfaceAlt, marginTop: 4 },
   serviceLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   serviceName: { fontSize: 14, color: colors.textSecondary },
   serviceStatus: { fontSize: 13, fontWeight: '500', textTransform: 'uppercase' },
-  statusUp: { color: '#16a34a' },
-  statusDown: { color: '#ef4444' },
+  statusUp: { color: colors.success },
+  statusDown: { color: colors.danger },
 
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
   topBarSpacer: { flex: 1 },
   topBarSignOut: { flex: 1, alignItems: 'flex-end' },
-  topBarSignOutText: { fontSize: 14, fontWeight: '600', color: '#ef4444' },
+  topBarSignOutText: { fontSize: 14, fontWeight: '600', color: colors.danger },
 
   modal: { flex: 1, backgroundColor: colors.background },
   modalContent: { padding: 24, paddingBottom: 60 },
@@ -1055,7 +1062,7 @@ const makeStyles = (colors) => StyleSheet.create({
   doneBtn: { alignSelf: 'flex-end', paddingVertical: 8, paddingHorizontal: 16, marginBottom: 12 },
   doneBtnText: { fontSize: 16, color: colors.primary, fontWeight: '600' },
   securityRowSub: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
-  securityRowSubEmpty: { fontSize: 12, color: '#f59e0b', marginTop: 2 },
+  securityRowSubEmpty: { fontSize: 12, color: colors.warning, marginTop: 2 },
   questionList: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, marginBottom: 20, overflow: 'hidden' },
   questionItem: { paddingHorizontal: 14, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.surfaceAlt, backgroundColor: colors.surface },
   questionItemActive: { backgroundColor: colors.primaryLight },
