@@ -232,7 +232,7 @@ export default function LiabilitiesScreen() {
                 <Text style={[styles.sortChipText, sortBy === opt.key && styles.sortChipTextActive]}>
                   {opt.label}
                   {opt.arrow && (
-                    <Text style={{ color: '#ef4444', fontWeight: '800' }}>{opt.arrow}</Text>
+                    <Text style={{ color: colors.danger, fontWeight: '800' }}>{opt.arrow}</Text>
                   )}
                 </Text>
               </TouchableOpacity>
@@ -405,13 +405,14 @@ const makeStyles = (colors) => StyleSheet.create({
   item: {
     backgroundColor: colors.surface, borderRadius: 12, padding: 16,
     marginBottom: 10, borderWidth: 1, borderColor: colors.border,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
   },
   itemTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
   itemLeft: { flex: 1 },
   itemName: { fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 2 },
   itemType: { fontSize: 12, color: colors.textSecondary, marginBottom: 2 },
   itemMeta: { fontSize: 12, color: colors.textTertiary },
-  itemAmount: { fontSize: 16, fontWeight: '700', color: '#ef4444' },
+  itemAmount: { fontSize: 16, fontWeight: '700', color: colors.danger },
   itemActions: { flexDirection: 'row', gap: 8, marginTop: 4 },
   editBtn: {
     paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
@@ -469,13 +470,13 @@ const makeStyles = (colors) => StyleSheet.create({
   searchInput: { backgroundColor: colors.surfaceAlt, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: colors.text },
   sortRow: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 8, backgroundColor: colors.surface, gap: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
   sortChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border },
-  sortChipActive: { backgroundColor: colors.dangerLight, borderColor: '#ef4444' },
+  sortChipActive: { backgroundColor: colors.dangerLight, borderColor: colors.danger },
   sortChipText: { fontSize: 13, color: colors.textSecondary, fontWeight: '500' },
-  sortChipTextActive: { color: '#ef4444', fontWeight: '600' },
+  sortChipTextActive: { color: colors.danger, fontWeight: '600' },
   emptyState: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 32 },
   emptyEmoji: { fontSize: 56, marginBottom: 16 },
   emptyTitle: { fontSize: 20, fontWeight: '700', color: colors.text, marginBottom: 8 },
   emptyBody: { fontSize: 15, color: colors.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: 24 },
-  emptyBtn: { backgroundColor: '#ef4444', borderRadius: 10, paddingVertical: 14, paddingHorizontal: 32 },
+  emptyBtn: { backgroundColor: colors.danger, borderRadius: 10, paddingVertical: 14, paddingHorizontal: 32 },
   emptyBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
 });

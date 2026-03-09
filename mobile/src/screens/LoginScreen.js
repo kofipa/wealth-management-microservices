@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, KeyboardAvoidingView, Platform,
+  StyleSheet, ScrollView,
   ActivityIndicator, Alert,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import AppLogo from '../components/AppLogo';
+
+const NAVY = '#0D2040';
 
 export default function LoginScreen({ navigation }) {
   const { login } = useAuth();
@@ -48,71 +50,92 @@ export default function LoginScreen({ navigation }) {
   const styles = makeStyles(colors);
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <View style={styles.inner}>
-        <View style={styles.logoWrap}>
-          <AppLogo tagline="Your finances. Secured." />
-        </View>
-
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          placeholderTextColor={colors.placeholder}
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
-        <View style={styles.passwordWrap}>
-          <TextInput
-            style={styles.passwordInput}
-            placeholder="Password"
-            placeholderTextColor={colors.placeholder}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry={!showPassword}
-            autoCorrect={false}
-            autoCapitalize="none"
-            textContentType="none"
-            autoComplete="off"
-            importantForAutofill="no"
-          />
-          <TouchableOpacity
-            style={styles.eyeButton}
-            onPress={() => setShowPassword(v => !v)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Text style={styles.eyeText}>{showPassword ? '🙈' : '👁️'}</Text>
-          </TouchableOpacity>
-        </View>
-
-        <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Sign In</Text>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')} style={{ marginBottom: 12 }}>
-          <Text style={styles.link}>Forgot password? <Text style={styles.linkBold}>Reset it</Text></Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-          <Text style={styles.link}>Don't have an account? <Text style={styles.linkBold}>Register</Text></Text>
-        </TouchableOpacity>
+    <View style={styles.container}>
+      {/* ── Brand panel ── */}
+      <View style={styles.brandPanel}>
+        <AppLogo onDark tagline="Your finances. Secured." />
       </View>
-    </KeyboardAvoidingView>
+
+      {/* ── Form panel ── */}
+      <View style={styles.formPanel}>
+        <ScrollView
+          contentContainerStyle={styles.formContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor={colors.placeholder}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+          />
+          <View style={styles.passwordWrap}>
+            <TextInput
+              style={styles.passwordInput}
+              placeholder="Password"
+              placeholderTextColor={colors.placeholder}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              autoCorrect={false}
+              autoCapitalize="none"
+              textContentType="none"
+              autoComplete="off"
+              importantForAutofill="no"
+            />
+            <TouchableOpacity
+              style={styles.eyeButton}
+              onPress={() => setShowPassword(v => !v)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.eyeText}>{showPassword ? '🙈' : '👁️'}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Sign In</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')} style={{ marginBottom: 12 }}>
+            <Text style={styles.link}>Forgot password? <Text style={styles.linkBold}>Reset it</Text></Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+            <Text style={styles.link}>Don't have an account? <Text style={styles.linkBold}>Register</Text></Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+    </View>
   );
 }
 
 const makeStyles = (colors) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
-  logoWrap: { alignItems: 'center', marginBottom: 36 },
+  container: { flex: 1, backgroundColor: NAVY },
+  brandPanel: {
+    paddingTop: 64,
+    paddingBottom: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  formPanel: {
+    flex: 1,
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    overflow: 'hidden',
+  },
+  formContent: {
+    padding: 28,
+    paddingTop: 32,
+    paddingBottom: 48,
+  },
   input: {
     backgroundColor: colors.inputBg,
     borderWidth: 1,
