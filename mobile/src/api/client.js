@@ -51,7 +51,7 @@ export const login = (email, password) =>
   userClient.post('/api/users/login', { email, password });
 
 export const register = (name, email, password) =>
-  userClient.post('/api/users/register', { email, password });
+  userClient.post('/api/users/register', { name, email, password });
 
 export const resendVerification = (email) =>
   userClient.post('/api/users/resend-verification', { email });
@@ -69,7 +69,7 @@ export const resetPassword = (email, token, newPassword) =>
 export const getAssets = () => assetClient.get('/api/assets');
 export const createAsset = (data) => {
   // API has type-specific endpoints: /api/assets/cash|investment|property|other
-  const type = ['cash', 'investment', 'property'].includes(data.type) ? data.type : 'other';
+  const type = ['cash', 'investment', 'property', 'pension'].includes(data.type) ? data.type : 'other';
   return assetClient.post(`/api/assets/${type}`, data);
 };
 export const updateAsset = (id, data) => assetClient.put(`/api/assets/${id}`, data);

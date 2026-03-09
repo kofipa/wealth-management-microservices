@@ -14,6 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.clearwelth.app",
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
@@ -22,12 +23,8 @@
     },
     "android": {
       "usesCleartextTraffic": true,
-      "adaptiveIcon": {
-        "backgroundColor": "#0D2040",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+      "package": "com.clearwelth.app",
+      "icon": "./assets/icon.png"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -37,6 +34,11 @@
       "expo-web-browser",
       "expo-secure-store",
       "@react-native-community/datetimepicker"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "df861b24-c1f9-49d6-a6a1-5255c267e6a8"
+      }
+    }
   }
 }

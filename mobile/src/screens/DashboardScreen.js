@@ -134,6 +134,7 @@ export default function DashboardScreen() {
     cash: '#2563eb',
     investment: '#7c3aed',
     property: '#16a34a',
+    pension: '#db2777',
     vehicle: '#f59e0b',
     insurance: '#0891b2',
     other: '#9ca3af',
@@ -142,6 +143,7 @@ export default function DashboardScreen() {
     cash: 'Cash & Savings',
     investment: 'Investments',
     property: 'Property',
+    pension: 'Pensions',
     vehicle: 'Vehicles',
     insurance: 'Insurance',
     other: 'Other Assets',
@@ -152,7 +154,7 @@ export default function DashboardScreen() {
     color: ASSET_COLORS[type] || '#9ca3af',
   }));
 
-  const PERF_COLORS = { investment: '#7c3aed', property: '#16a34a', vehicle: '#f59e0b', insurance: '#0891b2', cash: '#2563eb', other: '#9ca3af' };
+  const PERF_COLORS = { investment: '#7c3aed', property: '#16a34a', pension: '#db2777', vehicle: '#f59e0b', insurance: '#0891b2', cash: '#2563eb', other: '#9ca3af' };
   const performanceItems = assets
     .filter(a => { const c = parseFloat(a.metadata?.purchase_price); return !isNaN(c) && c > 0; })
     .map(a => {

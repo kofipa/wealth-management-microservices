@@ -15,7 +15,7 @@ import { useTheme } from '../context/ThemeContext';
 const fmt = (n) =>
   new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n ?? 0);
 
-const ASSET_TYPES = ['cash', 'investment', 'property', 'vehicle', 'insurance', 'other'];
+const ASSET_TYPES = ['cash', 'investment', 'property', 'pension', 'vehicle', 'insurance', 'other'];
 
 const EMPTY_FORM = { name: '', type: 'cash', value: '', description: '', metadata: {} };
 
@@ -220,7 +220,7 @@ export default function AssetsScreen() {
         savedAsset = res.data.asset;
       }
       if (pendingFile && savedAsset?.id) {
-        const docCategory = { cash: 'banking', investment: 'investments', property: 'property', insurance: 'insurance' }[form.type] || 'other';
+        const docCategory = { cash: 'banking', investment: 'investments', property: 'property', insurance: 'insurance', pension: 'investments' }[form.type] || 'other';
         try {
           await uploadDocument(pendingFile, form.name, 'asset', savedAsset.id, docCategory);
         } catch {
@@ -530,6 +530,12 @@ export default function AssetsScreen() {
       }
       case 'property':
         return m.address ? <Text style={styles.itemDesc}>{m.address}</Text> : null;
+      case 'pension': {
+        const ptype = Array.isArray(m.pension_type) ? m.pension_type.join(', ') : m.pension_type;
+        return m.provider
+          ? <Text style={styles.itemDesc}>{m.provider}{ptype ? ` · ${ptype}` : ''}</Text>
+          : null;
+      }
       case 'insurance': {
         const ptypes = Array.isArray(m.policy_type) ? m.policy_type.join(', ') : m.policy_type;
         return m.insurer
@@ -898,7 +904,7 @@ export default function AssetsScreen() {
                 />
                 <Text style={styles.label}>Investment Type <Text style={styles.multiHint}>(select all that apply)</Text></Text>
                 <View style={styles.typeRow}>
-                  {['stocks', 'bonds', 'crypto', 'pension', 'ISA', 'funds'].map((t) => {
+                  {['stocks', 'bonds', 'crypto', 'ISA', 'funds'].map((t) => {
                     const active = (Array.isArray(form.metadata.investment_type) ? form.metadata.investment_type : []).includes(t);
                     return (
                       <TouchableOpacity
@@ -1054,6 +1060,72 @@ export default function AssetsScreen() {
                     </View>
                   </>
                 )}
+              </>
+            )}
+
+            {/* ── Pension fields ── */}
+            {form.type === 'pension' && (
+              <>
+                <Text style={styles.sectionLabel}>Pension Details</Text>
+                <Text style={styles.label}>Provider</Text>
+                <TextInput
+                  style={styles.input}
+                  value={form.metadata.provider || ''}
+                  onChangeText={(v) => setMeta('provider', v)}
+                  placeholder="e.g. Nest, PensionBee, Aviva"
+                  placeholderTextColor={colors.placeholder}
+                  autoCapitalize="words"
+                />
+                <Text style={styles.label}>Pension Type <Text style={styles.multiHint}>(select all that apply)</Text></Text>
+                <View style={styles.typeRow}>
+                  {['Workplace', 'Personal', 'SIPP', 'State'].map((t) => {
+                    const active = (Array.isArray(form.metadata.pension_type) ? form.metadata.pension_type : []).includes(t);
+                    return (
+                      <TouchableOpacity
+                        key={t}
+                        style={[styles.typeChip, active && styles.typeChipActive]}
+                        onPress={() => toggleMeta('pension_type', t)}
+                      >
+                        <Text style={[styles.typeChipText, active && styles.typeChipTextActive]}>{t}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                <Text style={styles.label}>Contribution Type</Text>
+                <View style={styles.typeRow}>
+                  {['Defined Contribution', 'Defined Benefit'].map((t) => (
+                    <TouchableOpacity
+                      key={t}
+                      style={[styles.typeChip, form.metadata.contribution_type === t && styles.typeChipActive]}
+                      onPress={() => setMeta('contribution_type', t)}
+                    >
+                      <Text style={[styles.typeChipText, form.metadata.contribution_type === t && styles.typeChipTextActive]}>{t}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <Text style={styles.label}>Employee Contribution (%)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={form.metadata.employee_contribution !== undefined ? String(form.metadata.employee_contribution) : ''}
+                  onChangeText={(v) => setMeta('employee_contribution', v)}
+                  placeholder="e.g. 5"
+                  placeholderTextColor={colors.placeholder}
+                  keyboardType="decimal-pad"
+                />
+                <Text style={styles.label}>Employer Contribution (%)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={form.metadata.employer_contribution !== undefined ? String(form.metadata.employer_contribution) : ''}
+                  onChangeText={(v) => setMeta('employer_contribution', v)}
+                  placeholder="e.g. 3"
+                  placeholderTextColor={colors.placeholder}
+                  keyboardType="decimal-pad"
+                />
+                <DatePickerField
+                  label="Last Statement Date"
+                  value={form.metadata.statement_date || ''}
+                  onChange={(v) => setMeta('statement_date', v)}
+                />
               </>
             )}
 

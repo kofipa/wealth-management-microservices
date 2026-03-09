@@ -233,6 +233,31 @@ app.post('/api/assets/property', authenticateToken, async (req, res) => {
   }
 });
 
+// Add Pension Asset
+app.post('/api/assets/pension', authenticateToken, async (req, res) => {
+  const { name, value, currency, description, metadata } = req.body;
+  const userId = req.user.userId;
+  const valErr = validateAssetValue(value);
+  const nameErr = validateStringField(name, 'name', { required: true });
+  const descErr = validateStringField(description, 'description', { maxLength: 500 });
+  if (nameErr || valErr || descErr) return res.status(400).json({ error: nameErr || valErr || descErr });
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO assets (user_id, asset_type, name, value, currency, description, metadata)
+       VALUES ($1, 'pension', $2, $3, $4, $5, $6) RETURNING *`,
+      [userId, name, value, currency || 'GBP', description, metadata !== undefined ? JSON.stringify(metadata) : null]
+    );
+
+    const asset = result.rows[0];
+    await publishEvent('asset.pension.added', { userId, asset });
+    res.status(201).json({ asset });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to add pension asset' });
+  }
+});
+
 // Add Other Asset
 app.post('/api/assets/other', authenticateToken, async (req, res) => {
   const { name, value, currency, description, metadata, type } = req.body;
@@ -304,7 +329,7 @@ app.put('/api/assets/:id', authenticateToken, async (req, res) => {
   }
 });
 
-const VALID_ASSET_TYPES = ['cash', 'investment', 'property', 'other'];
+const VALID_ASSET_TYPES = ['cash', 'investment', 'property', 'pension', 'other'];
 
 // Get All User Assets
 app.get('/api/assets', authenticateToken, async (req, res) => {

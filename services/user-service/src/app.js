@@ -319,7 +319,7 @@ function authenticateToken(req, res, next) {
  *         description: User already exists
  */
 app.post('/api/users/register', registerLimiter, async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, name } = req.body;
 
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password required' });
@@ -358,6 +358,17 @@ app.post('/api/users/register', registerLimiter, async (req, res) => {
        </p>
        <p style="color:#6b7280;font-size:13px">Or copy this link into your browser:<br>${verifyUrl}</p>`
     );
+
+    // Save name to user_profiles if provided
+    if (name && name.trim()) {
+      const parts = name.trim().split(/\s+/);
+      const first_name = parts[0];
+      const last_name = parts.slice(1).join(' ') || null;
+      await pool.query(
+        'INSERT INTO user_profiles (user_id, first_name, last_name) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+        [user.id, first_name, last_name]
+      );
+    }
 
     // Publish UserRegistered event
     await publishEvent('user.registered', { userId: user.id, email: user.email });
