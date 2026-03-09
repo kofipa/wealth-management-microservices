@@ -532,9 +532,10 @@ export default function AssetsScreen() {
         return m.address ? <Text style={styles.itemDesc}>{m.address}</Text> : null;
       case 'pension': {
         const ptype = Array.isArray(m.pension_type) ? m.pension_type.join(', ') : m.pension_type;
-        return m.provider
-          ? <Text style={styles.itemDesc}>{m.provider}{ptype ? ` · ${ptype}` : ''}</Text>
-          : null;
+        return <>
+          {m.provider ? <Text style={styles.itemDesc}>{m.provider}{ptype ? ` · ${ptype}` : ''}</Text> : null}
+          {m.policy_number ? <Text style={styles.itemDesc}>Ref: {m.policy_number}</Text> : null}
+        </>;
       }
       case 'insurance': {
         const ptypes = Array.isArray(m.policy_type) ? m.policy_type.join(', ') : m.policy_type;
@@ -1075,6 +1076,15 @@ export default function AssetsScreen() {
                   placeholder="e.g. Nest, PensionBee, Aviva"
                   placeholderTextColor={colors.placeholder}
                   autoCapitalize="words"
+                />
+                <Text style={styles.label}>Policy / Reference Number</Text>
+                <TextInput
+                  style={styles.input}
+                  value={form.metadata.policy_number || ''}
+                  onChangeText={(v) => setMeta('policy_number', v)}
+                  placeholder="e.g. PN123456"
+                  placeholderTextColor={colors.placeholder}
+                  autoCapitalize="characters"
                 />
                 <Text style={styles.label}>Pension Type <Text style={styles.multiHint}>(select all that apply)</Text></Text>
                 <View style={styles.typeRow}>
