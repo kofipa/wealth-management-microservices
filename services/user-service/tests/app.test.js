@@ -1,7 +1,8 @@
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = 'your-secret-key';
+const JWT_SECRET = 'test-secret-key-for-jest-only';
+process.env.JWT_SECRET = JWT_SECRET;
 const TEST_TOKEN = jwt.sign({ userId: 1, email: 'test@test.com' }, JWT_SECRET);
 
 // Mock amqplib before requiring app
@@ -79,7 +80,7 @@ describe('POST /api/users/register', () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
     const res = await request(app)
       .post('/api/users/register')
-      .send({ email: 'test@test.com', password: 'password123' });
+      .send({ email: 'test@test.com', password: 'secureTestPass99' });
     expect(res.status).toBe(201);
     expect(res.body.message).toBeDefined();
   });
@@ -90,7 +91,7 @@ describe('POST /api/users/register', () => {
     mockQuery.mockRejectedValueOnce(err);
     const res = await request(app)
       .post('/api/users/register')
-      .send({ email: 'test@test.com', password: 'password123' });
+      .send({ email: 'test@test.com', password: 'secureTestPass99' });
     expect(res.status).toBe(409);
   });
 });
@@ -110,7 +111,7 @@ describe('POST /api/users/login', () => {
     });
     const res = await request(app)
       .post('/api/users/login')
-      .send({ email: 'test@test.com', password: 'password123' });
+      .send({ email: 'test@test.com', password: 'secureTestPass99' });
     expect(res.status).toBe(200);
     expect(res.body.token).toBeDefined();
   });
