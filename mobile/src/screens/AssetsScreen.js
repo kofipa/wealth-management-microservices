@@ -38,6 +38,7 @@ export default function AssetsScreen() {
   const [valuations, setValuations] = useState({}); // { [assetId]: { value, count, loading, error } }
   const [quotes, setQuotes] = useState({}); // { [assetId]: { name, price_gbp, exchange, loading, error } }
   const [vehicleVals, setVehicleVals] = useState({}); // { [assetId]: { estimated_value, make, year, loading, error } }
+  const [fieldErrors, setFieldErrors] = useState({});
   const editingAssetIdRef = useRef(null); // tracks which asset is open in edit modal
 
   const { colors } = useTheme();
@@ -149,6 +150,7 @@ export default function AssetsScreen() {
   const openAddModal = () => {
     setEditingAsset(null);
     setForm(EMPTY_FORM);
+    setFieldErrors({});
     setModalVisible(true);
   };
 
@@ -170,6 +172,7 @@ export default function AssetsScreen() {
     setModalVisible(false);
     setEditingAsset(null);
     setForm(EMPTY_FORM);
+    setFieldErrors({});
     setPendingFile(null);
   };
 
@@ -198,10 +201,15 @@ export default function AssetsScreen() {
   };
 
   const handleSave = async () => {
-    if (!form.name || !form.value) {
-      Alert.alert('Error', 'Name and value are required');
+    const errors = {};
+    if (!form.name || !form.name.trim()) errors.name = 'Name is required';
+    if (!form.value) errors.value = 'Value is required';
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      Alert.alert('Missing fields', Object.values(errors).join('\n'));
       return;
     }
+    setFieldErrors({});
     setSaving(true);
     try {
       const payload = {
@@ -812,12 +820,13 @@ export default function AssetsScreen() {
 
             <Text style={styles.label}>Name *</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, fieldErrors.name && styles.inputError]}
               value={form.name}
-              onChangeText={(v) => setForm({ ...form, name: v })}
+              onChangeText={(v) => { setForm({ ...form, name: v }); setFieldErrors(e => ({ ...e, name: null })); }}
               placeholder="e.g. Savings Account"
               placeholderTextColor={colors.placeholder}
             />
+            {fieldErrors.name ? <Text style={styles.fieldError}>{fieldErrors.name}</Text> : null}
 
             <Text style={styles.label}>Type</Text>
             <View style={styles.typeRow}>
@@ -834,13 +843,14 @@ export default function AssetsScreen() {
 
             <Text style={styles.label}>Value (GBP) *</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, fieldErrors.value && styles.inputError]}
               value={form.value}
-              onChangeText={(v) => setForm({ ...form, value: v })}
+              onChangeText={(v) => { setForm({ ...form, value: v }); setFieldErrors(e => ({ ...e, value: null })); }}
               placeholder="0.00"
               placeholderTextColor={colors.placeholder}
               keyboardType="decimal-pad"
             />
+            {fieldErrors.value ? <Text style={styles.fieldError}>{fieldErrors.value}</Text> : null}
 
             <Text style={styles.label}>Description</Text>
             <TextInput
@@ -1402,7 +1412,9 @@ const makeStyles = (colors) => StyleSheet.create({
   modalClose: { fontSize: 16, color: colors.primary },
   sectionLabel: { fontSize: 13, fontWeight: '700', color: colors.primary, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 8, marginBottom: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border },
   label: { fontSize: 14, fontWeight: '500', color: colors.textSecondary, marginBottom: 6 },
-  input: { backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: colors.text, marginBottom: 16 },
+  input: { backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: colors.text, marginBottom: 4 },
+  inputError: { borderColor: '#ef4444' },
+  fieldError: { fontSize: 12, color: '#ef4444', marginBottom: 12 },
   textArea: { height: 80, textAlignVertical: 'top' },
   typeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
   typeChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border },

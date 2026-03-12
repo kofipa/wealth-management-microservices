@@ -94,6 +94,7 @@ export default function LiabilitiesScreen() {
     if (!form.amount) errors.amount = 'Amount is required';
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
+      Alert.alert('Missing fields', Object.values(errors).join('\n'));
       return;
     }
     setFieldErrors({});
