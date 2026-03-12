@@ -248,6 +248,9 @@ async function initDB() {
     await client.query(`ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS security_question TEXT`);
     await client.query(`ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS security_answer_hash TEXT`);
 
+    // Token version for session revocation on password change
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0`);
+
     await client.query(`
       CREATE TABLE IF NOT EXISTS nominees (
         id SERIAL PRIMARY KEY,
@@ -285,8 +288,20 @@ function authenticateToken(req, res, next) {
 
   if (!token) return res.status(401).json({ error: 'Access token required' });
 
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+  jwt.verify(token, process.env.JWT_SECRET, async (err, user) => {
     if (err) return res.status(403).json({ error: 'Invalid token' });
+    // Delegated tokens don't carry tokenVersion — skip revocation check
+    if (user.tokenVersion !== undefined) {
+      try {
+        const result = await pool.query('SELECT token_version FROM users WHERE id = $1', [user.userId]);
+        if (result.rows.length === 0 || result.rows[0].token_version !== user.tokenVersion) {
+          return res.status(403).json({ error: 'Session expired. Please log in again.' });
+        }
+      } catch (dbErr) {
+        console.error('Token version check failed:', dbErr);
+        return res.status(500).json({ error: 'Authentication error' });
+      }
+    }
     req.user = user;
     next();
   });
@@ -435,9 +450,9 @@ app.post('/api/users/login', loginLimiter, async (req, res) => {
     }
 
     const token = jwt.sign(
-      { userId: user.id, email: user.email },
+      { userId: user.id, email: user.email, tokenVersion: user.token_version },
       process.env.JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: '30d' }
     );
 
     // Record last login and auto-link any pending nominations for this email
@@ -847,7 +862,7 @@ app.post('/api/users/reset-password', resetPasswordLimiter, async (req, res) => 
     const passwordHash = await bcrypt.hash(newPassword, 12);
 
     await pool.query(
-      'UPDATE users SET password_hash = $1 WHERE email = $2',
+      'UPDATE users SET password_hash = $1, token_version = token_version + 1 WHERE email = $2',
       [passwordHash, email]
     );
     await pool.query(
@@ -908,7 +923,10 @@ app.post('/api/users/change-password', authenticateToken, async (req, res) => {
       return res.status(401).json({ error: 'Current password is incorrect' });
     }
     const newHash = await bcrypt.hash(new_password, 12);
-    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [newHash, userId]);
+    await pool.query(
+      'UPDATE users SET password_hash = $1, token_version = token_version + 1 WHERE id = $2',
+      [newHash, userId]
+    );
     res.json({ message: 'Password updated successfully' });
   } catch (err) {
     console.error(err);

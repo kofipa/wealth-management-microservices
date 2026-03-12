@@ -14,11 +14,22 @@ if (!process.env.JWT_SECRET) {
 }
 
 const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const app = express();
 app.use(helmet());
 const _corsOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()) : true;
 app.use(cors({ origin: _corsOrigins, methods: ['GET', 'POST', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization'] }));
 app.use(express.json());
+
+// Rate limiter
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  message: { error: 'Too many requests. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api', apiLimiter);
 
 // Swagger setup
 const swaggerSpec = swaggerJsdoc({

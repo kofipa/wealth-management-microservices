@@ -16,11 +16,29 @@ if (!process.env.JWT_SECRET) {
 
 const amqp = require('amqplib');
 const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const app = express();
 app.use(helmet());
 const _corsOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()) : true;
 app.use(cors({ origin: _corsOrigins, methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization'] }));
 app.use(express.json());
+
+// Rate limiters
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  message: { error: 'Too many requests. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+const callbackLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { error: 'Too many OAuth requests. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api', apiLimiter);
 
 // Swagger setup
 const swaggerSpec = swaggerJsdoc({
@@ -194,7 +212,7 @@ app.get('/api/openbanking/auth-url', authenticateToken, async (req, res) => {
  *       302:
  *         description: Redirects to app deep link on success
  */
-app.get('/api/openbanking/callback', async (req, res) => {
+app.get('/api/openbanking/callback', callbackLimiter, async (req, res) => {
   const { code, state, error } = req.query;
 
   if (error || !code || !state) {

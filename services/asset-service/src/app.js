@@ -21,6 +21,7 @@ const vehicleCache = new Map();
 const VEHICLE_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 app.use(helmet());
@@ -31,6 +32,23 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json());
+
+// Rate limiters
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200,
+  message: { error: 'Too many requests. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+const externalApiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: { error: 'Too many external data requests. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api', apiLimiter);
 
 // Database connection
 const pool = new Pool({
@@ -425,7 +443,7 @@ app.get('/api/assets/total/value', authenticateToken, async (req, res) => {
 });
 
 // Vehicle valuation via DVLA + compound depreciation
-app.get('/api/assets/valuation/vehicle', authenticateToken, async (req, res) => {
+app.get('/api/assets/valuation/vehicle', externalApiLimiter, authenticateToken, async (req, res) => {
   const reg = (req.query.reg || '').trim().toUpperCase().replace(/\s/g, '');
   const purchasePrice = parseFloat(req.query.purchase_price);
   const purchaseDate = req.query.purchase_date;
@@ -484,7 +502,7 @@ app.get('/api/assets/valuation/vehicle', authenticateToken, async (req, res) => 
 });
 
 // Live fund/ETF price quote via Yahoo Finance (free, no API key)
-app.get('/api/assets/price/quote', authenticateToken, async (req, res) => {
+app.get('/api/assets/price/quote', externalApiLimiter, authenticateToken, async (req, res) => {
   const ticker = (req.query.ticker || '').trim().toUpperCase();
   if (!ticker) return res.status(400).json({ error: 'ticker required' });
   if (!/^[A-Z0-9]{1,6}(\.[A-Z]{1,2})?$/.test(ticker)) {
@@ -523,7 +541,7 @@ app.get('/api/assets/price/quote', authenticateToken, async (req, res) => {
 });
 
 // Property valuation via HM Land Registry Price Paid Data (free, no API key)
-app.get('/api/assets/valuation/property', authenticateToken, async (req, res) => {
+app.get('/api/assets/valuation/property', externalApiLimiter, authenticateToken, async (req, res) => {
   const raw = (req.query.postcode || '').trim().toUpperCase().replace(/\s+/g, ' ');
   if (!raw) return res.status(400).json({ error: 'postcode required' });
   if (!/^[A-Z]{1,2}[0-9][0-9A-Z]?\s?[0-9][A-Z]{2}$/.test(raw)) {

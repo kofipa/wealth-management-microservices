@@ -435,6 +435,12 @@ export default function ProfileScreen() {
           <Text style={styles.securityRowLabel}>Privacy & Security</Text>
           <Text style={styles.securityRowChevron}>›</Text>
         </TouchableOpacity>
+
+        {/* Terms of Service */}
+        <TouchableOpacity style={styles.securityRow} onPress={() => navigation.navigate('TermsOfService')}>
+          <Text style={styles.securityRowLabel}>Terms of Service</Text>
+          <Text style={styles.securityRowChevron}>›</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Trusted Contacts — hidden when in delegated mode */}
