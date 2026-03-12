@@ -75,6 +75,12 @@ const SERVICES = [
     port: 3005,
     url: process.env.DOCUMENT_SERVICE_URL || 'http://document-service:3005',
     description: 'Upload and manage supporting documents'
+  },
+  {
+    name: 'openbanking-service',
+    port: 3007,
+    url: process.env.OPENBANKING_SERVICE_URL || 'http://openbanking-service:3007',
+    description: 'TrueLayer Open Banking integration'
   }
 ];
 
