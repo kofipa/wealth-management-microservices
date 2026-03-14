@@ -7,7 +7,7 @@ const amqp = require('amqplib');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const yahooFinance = require('yahoo-finance2').default;
-const Anthropic = require('@anthropic-ai/sdk');
+const Anthropic = require('@anthropic-ai/sdk').default;
 
 // In-memory valuation cache (postcode → { data, timestamp })
 const valuationCache = new Map();
