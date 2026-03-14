@@ -78,10 +78,17 @@ function decrypt(encryptedBase64) {
   }
 }
 
+// Deterministic HMAC for email lookup (email never stored plaintext)
+function emailHmac(email) {
+  return crypto.createHmac('sha256', ENC_KEY).update((email || '').toLowerCase().trim()).digest('hex');
+}
+
 function decryptProfile(row) {
   if (!row) return row;
   return {
     ...row,
+    first_name: decrypt(row.first_name),
+    last_name: decrypt(row.last_name),
     phone: decrypt(row.phone),
     date_of_birth: decrypt(row.date_of_birth),
     address: decrypt(row.address),
@@ -251,6 +258,42 @@ async function initDB() {
     // Token version for session revocation on password change
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0`);
 
+    // Pseudonymisation: encrypt email, add HMAC lookup index, widen first/last name for encryption
+    await client.query(`ALTER TABLE users ALTER COLUMN email TYPE TEXT`);
+    await client.query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_email_key`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_hash VARCHAR(64)`);
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS users_email_hash_idx ON users(email_hash) WHERE email_hash IS NOT NULL`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS pending_email_hash VARCHAR(64)`);
+    await client.query(`ALTER TABLE user_profiles ALTER COLUMN first_name TYPE TEXT`);
+    await client.query(`ALTER TABLE user_profiles ALTER COLUMN last_name TYPE TEXT`);
+
+    // One-time migration: encrypt existing plaintext emails and compute hashes
+    const plainEmails = await client.query(`SELECT id, email FROM users WHERE email_hash IS NULL`);
+    for (const row of plainEmails.rows) {
+      await client.query(
+        `UPDATE users SET email = $1, email_hash = $2 WHERE id = $3`,
+        [encrypt(row.email), emailHmac(row.email), row.id]
+      );
+    }
+
+    // One-time migration: encrypt existing plaintext first_name / last_name
+    const plainProfiles = await client.query(
+      `SELECT id, first_name, last_name FROM user_profiles WHERE first_name IS NOT NULL OR last_name IS NOT NULL`
+    );
+    for (const row of plainProfiles.rows) {
+      let fn = row.first_name;
+      let ln = row.last_name;
+      let changed = false;
+      if (fn && decrypt(fn) === null) { fn = encrypt(fn); changed = true; }
+      if (ln && decrypt(ln) === null) { ln = encrypt(ln); changed = true; }
+      if (changed) {
+        await client.query(
+          `UPDATE user_profiles SET first_name = $1, last_name = $2 WHERE id = $3`,
+          [fn, ln, row.id]
+        );
+      }
+    }
+
     await client.query(`
       CREATE TABLE IF NOT EXISTS nominees (
         id SERIAL PRIMARY KEY,
@@ -345,8 +388,8 @@ app.post('/api/users/register', registerLimiter, async (req, res) => {
   try {
     const passwordHash = await bcrypt.hash(password, 12);
     const result = await pool.query(
-      'INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email, created_at',
-      [email, passwordHash]
+      'INSERT INTO users (email, email_hash, password_hash) VALUES ($1, $2, $3) RETURNING id, created_at',
+      [encrypt(email.toLowerCase().trim()), emailHmac(email), passwordHash]
     );
 
     const user = result.rows[0];
@@ -381,12 +424,12 @@ app.post('/api/users/register', registerLimiter, async (req, res) => {
       const last_name = parts.slice(1).join(' ') || null;
       await pool.query(
         'INSERT INTO user_profiles (user_id, first_name, last_name) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
-        [user.id, first_name, last_name]
+        [user.id, encrypt(first_name), last_name ? encrypt(last_name) : null]
       );
     }
 
     // Publish UserRegistered event
-    await publishEvent('user.registered', { userId: user.id, email: user.email });
+    await publishEvent('user.registered', { userId: user.id, email: email.toLowerCase().trim() });
 
     res.status(201).json({
       message: 'Registration successful. Please check your email to verify your account.',
@@ -429,13 +472,14 @@ app.post('/api/users/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const result = await pool.query('SELECT * FROM users WHERE email_hash = $1', [emailHmac(email)]);
 
     if (result.rows.length === 0) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     const user = result.rows[0];
+    const plainEmail = decrypt(user.email) || email.toLowerCase().trim();
     const validPassword = await bcrypt.compare(password, user.password_hash);
 
     if (!validPassword) {
@@ -450,7 +494,7 @@ app.post('/api/users/login', loginLimiter, async (req, res) => {
     }
 
     const token = jwt.sign(
-      { userId: user.id, email: user.email, tokenVersion: user.token_version },
+      { userId: user.id, email: plainEmail, tokenVersion: user.token_version },
       process.env.JWT_SECRET,
       { expiresIn: '30d' }
     );
@@ -461,16 +505,16 @@ app.post('/api/users/login', loginLimiter, async (req, res) => {
       await pool.query(
         `UPDATE nominees SET nominee_user_id = $1, status = 'accepted'
          WHERE nominee_email = $2 AND nominee_user_id IS NULL`,
-        [user.id, user.email]
+        [user.id, plainEmail]
       );
     } catch (e) {
       console.error('Post-login update error (non-fatal):', e.message);
     }
 
     // Publish UserLoggedIn event
-    await publishEvent('user.logged_in', { userId: user.id, email: user.email });
+    await publishEvent('user.logged_in', { userId: user.id, email: plainEmail });
 
-    res.json({ token, userId: user.id, email: user.email });
+    res.json({ token, userId: user.id, email: plainEmail });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Login failed' });
@@ -525,7 +569,7 @@ app.post('/api/users/profile', authenticateToken, async (req, res) => {
       result = await pool.query(
         `INSERT INTO user_profiles (user_id, first_name, last_name, phone, date_of_birth, address)
          VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-        [userId, first_name, last_name, encrypt(phone), encrypt(date_of_birth), encrypt(address)]
+        [userId, encrypt(first_name), encrypt(last_name), encrypt(phone), encrypt(date_of_birth), encrypt(address)]
       );
 
       // Publish UserProfileAdded event
@@ -536,7 +580,7 @@ app.post('/api/users/profile', authenticateToken, async (req, res) => {
         `UPDATE user_profiles
          SET first_name = $1, last_name = $2, phone = $3, date_of_birth = $4, address = $5, updated_at = CURRENT_TIMESTAMP
          WHERE user_id = $6 RETURNING *`,
-        [first_name, last_name, encrypt(phone), encrypt(date_of_birth), encrypt(address), userId]
+        [encrypt(first_name), encrypt(last_name), encrypt(phone), encrypt(date_of_birth), encrypt(address), userId]
       );
 
       // Publish UserProfileUpdated event
@@ -803,7 +847,7 @@ app.post('/api/users/forgot-password', forgotPasswordLimiter, async (req, res) =
   if (!email) return res.status(400).json({ error: 'Email is required' });
 
   try {
-    const userResult = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    const userResult = await pool.query('SELECT id FROM users WHERE email_hash = $1', [emailHmac(email)]);
     // Always return success to avoid leaking whether the email exists
     if (userResult.rows.length === 0) {
       return res.json({ message: 'If that email exists, a reset code has been sent.' });
@@ -850,8 +894,8 @@ app.post('/api/users/reset-password', resetPasswordLimiter, async (req, res) => 
        WHERE prt.token = $1
          AND prt.used = FALSE
          AND prt.expires_at > NOW()
-         AND u.email = $2`,
-      [token, email]
+         AND u.email_hash = $2`,
+      [token, emailHmac(email)]
     );
 
     if (result.rows.length === 0) {
@@ -862,8 +906,8 @@ app.post('/api/users/reset-password', resetPasswordLimiter, async (req, res) => 
     const passwordHash = await bcrypt.hash(newPassword, 12);
 
     await pool.query(
-      'UPDATE users SET password_hash = $1, token_version = token_version + 1 WHERE email = $2',
-      [passwordHash, email]
+      'UPDATE users SET password_hash = $1, token_version = token_version + 1 WHERE email_hash = $2',
+      [passwordHash, emailHmac(email)]
     );
     await pool.query(
       'UPDATE password_reset_tokens SET used = TRUE WHERE id = $1',
@@ -952,22 +996,22 @@ app.post('/api/users/change-email', authenticateToken, async (req, res) => {
     if (!valid) {
       return res.status(401).json({ error: 'Password is incorrect' });
     }
-    if (new_email.toLowerCase() === userResult.rows[0].email.toLowerCase()) {
+    if (emailHmac(new_email) === emailHmac(decrypt(userResult.rows[0].email) || '')) {
       return res.status(400).json({ error: 'New email is the same as your current email' });
     }
 
     // Check new email not already taken
-    const taken = await pool.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [new_email]);
+    const taken = await pool.query('SELECT id FROM users WHERE email_hash = $1', [emailHmac(new_email)]);
     if (taken.rows.length > 0) {
       return res.status(409).json({ error: 'That email address is already in use' });
     }
 
-    // Store pending email + send verification
+    // Store pending email (encrypted) + send verification
     const token = crypto.randomBytes(32).toString('hex');
     const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
     await pool.query(
-      'UPDATE users SET pending_email = $1, verification_token = $2, token_expiry = $3 WHERE id = $4',
-      [new_email, token, expiry, userId]
+      'UPDATE users SET pending_email = $1, pending_email_hash = $2, verification_token = $3, token_expiry = $4 WHERE id = $5',
+      [encrypt(new_email.toLowerCase().trim()), emailHmac(new_email), token, expiry, userId]
     );
 
     const verifyUrl = `${process.env.APP_URL}/api/users/verify-email?token=${token}`;
@@ -1088,8 +1132,8 @@ app.get('/api/users/security-question/:email', async (req, res) => {
       `SELECT up.security_question
        FROM users u
        JOIN user_profiles up ON up.user_id = u.id
-       WHERE u.email = $1`,
-      [email.toLowerCase().trim()]
+       WHERE u.email_hash = $1`,
+      [emailHmac(email)]
     );
     if (result.rows.length === 0 || !result.rows[0].security_question) {
       return res.status(404).json({ error: 'No security question set for this account' });
@@ -1140,8 +1184,8 @@ app.post('/api/users/verify-security-question', async (req, res) => {
       `SELECT u.id, up.security_answer_hash
        FROM users u
        JOIN user_profiles up ON up.user_id = u.id
-       WHERE u.email = $1`,
-      [email.toLowerCase().trim()]
+       WHERE u.email_hash = $1`,
+      [emailHmac(email)]
     );
     if (result.rows.length === 0 || !result.rows[0].security_answer_hash) {
       return res.status(404).json({ error: 'No security question set for this account' });
@@ -1237,9 +1281,10 @@ app.get('/api/users/verify-email', async (req, res) => {
     const user = result.rows[0];
 
     if (user.pending_email) {
-      // Email change verification — swap in the new address
+      // Email change verification — swap in the new address and update hash
       await pool.query(
-        `UPDATE users SET email = pending_email, pending_email = NULL,
+        `UPDATE users SET email = pending_email, email_hash = pending_email_hash,
+         pending_email = NULL, pending_email_hash = NULL,
          verification_token = NULL, token_expiry = NULL WHERE id = $1`,
         [user.id]
       );
@@ -1275,8 +1320,8 @@ app.post('/api/users/resend-verification', resendVerificationLimiter, async (req
 
   try {
     const result = await pool.query(
-      'SELECT id FROM users WHERE email = $1 AND email_verified = false',
-      [email]
+      'SELECT id FROM users WHERE email_hash = $1 AND email_verified = false',
+      [emailHmac(email)]
     );
 
     if (result.rows.length === 0) return res.json(GENERIC);
