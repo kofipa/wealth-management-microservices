@@ -7,6 +7,7 @@ const amqp = require('amqplib');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const yahooFinance = require('yahoo-finance2').default;
+const Anthropic = require('@anthropic-ai/sdk');
 
 // In-memory valuation cache (postcode → { data, timestamp })
 const valuationCache = new Map();
@@ -19,6 +20,10 @@ const PRICE_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 // In-memory vehicle cache (reg → { data, timestamp })
 const vehicleCache = new Map();
 const VEHICLE_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+// In-memory fund analysis cache (fund name → { data, timestamp })
+const fundCache = new Map();
+const FUND_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
@@ -579,6 +584,78 @@ app.get('/api/assets/valuation/property', externalApiLimiter, authenticateToken,
   } catch (err) {
     console.error('Valuation error:', err.message);
     res.status(502).json({ error: 'Land Registry unavailable' });
+  }
+});
+
+// Pension fund analysis via Claude AI
+app.get('/api/assets/pension/fund-info', externalApiLimiter, authenticateToken, async (req, res) => {
+  const name = (req.query.name || '').trim();
+  if (!name) return res.status(400).json({ error: 'name required' });
+
+  const cacheKey = name.toLowerCase();
+  const cached = fundCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < FUND_CACHE_TTL) {
+    return res.json(cached.data);
+  }
+
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(503).json({ error: 'Fund analysis not configured' });
+  }
+
+  try {
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const message = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 512,
+      messages: [{
+        role: 'user',
+        content: `You are a financial data assistant specialising in UK pension and investment funds.
+Given the fund name below, return a JSON object with these exact fields:
+- risk_category: one of "Defensive", "Cautious", "Balanced", "Growth", "Aggressive"
+- equity_pct: integer 0-100 (estimated % in equities/stocks)
+- bond_pct: integer 0-100 (estimated % in bonds/gilts)
+- other_pct: integer 0-100 (estimated % in alternatives, property, cash, other)
+- fund_type: short type label e.g. "Multi-asset", "Global Equity", "Bond", "Money Market", "Target Date"
+- description: 1-2 sentences describing what the fund invests in
+- confidence: "high" if you recognise this fund well, "medium" if partially, "low" if unknown
+
+The three pct fields must sum to 100.
+Return ONLY the raw JSON object — no markdown, no explanation.
+
+Fund name: "${name}"`,
+      }],
+    });
+
+    const text = message.content[0].text.trim();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      return res.status(502).json({ error: 'Could not parse fund data' });
+    }
+
+    // Normalise pct fields to integers summing to 100
+    const eq = Math.round(Number(data.equity_pct) || 0);
+    const bo = Math.round(Number(data.bond_pct) || 0);
+    const ot = Math.max(0, 100 - eq - bo);
+    const result = {
+      name,
+      risk_category: data.risk_category || 'Balanced',
+      equity_pct: eq,
+      bond_pct: bo,
+      other_pct: ot,
+      fund_type: data.fund_type || '',
+      description: data.description || '',
+      confidence: data.confidence || 'low',
+      analysed_at: new Date().toISOString(),
+    };
+
+    fundCache.set(cacheKey, { data: result, timestamp: Date.now() });
+    res.json(result);
+  } catch (err) {
+    console.error('Fund analysis error:', err.message);
+    res.status(502).json({ error: 'Fund analysis unavailable' });
   }
 });
 

@@ -8,7 +8,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import * as WebBrowser from 'expo-web-browser';
-import { getAssets, createAsset, updateAsset, deleteAsset, uploadDocument, getLiabilities, createLiability, updateLiability, deleteLiability, getOpenBankingAuthUrl, getOpenBankingStatus, getOpenBankingAccounts, getPropertyValuation, getStockQuote, getVehicleValuation } from '../api/client';
+import { getAssets, createAsset, updateAsset, deleteAsset, uploadDocument, getLiabilities, createLiability, updateLiability, deleteLiability, getOpenBankingAuthUrl, getOpenBankingStatus, getOpenBankingAccounts, getPropertyValuation, getStockQuote, getVehicleValuation, getFundInfo } from '../api/client';
 import DatePickerField from '../components/DatePickerField';
 import { useTheme } from '../context/ThemeContext';
 
@@ -40,6 +40,12 @@ export default function AssetsScreen() {
   const [vehicleVals, setVehicleVals] = useState({}); // { [assetId]: { estimated_value, make, year, loading, error } }
   const [fieldErrors, setFieldErrors] = useState({});
   const editingAssetIdRef = useRef(null); // tracks which asset is open in edit modal
+  const [fundModalVisible, setFundModalVisible] = useState(false);
+  const [fundModalAsset, setFundModalAsset] = useState(null);
+  const [fundModalName, setFundModalName] = useState('');
+  const [fundModalLoading, setFundModalLoading] = useState(false);
+  const [fundModalResult, setFundModalResult] = useState(null);
+  const [fundModalError, setFundModalError] = useState('');
 
   const { colors } = useTheme();
   const styles = makeStyles(colors);
@@ -76,6 +82,61 @@ export default function AssetsScreen() {
   // Update a single metadata key without replacing the whole object
   const setMeta = (key, val) =>
     setForm((prev) => ({ ...prev, metadata: { ...prev.metadata, [key]: val } }));
+
+  const RISK_COLORS = { Defensive: '#16a34a', Cautious: '#2563eb', Balanced: '#7c3aed', Growth: '#f59e0b', Aggressive: '#ef4444' };
+
+  const openFundModal = (item) => {
+    setFundModalAsset(item);
+    setFundModalName(item.metadata?.fund_name || '');
+    setFundModalResult(item.metadata?.fund_category ? {
+      risk_category: item.metadata.fund_category,
+      equity_pct: item.metadata.fund_equity_pct || 0,
+      bond_pct: item.metadata.fund_bond_pct || 0,
+      other_pct: item.metadata.fund_other_pct || 0,
+      fund_type: item.metadata.fund_type || '',
+      description: item.metadata.fund_description || '',
+      confidence: item.metadata.fund_confidence || 'medium',
+    } : null);
+    setFundModalError('');
+    setFundModalVisible(true);
+  };
+
+  const runFundAnalysis = async () => {
+    if (!fundModalName.trim()) return;
+    setFundModalLoading(true);
+    setFundModalError('');
+    try {
+      const res = await getFundInfo(fundModalName.trim());
+      setFundModalResult(res.data);
+    } catch {
+      setFundModalError('Could not analyse fund. Check the fund name and try again.');
+    } finally {
+      setFundModalLoading(false);
+    }
+  };
+
+  const saveFundAnalysis = async () => {
+    if (!fundModalResult || !fundModalAsset) return;
+    try {
+      const newMetadata = {
+        ...fundModalAsset.metadata,
+        fund_name: fundModalName.trim(),
+        fund_category: fundModalResult.risk_category,
+        fund_equity_pct: fundModalResult.equity_pct,
+        fund_bond_pct: fundModalResult.bond_pct,
+        fund_other_pct: fundModalResult.other_pct,
+        fund_type: fundModalResult.fund_type,
+        fund_description: fundModalResult.description,
+        fund_confidence: fundModalResult.confidence,
+        fund_analysed_at: fundModalResult.analysed_at || new Date().toISOString(),
+      };
+      await updateAsset(fundModalAsset.id, { metadata: newMetadata });
+      setAssets(prev => prev.map(a => a.id === fundModalAsset.id ? { ...a, metadata: newMetadata } : a));
+      setFundModalVisible(false);
+    } catch {
+      Alert.alert('Error', 'Could not save fund analysis');
+    }
+  };
 
   // Toggle a value in a metadata array field (for multi-select chips)
   const toggleMeta = (key, val) =>
@@ -740,6 +801,17 @@ export default function AssetsScreen() {
                   </View>
                 );
               })()}
+              {item.asset_type === 'pension' && (
+                <View style={styles.valuationRow}>
+                  {item.metadata?.fund_category
+                    ? <Text style={styles.valuationError}>{item.metadata.fund_category} · {item.metadata.fund_name || 'Analysed'}</Text>
+                    : <Text style={styles.valuationError}>Fund not yet analysed</Text>
+                  }
+                  <TouchableOpacity onPress={() => openFundModal(item)} style={styles.refreshBtn}>
+                    <Text style={styles.refreshIcon}>🔍</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
               {item.description ? <Text style={styles.itemDesc}>{item.description}</Text> : null}
             </View>
             <View style={styles.itemRight}>
@@ -806,6 +878,70 @@ export default function AssetsScreen() {
             </TouchableOpacity>
           </View>
         </View>
+      </Modal>
+
+      {/* ── Analyse Fund Modal ── */}
+      <Modal visible={fundModalVisible} animationType="slide" presentationStyle="pageSheet">
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Analyse Fund</Text>
+              <TouchableOpacity onPress={() => setFundModalVisible(false)}>
+                <Text style={styles.modalClose}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.label}>Fund Name</Text>
+            <TextInput
+              style={styles.input}
+              value={fundModalName}
+              onChangeText={setFundModalName}
+              placeholder="e.g. Vanguard LifeStrategy 80% Equity"
+              placeholderTextColor={colors.placeholder}
+              autoCapitalize="words"
+            />
+
+            <TouchableOpacity
+              style={[styles.saveBtn, (!fundModalName.trim() || fundModalLoading) && { opacity: 0.5 }]}
+              onPress={runFundAnalysis}
+              disabled={!fundModalName.trim() || fundModalLoading}
+            >
+              <Text style={styles.saveBtnText}>{fundModalLoading ? 'Analysing…' : 'Analyse'}</Text>
+            </TouchableOpacity>
+
+            {fundModalError ? <Text style={[styles.fieldError, { marginTop: 12 }]}>{fundModalError}</Text> : null}
+
+            {fundModalResult && (
+              <View style={styles.fundResultCard}>
+                <View style={[styles.fundRiskBadge, { backgroundColor: RISK_COLORS[fundModalResult.risk_category] || '#9ca3af' }]}>
+                  <Text style={styles.fundRiskText}>{fundModalResult.risk_category}</Text>
+                </View>
+                {fundModalResult.fund_type ? <Text style={styles.fundType}>{fundModalResult.fund_type}</Text> : null}
+
+                <Text style={styles.fundAllocLabel}>Asset Allocation</Text>
+                <View style={styles.fundAllocBar}>
+                  {fundModalResult.equity_pct > 0 && <View style={{ flex: fundModalResult.equity_pct, backgroundColor: '#7c3aed' }} />}
+                  {fundModalResult.bond_pct > 0 && <View style={{ flex: fundModalResult.bond_pct, backgroundColor: '#2563eb' }} />}
+                  {fundModalResult.other_pct > 0 && <View style={{ flex: fundModalResult.other_pct, backgroundColor: '#9ca3af' }} />}
+                </View>
+                <View style={styles.fundAllocLegend}>
+                  {fundModalResult.equity_pct > 0 && <Text style={styles.fundAllocLegendText}><Text style={{ color: '#7c3aed' }}>■</Text> Equity {fundModalResult.equity_pct}%</Text>}
+                  {fundModalResult.bond_pct > 0 && <Text style={styles.fundAllocLegendText}><Text style={{ color: '#2563eb' }}>■</Text> Bonds {fundModalResult.bond_pct}%</Text>}
+                  {fundModalResult.other_pct > 0 && <Text style={styles.fundAllocLegendText}><Text style={{ color: '#9ca3af' }}>■</Text> Other {fundModalResult.other_pct}%</Text>}
+                </View>
+
+                {fundModalResult.description ? <Text style={styles.fundDescription}>{fundModalResult.description}</Text> : null}
+                <Text style={styles.fundConfidence}>
+                  Confidence: {fundModalResult.confidence}{fundModalResult.confidence === 'low' ? ' — verify with your pension provider' : ''}
+                </Text>
+
+                <TouchableOpacity style={styles.saveBtn} onPress={saveFundAnalysis}>
+                  <Text style={styles.saveBtnText}>Save to Asset</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet">
@@ -1084,6 +1220,15 @@ export default function AssetsScreen() {
                   value={form.metadata.provider || ''}
                   onChangeText={(v) => setMeta('provider', v)}
                   placeholder="e.g. Nest, PensionBee, Aviva"
+                  placeholderTextColor={colors.placeholder}
+                  autoCapitalize="words"
+                />
+                <Text style={styles.label}>Fund Name</Text>
+                <TextInput
+                  style={styles.input}
+                  value={form.metadata.fund_name || ''}
+                  onChangeText={(v) => setMeta('fund_name', v)}
+                  placeholder="e.g. Vanguard LifeStrategy 80% Equity"
                   placeholderTextColor={colors.placeholder}
                   autoCapitalize="words"
                 />
@@ -1434,6 +1579,16 @@ const makeStyles = (colors) => StyleSheet.create({
   valuationError: { fontSize: 12, color: colors.textTertiary, flex: 1 },
   refreshBtn: { paddingHorizontal: 6, paddingVertical: 2 },
   refreshIcon: { fontSize: 15, color: colors.textSecondary },
+  fundResultCard: { backgroundColor: colors.surfaceAlt, borderRadius: 12, padding: 16, marginTop: 20, borderWidth: 1, borderColor: colors.border },
+  fundRiskBadge: { alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 5, borderRadius: 12, marginBottom: 8 },
+  fundRiskText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  fundType: { fontSize: 13, color: colors.textSecondary, marginBottom: 12 },
+  fundAllocLabel: { fontSize: 11, color: colors.textTertiary, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
+  fundAllocBar: { flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden', marginBottom: 8 },
+  fundAllocLegend: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 12 },
+  fundAllocLegendText: { fontSize: 12, color: colors.textSecondary },
+  fundDescription: { fontSize: 13, color: colors.textSecondary, lineHeight: 19, marginBottom: 8 },
+  fundConfidence: { fontSize: 11, color: colors.textTertiary, fontStyle: 'italic', marginBottom: 16 },
   connectBankBtn: { backgroundColor: colors.primaryLight, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 16, alignItems: 'center', marginHorizontal: 16, marginTop: 12, marginBottom: 4, borderWidth: 1, borderColor: colors.primary },
   connectBankBtnText: { fontSize: 14, color: colors.primary, fontWeight: '600' },
   accountRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.surfaceAlt },

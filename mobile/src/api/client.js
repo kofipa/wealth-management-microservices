@@ -81,6 +81,8 @@ export const getStockQuote = (ticker) =>
   assetClient.get('/api/assets/price/quote', { params: { ticker } });
 export const getVehicleValuation = (reg, purchase_price, purchase_date, rate) =>
   assetClient.get('/api/assets/valuation/vehicle', { params: { reg, purchase_price, purchase_date, rate } });
+export const getFundInfo = (name) =>
+  assetClient.get('/api/assets/pension/fund-info', { params: { name } });
 
 // Liabilities
 export const getLiabilities = () => liabilityClient.get('/api/liabilities');
