@@ -801,11 +801,11 @@ export default function AssetsScreen() {
                   </View>
                 );
               })()}
-              {item.asset_type === 'pension' && (
+              {(item.asset_type === 'pension' || (item.asset_type === 'investment' && item.metadata?.fund_name)) && (
                 <View style={styles.valuationRow}>
                   {item.metadata?.fund_category
                     ? <Text style={styles.valuationError}>{item.metadata.fund_category} · {item.metadata.fund_name || 'Analysed'}</Text>
-                    : <Text style={styles.valuationError}>Fund not yet analysed</Text>
+                    : <Text style={styles.valuationError}>{item.asset_type === 'pension' ? 'Fund not yet analysed' : 'Fund not yet analysed'}</Text>
                   }
                   <TouchableOpacity onPress={() => openFundModal(item)} style={styles.refreshBtn}>
                     <Text style={styles.refreshIcon}>🔍</Text>
@@ -1096,6 +1096,21 @@ export default function AssetsScreen() {
                   value={form.metadata.purchase_date || ''}
                   onChange={(v) => setMeta('purchase_date', v)}
                 />
+                {(Array.isArray(form.metadata.investment_type)
+                  ? form.metadata.investment_type.some(t => ['stocks', 'ISA', 'funds'].includes(t))
+                  : ['stocks', 'ISA', 'funds'].includes(form.metadata.investment_type)) && (
+                  <>
+                    <Text style={styles.label}>Fund Name (optional)</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={form.metadata.fund_name || ''}
+                      onChangeText={(v) => setMeta('fund_name', v)}
+                      placeholder="e.g. Vanguard LifeStrategy 80% Equity"
+                      placeholderTextColor={colors.placeholder}
+                      autoCapitalize="words"
+                    />
+                  </>
+                )}
               </>
             )}
 
