@@ -14,15 +14,9 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.clearwelth.app",
-      "infoPlist": {
-        "NSAppTransportSecurity": {
-          "NSAllowsArbitraryLoads": true
-        }
-      }
+      "bundleIdentifier": "com.clearwelth.app"
     },
     "android": {
-      "usesCleartextTraffic": true,
       "package": "com.clearwelth.app",
       "icon": "./assets/icon.png"
     },
@@ -33,7 +27,20 @@
       "expo-asset",
       "expo-web-browser",
       "expo-secure-store",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow ClearWelth to access your photos to upload documents.",
+          "cameraPermission": "Allow ClearWelth to use your camera to photograph documents."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow ClearWelth to use Face ID to unlock the app."
+        }
+      ]
     ],
     "extra": {
       "eas": {
