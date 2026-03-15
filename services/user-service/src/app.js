@@ -87,6 +87,7 @@ function decryptProfile(row) {
   if (!row) return row;
   return {
     ...row,
+    email: row.email ? (decrypt(row.email) ?? row.email) : row.email,
     first_name: decrypt(row.first_name),
     last_name: decrypt(row.last_name),
     phone: decrypt(row.phone),
@@ -670,7 +671,7 @@ app.post('/api/users/nominees', authenticateToken, async (req, res) => {
     );
     const ownerRow = ownerProfile.rows[0];
     const ownerName = ownerRow
-      ? [ownerRow.first_name, ownerRow.last_name].filter(Boolean).join(' ') || req.user.email
+      ? [decrypt(ownerRow.first_name), decrypt(ownerRow.last_name)].filter(Boolean).join(' ') || req.user.email
       : req.user.email;
 
     if (status === 'accepted') {
@@ -778,10 +779,13 @@ app.get('/api/users/delegated-accounts', authenticateToken, async (req, res) => 
         : Infinity;
       const accessAvailable = daysSince >= row.inactivity_days;
       const daysRemaining = accessAvailable ? 0 : Math.ceil(row.inactivity_days - daysSince);
+      const plainOwnerEmail = decrypt(row.owner_email) ?? row.owner_email;
+      const plainOwnerFirst = decrypt(row.owner_first_name);
+      const plainOwnerLast = decrypt(row.owner_last_name);
       return {
         owner_id: row.owner_id,
-        owner_email: row.owner_email,
-        owner_name: [row.owner_first_name, row.owner_last_name].filter(Boolean).join(' ') || row.owner_email,
+        owner_email: plainOwnerEmail,
+        owner_name: [plainOwnerFirst, plainOwnerLast].filter(Boolean).join(' ') || plainOwnerEmail,
         inactivity_days: row.inactivity_days,
         last_login_at: row.last_login_at,
         access_available: accessAvailable,
@@ -814,8 +818,9 @@ app.post('/api/users/delegate/:ownerId', authenticateToken, async (req, res) => 
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    const { inactivity_days, owner_email, owner_first_name, owner_last_name, last_login_at } = nomineeCheck.rows[0];
-    const owner_name = [owner_first_name, owner_last_name].filter(Boolean).join(' ') || owner_email;
+    const { inactivity_days, owner_email: _owner_email_enc, owner_first_name, owner_last_name, last_login_at } = nomineeCheck.rows[0];
+    const owner_email = decrypt(_owner_email_enc) ?? _owner_email_enc;
+    const owner_name = [decrypt(owner_first_name), decrypt(owner_last_name)].filter(Boolean).join(' ') || owner_email;
     const lastLogin = last_login_at ? new Date(last_login_at) : null;
     const daysSince = lastLogin
       ? (Date.now() - lastLogin.getTime()) / (1000 * 60 * 60 * 24)
