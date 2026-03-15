@@ -41,6 +41,7 @@ export function AuthProvider({ children }) {
       await secureDel('user');
       await secureDel('delegatedToken');
       await secureDel('delegatedFor');
+      await secureDel('delegatedAt');
       setActiveToken(null);
       setToken(null);
       setUser(null);
@@ -65,9 +66,18 @@ export function AuthProvider({ children }) {
         }
         if (user) setUser(JSON.parse(user));
         if (delegatedToken && delegatedFor) {
-          setIsDelegated(true);
-          setDelegatedFor(JSON.parse(delegatedFor));
-          setActiveToken(delegatedToken);
+          // Delegated tokens are valid for 8 hours — check stored timestamp
+          const delegatedAt = await secureGet('delegatedAt');
+          const expired = delegatedAt && (Date.now() - parseInt(delegatedAt, 10)) > 8 * 60 * 60 * 1000;
+          if (expired) {
+            await secureDel('delegatedToken');
+            await secureDel('delegatedFor');
+            await secureDel('delegatedAt');
+          } else {
+            setIsDelegated(true);
+            setDelegatedFor(JSON.parse(delegatedFor));
+            setActiveToken(delegatedToken);
+          }
         }
       } catch (e) {
         console.error('Failed to restore auth state', e);
@@ -99,6 +109,7 @@ export function AuthProvider({ children }) {
     await secureDel('user');
     await secureDel('delegatedToken');
     await secureDel('delegatedFor');
+    await secureDel('delegatedAt');
     setActiveToken(null);
     setToken(null);
     setUser(null);
@@ -114,6 +125,7 @@ export function AuthProvider({ children }) {
     };
     await secureSet('delegatedToken', res.data.token);
     await secureSet('delegatedFor', JSON.stringify(delegatedFor));
+    await secureSet('delegatedAt', String(Date.now()));
     setActiveToken(res.data.token);
     setIsDelegated(true);
     setDelegatedFor(delegatedFor);
@@ -123,6 +135,7 @@ export function AuthProvider({ children }) {
     const token = await secureGet('token');
     await secureDel('delegatedToken');
     await secureDel('delegatedFor');
+    await secureDel('delegatedAt');
     setActiveToken(token);
     setIsDelegated(false);
     setDelegatedFor(null);

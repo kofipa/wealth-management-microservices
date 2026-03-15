@@ -11,7 +11,7 @@ let _unauthorizedFiring = false;
 export const setUnauthorizedHandler = (fn) => { _onUnauthorized = fn; };
 
 const createClient = (baseURL) => {
-  const client = axios.create({ baseURL });
+  const client = axios.create({ baseURL, timeout: 15000 });
 
   client.interceptors.request.use((config) => {
     if (_activeToken) {

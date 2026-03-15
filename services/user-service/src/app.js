@@ -334,7 +334,11 @@ function authenticateToken(req, res, next) {
 
   jwt.verify(token, process.env.JWT_SECRET, async (err, user) => {
     if (err) return res.status(403).json({ error: 'Invalid token' });
-    // Delegated tokens don't carry tokenVersion — skip revocation check
+    // Delegated tokens (isDelegated: true) intentionally omit tokenVersion so they
+    // are NOT revoked when the account owner changes their password. This is by design:
+    // delegation grants persistent read access until the nominee explicitly exits or
+    // the owner removes the nominee. To revoke a delegated session, remove the nominee
+    // via DELETE /api/users/nominees/:id.
     if (user.tokenVersion !== undefined) {
       try {
         const result = await pool.query('SELECT token_version FROM users WHERE id = $1', [user.userId]);

@@ -406,6 +406,11 @@ app.get('/api/networth/export/pdf', authenticateToken, async (req, res) => {
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="networth-report.pdf"');
+    doc.on('error', (docErr) => {
+      console.error('PDF stream error:', docErr.message);
+      if (!res.headersSent) res.status(500).json({ error: 'Failed to generate PDF' });
+      else res.end();
+    });
     doc.pipe(res);
 
     // Header

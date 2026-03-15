@@ -9,19 +9,22 @@ const axios = require('axios');
 const yahooFinance = require('yahoo-finance2').default;
 const Anthropic = require('@anthropic-ai/sdk').default;
 
-// In-memory valuation cache (postcode → { data, timestamp })
+// In-memory caches — max 500 entries each (oldest evicted on overflow)
+const CACHE_MAX = 500;
+function cacheSet(map, key, value) {
+  if (map.size >= CACHE_MAX) map.delete(map.keys().next().value);
+  map.set(key, value);
+}
+
 const valuationCache = new Map();
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
-// In-memory price cache (ticker → { data, timestamp })
 const priceCache = new Map();
 const PRICE_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 
-// In-memory vehicle cache (reg → { data, timestamp })
 const vehicleCache = new Map();
 const VEHICLE_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
-// In-memory fund analysis cache (fund name → { data, timestamp })
 const fundCache = new Map();
 const FUND_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -490,7 +493,7 @@ app.get('/api/assets/valuation/vehicle', externalApiLimiter, authenticateToken, 
         colour: data.colour,
         fuel_type: data.fuelType,
       };
-      vehicleCache.set(reg, { data: vehicleDetails, timestamp: Date.now() });
+      cacheSet(vehicleCache, reg, { data: vehicleDetails, timestamp: Date.now() });
     } catch (err) {
       console.error('DVLA lookup error:', err.message);
       // Non-fatal — return depreciation estimate without vehicle details
@@ -537,7 +540,7 @@ app.get('/api/assets/price/quote', externalApiLimiter, authenticateToken, async 
       exchange: quote.fullExchangeName || quote.exchange || '',
       last_updated: new Date().toISOString(),
     };
-    priceCache.set(ticker, { data: result, timestamp: Date.now() });
+    cacheSet(priceCache, ticker, { data: result, timestamp: Date.now() });
     res.json(result);
   } catch (err) {
     console.error('Price quote error:', err.message);
@@ -579,7 +582,7 @@ app.get('/api/assets/valuation/property', externalApiLimiter, authenticateToken,
       last_updated: new Date().toISOString(),
       source: 'HM Land Registry Price Paid Data',
     };
-    valuationCache.set(raw, { data: result, timestamp: Date.now() });
+    cacheSet(valuationCache, raw, { data: result, timestamp: Date.now() });
     res.json(result);
   } catch (err) {
     console.error('Valuation error:', err.message);
@@ -651,7 +654,7 @@ Fund name: "${name}"`,
       analysed_at: new Date().toISOString(),
     };
 
-    fundCache.set(cacheKey, { data: result, timestamp: Date.now() });
+    cacheSet(fundCache, cacheKey, { data: result, timestamp: Date.now() });
     res.json(result);
   } catch (err) {
     console.error('Fund analysis error:', err.message);

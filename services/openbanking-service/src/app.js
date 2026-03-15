@@ -289,9 +289,6 @@ h2{color:#dc2626}p{color:#374151;font-size:14px}</style></head>
 </html>`);
   } catch (err) {
     console.error('callback error:', err.response?.data || err.message);
-    const errDetail = err.response?.data
-      ? JSON.stringify(err.response.data)
-      : err.message;
     res.send(`<!DOCTYPE html>
 <html>
 <head>
@@ -303,16 +300,12 @@ h2{color:#dc2626}p{color:#374151;font-size:14px}</style></head>
     .icon { font-size: 56px; margin-bottom: 16px; }
     h2 { color: #dc2626; font-size: 22px; margin: 0 0 8px; }
     p { color: #374151; font-size: 14px; margin: 0 0 16px; }
-    pre { background: #fff; border: 1px solid #fca5a5; border-radius: 8px;
-          padding: 12px; font-size: 12px; text-align: left; word-break: break-all;
-          white-space: pre-wrap; color: #7f1d1d; }
   </style>
 </head>
 <body>
   <div class="icon">✕</div>
   <h2>Connection Failed</h2>
   <p>Please close this window and try again.</p>
-  <pre>${errDetail}</pre>
 </body>
 </html>`);
   }
