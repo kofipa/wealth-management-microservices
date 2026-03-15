@@ -348,14 +348,14 @@ export default function ProfileScreen() {
         </View>
         <Text style={styles.name}>{displayName}</Text>
         <Text style={styles.email}>{displayUser?.email || ''}</Text>
+        {profile?.phone ? (
+          <Text style={styles.dobText}>
+            {profile.phone.replace(/(\d+)(?=\d{4})/, (m) => '•'.repeat(m.length)).replace(/(\d{4})$/, ' $1')}
+          </Text>
+        ) : null}
         {profile?.date_of_birth && (() => {
-          const dob = new Date(profile.date_of_birth);
-          const age = Math.floor((new Date() - dob) / (365.25 * 24 * 60 * 60 * 1000));
-          return (
-            <Text style={styles.dobText}>
-              {dob.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })} · Age {age}
-            </Text>
-          );
+          const age = Math.floor((new Date() - new Date(profile.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000));
+          return <Text style={styles.dobText}>Age {age}</Text>;
         })()}
         <TouchableOpacity
           style={styles.editProfileBtn}
