@@ -115,7 +115,7 @@ async function initDB() {
         liability_type VARCHAR(50) NOT NULL, -- 'short_term', 'long_term'
         name VARCHAR(255) NOT NULL,
         amount DECIMAL(15, 2) NOT NULL,
-        currency VARCHAR(3) DEFAULT 'USD',
+        currency VARCHAR(3) DEFAULT 'GBP',
         interest_rate DECIMAL(5, 2),
         due_date DATE,
         description TEXT,
@@ -204,7 +204,7 @@ app.post('/api/liabilities/short-term', authenticateToken, async (req, res) => {
     const result = await pool.query(
       `INSERT INTO liabilities (user_id, liability_type, name, amount, currency, interest_rate, due_date, description)
        VALUES ($1, 'short_term', $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [userId, name, amount, currency || 'USD', interest_rate, due_date, description]
+      [userId, name, amount, currency || 'GBP', interest_rate, due_date, description]
     );
 
     const liability = result.rows[0];
@@ -266,7 +266,7 @@ app.post('/api/liabilities/long-term', authenticateToken, async (req, res) => {
     const result = await pool.query(
       `INSERT INTO liabilities (user_id, liability_type, name, amount, currency, interest_rate, due_date, description)
        VALUES ($1, 'long_term', $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [userId, name, amount, currency || 'USD', interest_rate, due_date, description]
+      [userId, name, amount, currency || 'GBP', interest_rate, due_date, description]
     );
 
     const liability = result.rows[0];

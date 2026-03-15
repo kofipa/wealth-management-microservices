@@ -48,6 +48,7 @@ app.use('/api-docs', authenticateToken, swaggerUi.serve, swaggerUi.setup(swagger
 
 // Service URLs
 const ASSET_SERVICE_URL = process.env.ASSET_SERVICE_URL || 'http://asset-service:3002';
+const NETWORTH_SERVICE_URL = process.env.NETWORTH_SERVICE_URL || `http://localhost:${process.env.PORT || 3004}`;
 const LIABILITY_SERVICE_URL = process.env.LIABILITY_SERVICE_URL || 'http://liability-service:3003';
 
 // Database connection for history snapshots
@@ -388,7 +389,7 @@ app.get('/api/networth/export/pdf', authenticateToken, async (req, res) => {
   try {
     // Fetch breakdown + history in parallel
     const [breakdownResp, historyResp] = await Promise.all([
-      axios.get(`http://localhost:${process.env.PORT || 3004}/api/networth/breakdown`, { headers: { Authorization: token } }),
+      axios.get(`${NETWORTH_SERVICE_URL}/api/networth/breakdown`, { headers: { Authorization: token } }),
       pool.query(
         `SELECT snapshot_date AS date, net_worth, total_assets, total_liabilities
          FROM networth_snapshots

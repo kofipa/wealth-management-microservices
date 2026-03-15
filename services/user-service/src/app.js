@@ -649,7 +649,7 @@ app.post('/api/users/nominees', authenticateToken, async (req, res) => {
 
   try {
     // Check if nominee already has an account
-    const existingUser = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    const existingUser = await pool.query('SELECT id FROM users WHERE email_hash = $1', [emailHmac(email)]);
     const nomineeUserId = existingUser.rows.length > 0 ? existingUser.rows[0].id : null;
     const status = nomineeUserId ? 'accepted' : 'pending';
 
@@ -740,7 +740,7 @@ app.put('/api/users/nominees/:id', authenticateToken, async (req, res) => {
   }
 
   try {
-    const existingUser = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    const existingUser = await pool.query('SELECT id FROM users WHERE email_hash = $1', [emailHmac(email)]);
     const nomineeUserId = existingUser.rows.length > 0 ? existingUser.rows[0].id : null;
     const status = nomineeUserId ? 'accepted' : 'pending';
 
