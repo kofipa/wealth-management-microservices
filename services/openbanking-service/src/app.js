@@ -155,6 +155,15 @@ async function cleanExpiredStates() {
  *       200:
  *         description: Service is healthy
  */
+// Send an HTML callback page with explicit security headers
+function sendCallbackHtml(res, html) {
+  res.set({
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'",
+  }).send(html);
+}
+
 app.get('/health', (req, res) => {
   res.json({ status: 'healthy', service: 'openbanking-service', timestamp: new Date().toISOString() });
 });
@@ -217,11 +226,11 @@ app.get('/api/openbanking/callback', callbackLimiter, async (req, res) => {
 
   if (error || !code || !state) {
     console.error('TrueLayer auth error:', error || 'missing params');
-    return res.send(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
+    return sendCallbackHtml(res, `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Error</title><style>body{font-family:-apple-system,sans-serif;text-align:center;padding:80px 24px;background:#fef2f2;margin:0}
 h2{color:#dc2626}p{color:#374151;font-size:14px}</style></head>
 <body><div style="font-size:56px;margin-bottom:16px">✕</div><h2>Connection Failed</h2>
-<p>${error || 'An error occurred'}. Please close this window and try again.</p></body></html>`);
+<p>An error occurred. Please close this window and try again.</p></body></html>`);
   }
 
   try {
@@ -261,7 +270,7 @@ h2{color:#dc2626}p{color:#374151;font-size:14px}</style></head>
 
     // Return a success page — also attempts the custom scheme for iOS standalone builds.
     // The mobile app checks status after the browser session closes (works on Expo Go too).
-    res.send(`<!DOCTYPE html>
+    sendCallbackHtml(res, `<!DOCTYPE html>
 <html>
 <head>
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -289,7 +298,7 @@ h2{color:#dc2626}p{color:#374151;font-size:14px}</style></head>
 </html>`);
   } catch (err) {
     console.error('callback error:', err.response?.data || err.message);
-    res.send(`<!DOCTYPE html>
+    sendCallbackHtml(res, `<!DOCTYPE html>
 <html>
 <head>
   <meta name="viewport" content="width=device-width,initial-scale=1">

@@ -141,6 +141,18 @@ function validateStringField(value, fieldName, { required = false, maxLength = 2
   return null;
 }
 
+function validateAmount(value, { required = false } = {}) {
+  if (required && (value === undefined || value === null || value === '')) {
+    return 'amount is required';
+  }
+  if (value !== undefined && value !== null && value !== '') {
+    const n = parseFloat(value);
+    if (isNaN(n) || n < 0) return 'amount must be a non-negative number';
+    if (n > 999999999999.99) return 'amount exceeds maximum allowed value';
+  }
+  return null;
+}
+
 // Middleware to verify JWT token
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
@@ -197,8 +209,9 @@ app.post('/api/liabilities/short-term', authenticateToken, async (req, res) => {
   const userId = req.user.userId;
 
   const nameErr = validateStringField(name, 'name', { required: true });
+  const amtErr = validateAmount(amount, { required: true });
   const descErr = validateStringField(description, 'description', { maxLength: 500 });
-  if (nameErr || descErr) return res.status(400).json({ error: nameErr || descErr });
+  if (nameErr || amtErr || descErr) return res.status(400).json({ error: nameErr || amtErr || descErr });
 
   try {
     const result = await pool.query(
@@ -259,8 +272,9 @@ app.post('/api/liabilities/long-term', authenticateToken, async (req, res) => {
   const userId = req.user.userId;
 
   const nameErr = validateStringField(name, 'name', { required: true });
+  const amtErr = validateAmount(amount, { required: true });
   const descErr = validateStringField(description, 'description', { maxLength: 500 });
-  if (nameErr || descErr) return res.status(400).json({ error: nameErr || descErr });
+  if (nameErr || amtErr || descErr) return res.status(400).json({ error: nameErr || amtErr || descErr });
 
   try {
     const result = await pool.query(
@@ -326,8 +340,9 @@ app.put('/api/liabilities/:id', authenticateToken, async (req, res) => {
   const userId = req.user.userId;
 
   const nameErr = validateStringField(name, 'name', { maxLength: 255 });
+  const amtErr = validateAmount(amount);
   const descErr = validateStringField(description, 'description', { maxLength: 500 });
-  if (nameErr || descErr) return res.status(400).json({ error: nameErr || descErr });
+  if (nameErr || amtErr || descErr) return res.status(400).json({ error: nameErr || amtErr || descErr });
 
   try {
     const result = await pool.query(

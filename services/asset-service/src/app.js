@@ -168,6 +168,7 @@ function validateAssetValue(value) {
   if (value === undefined || value === null || value === '' || isNaN(n) || n < 0) {
     return 'value must be a non-negative number';
   }
+  if (n > 999999999999.99) return 'value exceeds maximum allowed amount';
   return null;
 }
 

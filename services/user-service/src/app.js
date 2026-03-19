@@ -101,17 +101,13 @@ function decryptProfile(row) {
 const _resend = new Resend(process.env.RESEND_API_KEY);
 
 async function sendEmail(to, subject, html) {
-  try {
-    await _resend.emails.send({
-      from: process.env.FROM_EMAIL,
-      to,
-      subject,
-      html,
-    });
-    console.log(`Email sent to ${to}: ${subject}`);
-  } catch (err) {
-    console.error('Resend error:', err.message);
-  }
+  await _resend.emails.send({
+    from: process.env.FROM_EMAIL,
+    to,
+    subject,
+    html,
+  });
+  console.log(`Email sent to ${to}: ${subject}`);
 }
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -158,6 +154,13 @@ const resendVerificationLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 3,
   message: { error: 'Too many resend requests. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+const securityQuestionLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  message: { error: 'Too many requests. Please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -647,6 +650,13 @@ app.post('/api/users/nominees', authenticateToken, async (req, res) => {
   if (!email || inactivity_days === undefined || inactivity_days === null) {
     return res.status(400).json({ error: 'email and inactivity_days are required' });
   }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'Invalid email address' });
+  }
+  const nomineeDays = parseInt(inactivity_days, 10);
+  if (isNaN(nomineeDays) || nomineeDays < 1 || nomineeDays > 3650) {
+    return res.status(400).json({ error: 'inactivity_days must be between 1 and 3650' });
+  }
   if (email === req.user.email) {
     return res.status(400).json({ error: 'You cannot nominate yourself' });
   }
@@ -738,6 +748,13 @@ app.put('/api/users/nominees/:id', authenticateToken, async (req, res) => {
 
   if (!email || inactivity_days === undefined || inactivity_days === null) {
     return res.status(400).json({ error: 'email and inactivity_days are required' });
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'Invalid email address' });
+  }
+  const nomineeDays = parseInt(inactivity_days, 10);
+  if (isNaN(nomineeDays) || nomineeDays < 1 || nomineeDays > 3650) {
+    return res.status(400).json({ error: 'inactivity_days must be between 1 and 3650' });
   }
   if (email === req.user.email) {
     return res.status(400).json({ error: 'You cannot nominate yourself' });
@@ -1134,7 +1151,7 @@ app.post('/api/users/security-question', authenticateToken, async (req, res) => 
  *       404:
  *         description: User not found or no security question set
  */
-app.get('/api/users/security-question/:email', async (req, res) => {
+app.get('/api/users/security-question/:email', securityQuestionLimiter, async (req, res) => {
   const { email } = req.params;
   try {
     const result = await pool.query(

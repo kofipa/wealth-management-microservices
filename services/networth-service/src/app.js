@@ -346,7 +346,7 @@ app.get('/api/networth/breakdown', authenticateToken, async (req, res) => {
  */
 app.get('/api/networth/history', authenticateToken, async (req, res) => {
   const userId = req.user.userId;
-  const days = parseInt(req.query.days) || 30;
+  const days = Math.min(Math.max(parseInt(req.query.days) || 30, 1), 365);
 
   try {
     const result = await pool.query(
