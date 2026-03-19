@@ -18,6 +18,7 @@ const amqp = require('amqplib');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const app = express();
+app.set('trust proxy', 1); // Railway sits behind a reverse proxy; needed for rate-limiting by real client IP
 app.use(helmet());
 const _corsOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()) : true;
 app.use(cors({ origin: _corsOrigins, methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization'] }));

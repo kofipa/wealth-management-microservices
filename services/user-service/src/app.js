@@ -112,6 +112,7 @@ async function sendEmail(to, subject, html) {
 // ────────────────────────────────────────────────────────────────────────────
 
 const app = express();
+app.set('trust proxy', 1); // Railway sits behind a reverse proxy; needed for rate-limiting by real client IP
 app.use(helmet());
 const _corsOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()) : true;
 app.use(cors({
@@ -161,6 +162,13 @@ const securityQuestionLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 10,
   message: { error: 'Too many requests. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+const verifySecurityQuestionLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5,
+  message: { error: 'Too many attempts. Please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -1199,7 +1207,7 @@ app.get('/api/users/security-question/:email', securityQuestionLimiter, async (r
  *       404:
  *         description: User or security question not found
  */
-app.post('/api/users/verify-security-question', async (req, res) => {
+app.post('/api/users/verify-security-question', verifySecurityQuestionLimiter, async (req, res) => {
   const { email, answer } = req.body;
   if (!email || !answer) {
     return res.status(400).json({ error: 'email and answer are required' });
