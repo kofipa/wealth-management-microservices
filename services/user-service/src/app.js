@@ -512,7 +512,7 @@ app.post('/api/users/login', loginLimiter, async (req, res) => {
     const token = jwt.sign(
       { userId: user.id, email: plainEmail, tokenVersion: user.token_version },
       process.env.JWT_SECRET,
-      { expiresIn: '30d' }
+      { expiresIn: '7d' }
     );
 
     // Record last login and auto-link any pending nominations for this email
