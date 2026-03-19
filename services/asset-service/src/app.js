@@ -666,7 +666,7 @@ Fund name: "${name}"`,
     res.json(result);
   } catch (err) {
     console.error('Fund analysis error:', err.message);
-    res.status(502).json({ error: `Fund analysis unavailable: ${err.message}` });
+    res.status(502).json({ error: 'Fund analysis unavailable' });
   }
 });
 

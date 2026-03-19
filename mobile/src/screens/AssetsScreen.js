@@ -108,9 +108,8 @@ export default function AssetsScreen() {
     try {
       const res = await getFundInfo(fundModalName.trim());
       setFundModalResult(res.data);
-    } catch (err) {
-      const msg = err?.response?.data?.error || 'Could not analyse fund. Check the fund name and try again.';
-      setFundModalError(msg);
+    } catch {
+      setFundModalError('Could not analyse fund. Check the fund name and try again.');
     } finally {
       setFundModalLoading(false);
     }
