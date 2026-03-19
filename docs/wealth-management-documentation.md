@@ -1080,7 +1080,7 @@ GitHub Actions runs automated tests on every push and pull request to `master`. 
 ### 10.1 Authentication
 
 - **JWT (RS256-style HMAC)** with a 64-character hex secret shared across all services
-- Token expiry: 30 days (login tokens); 8 hours (delegated access tokens)
+- Token expiry: 7 days (login tokens); 8 hours (delegated access tokens)
 - Tokens stored in `expo-secure-store` on device (not AsyncStorage)
 - Automatic logout on 401/403 from any service
 
