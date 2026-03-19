@@ -67,7 +67,7 @@ const SECTIONS = [
       },
       {
         label: 'Data accuracy',
-        detail: 'Clearwelth displays data you enter. We are not responsible for inaccuracies in valuations, market prices, or any financial figures sourced from third-party providers (HM Land Registry, Yahoo Finance, DVLA).',
+        detail: 'Clearwelth displays data you enter. We are not responsible for inaccuracies in valuations, market prices, or any financial figures sourced from third-party providers (HM Land Registry, Yahoo Finance, DVLA). Pension values are illustrative and do not constitute a statement of benefits.',
       },
     ],
   },
@@ -170,7 +170,7 @@ export default function TermsOfServiceScreen() {
         <Text style={styles.intro}>
           By using Clearwelth you agree to these Terms of Service. Please read them carefully.
         </Text>
-        <Text style={styles.effective}>Effective date: 12 March 2026</Text>
+        <Text style={styles.effective}>Effective date: 19 March 2026</Text>
 
         {SECTIONS.map((section) => (
           <View key={section.title} style={styles.section}>

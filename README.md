@@ -1,453 +1,295 @@
-# Wealth Management Microservices
+# Clearwelth — Wealth Management Microservices
 
-A complete microservices application for managing personal wealth, built from Event Storming output using Node.js, PostgreSQL, RabbitMQ, and Nginx.
+A full-stack personal wealth management platform built with Node.js microservices and a React Native mobile app.
 
-## Architecture Overview
+## Architecture
 
-This application consists of 6 microservices:
+7 independent Node.js/Express microservices, each with its own PostgreSQL database, communicating via RabbitMQ. Hosted on Railway. Mobile app built with React Native + Expo SDK 54.
 
-1. **User Service** (Port 3001) - User authentication and profile management
-2. **Asset Service** (Port 3002) - Manage cash, investments, properties, and other assets
-3. **Liability Service** (Port 3003) - Track short-term and long-term liabilities
-4. **Net Worth Service** (Port 3004) - Calculate net worth by aggregating assets and liabilities
-5. **Document Service** (Port 3005) - Upload and manage supporting documents
-6. **API Gateway** (Port 8080) - Nginx reverse proxy routing requests to services
+### Services
+
+| Service | Local Port | Production URL | Database |
+|---|---|---|---|
+| user-service | 3001 | user.api.clearwelth.com | userdb |
+| asset-service | 3002 | asset.api.clearwelth.com | assetdb |
+| liability-service | 3003 | liability.api.clearwelth.com | liabilitydb |
+| networth-service | 3004 | networth.api.clearwelth.com | networthdb |
+| document-service | 3005 | document.api.clearwelth.com | documentdb |
+| openbanking-service | 3007 | openbanking.api.clearwelth.com | openbankingdb |
+| service-service | 3006 | services.api.clearwelth.com | — |
 
 ### Event-Driven Communication
 
-Services communicate through RabbitMQ using a topic exchange. Key events include:
-- `user.registered`, `user.logged_in`, `user.profile.added`, `user.profile.updated`
-- `asset.cash.added`, `asset.investment.added`, `asset.property.added`, `asset.other.added`, `asset.updated`, `asset.deleted`
+Services communicate via RabbitMQ topic exchange. Key events:
+- `user.registered`, `user.deleted`
+- `asset.cash.added`, `asset.investment.added`, `asset.property.added`, `asset.pension.added`, `asset.other.added`, `asset.updated`, `asset.deleted`
 - `liability.short_term.added`, `liability.long_term.added`, `liability.updated`, `liability.deleted`
 - `networth.calculated`
 - `document.added`, `document.deleted`
 
-## Prerequisites
+---
 
-- Docker and Docker Compose installed
-- Node.js 18+ (for local development)
-- Git
+## Features
 
-## Project Structure
+### Assets
+- **Cash & Savings** — institution, account type, interest rate
+- **Investments** — platform, ticker symbol, quantity, live prices via Yahoo Finance (yahoo-finance2)
+- **Property** — address, property type, mortgage sync, live valuations via HM Land Registry
+- **Pensions** — provider, pension type (Workplace/Personal/SIPP/State), contribution type (DC/DB), employee/employer %
+- **Vehicles** — registration plate, depreciation valuation (15%/yr compound), DVLA lookup (pending API key)
+- **Other** — custom category
 
-```
-wealth-management-microservices/
-├── api-gateway/
-│   └── nginx.conf
-├── services/
-│   ├── user-service/
-│   │   ├── src/
-│   │   │   └── app.js
-│   │   ├── package.json
-│   │   └── Dockerfile
-│   ├── asset-service/
-│   │   ├── src/
-│   │   │   └── app.js
-│   │   ├── package.json
-│   │   └── Dockerfile
-│   ├── liability-service/
-│   │   ├── src/
-│   │   │   └── app.js
-│   │   ├── package.json
-│   │   └── Dockerfile
-│   ├── networth-service/
-│   │   ├── src/
-│   │   │   └── app.js
-│   │   ├── package.json
-│   │   └── Dockerfile
-│   └── document-service/
-│       ├── src/
-│       │   └── app.js
-│       ├── package.json
-│       └── Dockerfile
-└── docker-compose.yml
-```
+### Liabilities
+- Short-term (credit cards, loans, insurance premiums)
+- Long-term (mortgages, vehicle finance)
+- Auto-sync: adding a property with a mortgage auto-creates a linked liability; same for vehicle finance
 
-## Setup Instructions
+### Net Worth
+- Real-time calculation and breakdown
+- Historical snapshots (30-day sparkline chart)
+- Portfolio performance (cost basis vs current value)
+- Asset allocation and liability breakdown charts
 
-### 1. Clone and Setup
+### Documents
+- Upload files (PDF, images, etc.) with category tagging
+- 8 categories: identity, property, insurance, investments, banking, tax, legal, other
+- Expiry date tracking with "Expiring Soon" alerts
+- Linked to specific assets
 
-```bash
-# Create project directory
-mkdir wealth-management-microservices
-cd wealth-management-microservices
+### Open Banking
+- Powered by TrueLayer (sandbox mode)
+- Connect bank accounts via OAuth
+- Import accounts as cash assets
 
-# Create directory structure
-mkdir -p api-gateway
-mkdir -p services/{user-service,asset-service,liability-service,networth-service,document-service}/src
-```
+### Financial Services Directory
+- 8 service categories: Will Creation, Mortgages, Loans, Life Insurance, Investments, Pensions, Tax, Income Protection
+- Pre-fills user details in provider links
+- Insurance premium capture → creates liability
 
-### 2. Copy Configuration Files
+### User & Security
+- Email verification on registration (via Resend)
+- Forgot/reset password (security question or email code)
+- Biometric lock (after 5 min background)
+- Trusted contacts / digital legacy (nominee delegation)
+- Account deletion (GDPR — deletes all data across all services)
+- PII field encryption (AES-256-GCM for phone, DOB, address)
+- JWT tokens (30-day login, 8-hour delegate)
+- Token versioning — password changes invalidate all sessions
 
-Copy all the provided files into their respective directories:
-- `docker-compose.yml` → root directory
-- `nginx.conf` → `api-gateway/`
-- Service files → respective `services/*/src/app.js`
-- `package.json` files → respective `services/*/`
-- `Dockerfile` files → respective `services/*/`
+### Mobile App
+- React Native + Expo SDK 54
+- Dark mode support
+- Onboarding wizard (first launch)
+- Search, sort, and filter on Assets and Liabilities screens
+- Document expiry picker and filter chips
 
-### 3. Create Package.json for All Services
+---
 
-Each service needs a `package.json`. Here's a template (adjust dependencies per service):
+## Local Development
 
-**User Service, Asset Service, Liability Service:**
-```json
-{
-  "name": "service-name",
-  "version": "1.0.0",
-  "main": "src/app.js",
-  "scripts": {
-    "start": "node src/app.js"
-  },
-  "dependencies": {
-    "express": "^4.18.2",
-    "cors": "^2.8.5",
-    "pg": "^8.11.3",
-    "amqplib": "^0.10.3",
-    "bcrypt": "^5.1.1",
-    "jsonwebtoken": "^9.0.2"
-  }
-}
-```
+### Prerequisites
+- Node.js 18+
+- PostgreSQL (localhost:5432, user=postgres, password=postgres123)
+- RabbitMQ (localhost:5672)
 
-**Net Worth Service:**
-```json
-{
-  "name": "networth-service",
-  "version": "1.0.0",
-  "main": "src/app.js",
-  "scripts": {
-    "start": "node src/app.js"
-  },
-  "dependencies": {
-    "express": "^4.18.2",
-    "cors": "^2.8.5",
-    "amqplib": "^0.10.3",
-    "jsonwebtoken": "^9.0.2",
-    "axios": "^1.6.0"
-  }
-}
-```
-
-**Document Service:**
-```json
-{
-  "name": "document-service",
-  "version": "1.0.0",
-  "main": "src/app.js",
-  "scripts": {
-    "start": "node src/app.js"
-  },
-  "dependencies": {
-    "express": "^4.18.2",
-    "cors": "^2.8.5",
-    "pg": "^8.11.3",
-    "amqplib": "^0.10.3",
-    "jsonwebtoken": "^9.0.2",
-    "multer": "^1.4.5-lts.1"
-  }
-}
-```
-
-### 4. Create Dockerfiles
-
-Each service needs a `Dockerfile`:
-
-```dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm install --production
-COPY . .
-EXPOSE 300X  # Change X to service port
-CMD ["npm", "start"]
-```
-
-### 5. Start the Application
+### Start Services
 
 ```bash
-# Build and start all services
-docker-compose up --build
-
-# Or run in detached mode
-docker-compose up -d --build
+cd services/user-service && npm start       # Port 3001
+cd services/asset-service && npm start      # Port 3002
+cd services/liability-service && npm start  # Port 3003
+cd services/networth-service && npm start   # Port 3004
+cd services/document-service && npm start   # Port 3005
+cd services/openbanking-service && npm start # Port 3007
+cd services/service-service && npm start    # Port 3006
 ```
 
-### 6. Verify Services are Running
+### Health Checks
 
 ```bash
-# Check all containers
-docker-compose ps
-
-# Check API Gateway health
-curl http://localhost:8080/health
-
-# Check individual service health
-curl http://localhost:3001/health  # User Service
-curl http://localhost:3002/health  # Asset Service
-curl http://localhost:3003/health  # Liability Service
-curl http://localhost:3004/health  # Net Worth Service
-curl http://localhost:3005/health  # Document Service
+curl http://localhost:3001/health
+curl http://localhost:3002/health
+curl http://localhost:3003/health
+curl http://localhost:3004/health
+curl http://localhost:3005/health
+curl http://localhost:3006/health
+curl http://localhost:3007/health
 ```
 
-### 7. Access RabbitMQ Management UI
-
-Visit: http://localhost:15672
-- Username: `admin`
-- Password: `admin`
-
-## API Usage Examples
-
-### 1. Register a User
+### Mobile App
 
 ```bash
-curl -X POST http://localhost:8080/api/users/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@example.com",
-    "password": "securepassword123"
-  }'
+cd mobile
+npx expo start --tunnel
 ```
 
-### 2. Login
+Set `IS_PRODUCTION = false` in `mobile/src/api/config.js` for local development.
+
+---
+
+## Environment Variables
+
+Each service requires a `.env` file. Common variables:
+
+```
+JWT_SECRET=<64-char hex>
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=<servicename>db
+DB_USER=postgres
+DB_PASSWORD=postgres123
+RABBITMQ_URL=amqp://localhost:5672
+PORT=300X
+```
+
+Additional per-service variables:
+
+**user-service:**
+```
+RESEND_API_KEY=<key>
+FROM_EMAIL=noreply@clearwelth.com
+APP_URL=http://192.168.0.6:3001
+FIELD_ENCRYPTION_KEY=<64-char hex>
+```
+
+**asset-service:**
+```
+DVLA_API_KEY=<key>  # optional — depreciation works without it
+```
+
+**openbanking-service:**
+```
+TRUELAYER_CLIENT_ID=<id>
+TRUELAYER_CLIENT_SECRET=<secret>
+TRUELAYER_REDIRECT_URI=https://openbanking.api.clearwelth.com/api/openbanking/callback
+```
+
+---
+
+## API Reference
+
+All endpoints require `Authorization: Bearer <token>` except auth routes.
+Currency is GBP (£) throughout.
+
+### Auth (user-service :3001)
 
 ```bash
-curl -X POST http://localhost:8080/api/users/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@example.com",
-    "password": "securepassword123"
-  }'
+POST /api/users/register          # { first_name, last_name, email, password }
+POST /api/users/login             # { email, password } → { token, userId, email }
+GET  /api/users/verify-email?token=
+POST /api/users/resend-verification
+POST /api/users/forgot-password
+POST /api/users/reset-password
+GET  /api/users/profile
+POST /api/users/profile           # update profile
+POST /api/users/change-password
+POST /api/users/change-email
+DELETE /api/users/me              # delete account (requires password)
+POST /api/users/security-question
+GET  /api/users/security-question/:email
+POST /api/users/verify-security-question
+POST /api/users/nominees
+GET  /api/users/nominees
+PUT  /api/users/nominees/:id
+DELETE /api/users/nominees/:id
+GET  /api/users/delegated-accounts
+POST /api/users/delegate/:ownerId
 ```
 
-Response will include a JWT token. Use this token for all subsequent requests.
-
-### 3. Add User Profile
+### Assets (asset-service :3002)
 
 ```bash
-curl -X POST http://localhost:8080/api/users/profile \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -d '{
-    "first_name": "John",
-    "last_name": "Doe",
-    "phone": "+1234567890",
-    "date_of_birth": "1990-01-01",
-    "address": "123 Main St, City, Country"
-  }'
+GET  /api/assets
+POST /api/assets/cash
+POST /api/assets/investment
+POST /api/assets/property
+POST /api/assets/pension
+POST /api/assets/other            # also used for vehicles (original_type in metadata)
+PUT  /api/assets/:id
+DELETE /api/assets/:id
+GET  /api/assets/total/value
+GET  /api/assets/valuation/property?postcode=
+GET  /api/assets/price/quote?ticker=
+GET  /api/assets/valuation/vehicle?reg=&purchase_price=&purchase_date=
+GET  /api/assets/pension/fund-info?name=
 ```
 
-### 4. Add Cash Asset
+### Liabilities (liability-service :3003)
 
 ```bash
-curl -X POST http://localhost:8080/api/assets/cash \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -d '{
-    "name": "Savings Account",
-    "value": 50000,
-    "currency": "USD",
-    "description": "Primary savings account"
-  }'
+GET  /api/liabilities
+POST /api/liabilities/short-term
+POST /api/liabilities/long-term
+PUT  /api/liabilities/:id
+DELETE /api/liabilities/:id
+GET  /api/liabilities/total/amount
 ```
 
-### 5. Add Investment Asset
+### Net Worth (networth-service :3004)
 
 ```bash
-curl -X POST http://localhost:8080/api/assets/investment \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -d '{
-    "name": "Stock Portfolio",
-    "value": 150000,
-    "currency": "USD",
-    "description": "Tech stocks and ETFs"
-  }'
+GET /api/networth/calculate
+GET /api/networth/breakdown
+GET /api/networth/history?days=30
+GET /api/networth/export/pdf
 ```
 
-### 6. Add Property Asset
+### Documents (document-service :3005)
 
 ```bash
-curl -X POST http://localhost:8080/api/assets/property \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -d '{
-    "name": "Primary Residence",
-    "value": 500000,
-    "currency": "USD",
-    "description": "3BR house in suburbs"
-  }'
+GET    /api/documents
+POST   /api/documents/upload      # multipart/form-data
+DELETE /api/documents/:id
 ```
 
-### 7. Add Short-term Liability
+### Open Banking (openbanking-service :3007)
 
 ```bash
-curl -X POST http://localhost:8080/api/liabilities/short-term \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -d '{
-    "name": "Credit Card Debt",
-    "amount": 5000,
-    "currency": "USD",
-    "interest_rate": 18.99,
-    "due_date": "2025-12-31",
-    "description": "Various credit cards"
-  }'
+GET    /api/openbanking/auth-url
+GET    /api/openbanking/status
+GET    /api/openbanking/accounts
+DELETE /api/openbanking/disconnect
+GET    /api/openbanking/callback  # TrueLayer OAuth callback
 ```
 
-### 8. Add Long-term Liability
+### Services (service-service :3006)
 
 ```bash
-curl -X POST http://localhost:8080/api/liabilities/long-term \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -d '{
-    "name": "Mortgage",
-    "amount": 350000,
-    "currency": "USD",
-    "interest_rate": 3.5,
-    "due_date": "2045-01-01",
-    "description": "30-year fixed mortgage"
-  }'
+GET /api/services
+GET /api/services/health
 ```
 
-### 9. Calculate Net Worth
+---
+
+## Testing
 
 ```bash
-curl http://localhost:8080/api/networth/calculate \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+cd services/user-service && npm test
+cd services/asset-service && npm test
+cd services/liability-service && npm test
+cd services/networth-service && npm test
+cd services/document-service && npm test
+cd services/service-service && npm test
 ```
 
-### 10. Get Detailed Net Worth Breakdown
+67 tests across all 6 services (Jest + Supertest). CI runs all in parallel via GitHub Actions.
 
-```bash
-curl http://localhost:8080/api/networth/breakdown \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
-```
+---
 
-### 11. Get All Assets
+## Production (Railway)
 
-```bash
-curl http://localhost:8080/api/assets \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+All 7 services are deployed on Railway with auto-deploy on push to `master`.
 
-# Filter by type
-curl "http://localhost:8080/api/assets?type=investment" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
-```
+- **Database**: Railway PostgreSQL per service
+- **Message queue**: CloudAMQP (Little Lemur)
+- **Email**: Resend (domain: clearwelth.com)
+- **Mobile**: `IS_PRODUCTION = true` in `mobile/src/api/config.js`
 
-### 12. Upload Document
+### API Documentation
 
-```bash
-curl -X POST http://localhost:8080/api/documents/upload \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -F "file=@/path/to/document.pdf" \
-  -F "related_entity_type=asset" \
-  -F "related_entity_id=1" \
-  -F "description=Property deed"
-```
+Swagger/OpenAPI docs available at `/<service>/api-docs` on each service (local only).
 
-### 13. List Documents
-
-```bash
-curl http://localhost:8080/api/documents \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
-```
-
-## Monitoring and Debugging
-
-### View Logs
-
-```bash
-# All services
-docker-compose logs -f
-
-# Specific service
-docker-compose logs -f user-service
-docker-compose logs -f asset-service
-```
-
-### Access Databases
-
-```bash
-# User database
-docker-compose exec postgres-user psql -U postgres -d userdb
-
-# Asset database
-docker-compose exec postgres-asset psql -U postgres -d assetdb
-
-# Liability database
-docker-compose exec postgres-liability psql -U postgres -d liabilitydb
-
-# Document database
-docker-compose exec postgres-document psql -U postgres -d documentdb
-```
-
-### Monitor RabbitMQ
-
-Access the management UI at http://localhost:15672 to:
-- View queues and exchanges
-- Monitor message flow
-- Check connection status
-
-## Stopping the Application
-
-```bash
-# Stop all services
-docker-compose down
-
-# Stop and remove volumes (WARNING: deletes all data)
-docker-compose down -v
-```
-
-## Production Considerations
-
-Before deploying to production:
-
-1. **Security:**
-   - Change JWT_SECRET to a strong random value
-   - Use environment variables for all secrets
-   - Implement rate limiting
-   - Add HTTPS/TLS termination
-   - Enable CORS properly for your frontend domain
-
-2. **Scalability:**
-   - Deploy services across multiple instances
-   - Use a load balancer
-   - Implement service mesh (e.g., Istio)
-   - Use managed databases (RDS, Cloud SQL)
-   - Use managed message queue (CloudAMQP, AWS MQ)
-
-3. **Monitoring:**
-   - Add logging aggregation (ELK stack, Datadog)
-   - Implement distributed tracing (Jaeger, Zipkin)
-   - Set up metrics collection (Prometheus)
-   - Configure alerts
-
-4. **Data:**
-   - Implement database backups
-   - Set up replication for high availability
-   - Consider data encryption at rest
-   - Implement proper data retention policies
-
-5. **API Gateway:**
-   - Add authentication at gateway level
-   - Implement circuit breakers
-   - Add request/response caching
-   - Rate limiting per user/IP
-
-## Next Steps
-
-To extend this application:
-
-1. **Add Service Service** - Display financial services and offers
-2. **Implement External API Integration** - Connect to real asset/liability APIs
-3. **Add Frontend** - Build a React/Vue.js frontend
-4. **Implement CI/CD** - Set up GitHub Actions or Jenkins
-5. **Add Testing** - Unit tests, integration tests, E2E tests
-6. **Implement API Documentation** - Use Swagger/OpenAPI
-7. **Add Caching Layer** - Redis for frequently accessed data
-8. **Implement Saga Pattern** - For distributed transactions
+---
 
 ## License
 

@@ -104,7 +104,7 @@ All services connect to a shared topic exchange named `wealth_management_events`
 | Service | Events Published |
 |---|---|
 | user-service | `user.registered`, `user.deleted`, `user.profile.updated` |
-| asset-service | `asset.cash.added`, `asset.investment.added`, `asset.property.added`, `asset.updated`, `asset.deleted` |
+| asset-service | `asset.cash.added`, `asset.investment.added`, `asset.property.added`, `asset.pension.added`, `asset.other.added`, `asset.updated`, `asset.deleted` |
 | liability-service | `liability.short_term.added`, `liability.long_term.added`, `liability.updated`, `liability.deleted` |
 
 **Subscriptions:**
@@ -660,7 +660,7 @@ All endpoints (except `/health` and public auth endpoints) require a JWT Bearer 
 Authorization: Bearer <token>
 ```
 
-Tokens are obtained from `POST /api/users/login` and are valid for 7 days.
+Tokens are obtained from `POST /api/users/login` and are valid for 30 days.
 
 ### 6.1 Authentication Endpoints (user-service — port 3001)
 
@@ -1080,7 +1080,7 @@ GitHub Actions runs automated tests on every push and pull request to `master`. 
 ### 10.1 Authentication
 
 - **JWT (RS256-style HMAC)** with a 64-character hex secret shared across all services
-- Token expiry: 7 days
+- Token expiry: 30 days (login tokens); 8 hours (delegated access tokens)
 - Tokens stored in `expo-secure-store` on device (not AsyncStorage)
 - Automatic logout on 401/403 from any service
 
@@ -1307,8 +1307,8 @@ The following items are noted for completion before a full public launch:
 | Item | Details |
 |---|---|
 | TrueLayer production credentials | FCA authorisation pending. Current open banking is sandbox only. |
-| DVLA API key | Apply at developer-portal.driver-vehicle-licensing.api.gov.uk |
-| ICO registration | Required under UK GDPR. £40/year at ico.org.uk. Register before public launch. |
+| DVLA API key | Applied March 2026 — awaiting approval email from developer-portal.driver-vehicle-licensing.api.gov.uk. Vehicle depreciation works without it; DVLA make/model lookup will activate once key is received. |
+| ICO registration | Required under UK GDPR. £40/year at ico.org.uk. Deferred until permanent hosting is confirmed. |
 
 ### 12.5 Converting This Document to PDF
 

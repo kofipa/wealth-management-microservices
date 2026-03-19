@@ -13,7 +13,7 @@ const SECTIONS = [
     items: [
       { label: 'Account', detail: 'Email address, name' },
       { label: 'Personal details', detail: 'Phone, date of birth, address — stored encrypted' },
-      { label: 'Financial data', detail: 'Assets, liabilities, net worth snapshots' },
+      { label: 'Financial data', detail: 'Assets (cash, investments, property, pensions, vehicles), liabilities, net worth snapshots' },
       { label: 'Documents', detail: 'Files you upload (stored securely on our servers)' },
       { label: 'Open banking', detail: 'Bank account data if you connect a bank (optional)' },
     ],
