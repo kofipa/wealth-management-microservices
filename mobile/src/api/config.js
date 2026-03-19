@@ -1,5 +1,4 @@
-// __DEV__ is set by React Native/Expo: true in dev builds, false in production
-const IS_PRODUCTION = !__DEV__;
+const IS_PRODUCTION = true;
 
 export const BASE_URLS = IS_PRODUCTION ? {
   user: 'https://user.api.clearwelth.com',
