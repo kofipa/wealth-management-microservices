@@ -632,11 +632,15 @@ Fund name: "${name}"`,
     });
 
     let text = message.content[0].text.trim();
-    // Strip markdown code fences if present (```json ... ``` or ``` ... ```)
-    text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+    // Extract the first JSON object from the response, however it's wrapped
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error('Fund analysis: no JSON found in response:', text);
+      return res.status(502).json({ error: 'Could not parse fund data' });
+    }
     let data;
     try {
-      data = JSON.parse(text);
+      data = JSON.parse(jsonMatch[0]);
     } catch {
       console.error('Fund analysis parse error, raw response:', text);
       return res.status(502).json({ error: 'Could not parse fund data' });
