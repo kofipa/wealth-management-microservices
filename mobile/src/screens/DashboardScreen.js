@@ -173,6 +173,33 @@ export default function DashboardScreen() {
   const currentIndex = recommendations.length > 0 ? recIndex % recommendations.length : 0;
   const svc = recommendations[currentIndex];
 
+  // Fund analysis — only assets with a saved fund_category and a positive value
+  const RISK_COLORS = { Defensive: '#16a34a', Cautious: '#2563eb', Balanced: '#7c3aed', Growth: '#f59e0b', Aggressive: '#ef4444' };
+  const RISK_ORDER = ['Defensive', 'Cautious', 'Balanced', 'Growth', 'Aggressive'];
+  const analysedFunds = assets.filter(a => a.metadata?.fund_category && parseFloat(a.value) > 0);
+
+  // Risk breakdown: sum asset values per risk category
+  const riskMap = {};
+  for (const a of analysedFunds) {
+    const cat = a.metadata.fund_category;
+    riskMap[cat] = (riskMap[cat] || 0) + parseFloat(a.value);
+  }
+  const riskEntries = RISK_ORDER.filter(r => riskMap[r]).map(r => [r, riskMap[r]]);
+  const riskTotal = riskEntries.reduce((s, [, v]) => s + v, 0);
+
+  // Underlying asset mix: weighted average equity/bond/other by value
+  let mixTotalWeight = 0, mixEquityW = 0, mixBondW = 0, mixOtherW = 0;
+  for (const a of analysedFunds) {
+    const v = parseFloat(a.value);
+    mixEquityW += v * (parseFloat(a.metadata.fund_equity_pct) || 0);
+    mixBondW += v * (parseFloat(a.metadata.fund_bond_pct) || 0);
+    mixOtherW += v * (parseFloat(a.metadata.fund_other_pct) || 0);
+    mixTotalWeight += v;
+  }
+  const mixEquity = mixTotalWeight > 0 ? Math.round(mixEquityW / mixTotalWeight) : 0;
+  const mixBond = mixTotalWeight > 0 ? Math.round(mixBondW / mixTotalWeight) : 0;
+  const mixOther = mixTotalWeight > 0 ? Math.round(mixOtherW / mixTotalWeight) : 0;
+
   return (
     <ScrollView
       style={styles.container}
@@ -291,6 +318,75 @@ export default function DashboardScreen() {
                 </View>
               );
             })}
+          </View>
+        );
+      })()}
+
+      {riskEntries.length > 0 && (() => {
+        const riskMax = Math.max(...riskEntries.map(([, v]) => v));
+        return (
+          <View style={[styles.section, { marginBottom: 24 }]}>
+            <Text style={styles.sectionTitle}>Portfolio Risk Profile</Text>
+            <Text style={{ fontSize: 12, color: colors.textTertiary, marginBottom: 12, marginTop: -8 }}>
+              Based on {analysedFunds.length} analysed fund{analysedFunds.length !== 1 ? 's' : ''}
+            </Text>
+            {riskEntries.map(([cat, val]) => {
+              const color = RISK_COLORS[cat] || '#9ca3af';
+              const pct = riskTotal > 0 ? Math.round((val / riskTotal) * 100) : 0;
+              const barWidth = (val / riskMax) * 100;
+              return (
+                <View key={cat} style={{ marginBottom: 14 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: color, marginRight: 7 }} />
+                      <Text style={{ fontSize: 13, color: colors.textSecondary, fontWeight: '500' }}>{cat}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={{ fontSize: 13, color: colors.text, fontWeight: '600' }}>{fmt(val)}</Text>
+                      <View style={{ backgroundColor: color + '22', borderRadius: 5, paddingHorizontal: 6, paddingVertical: 1 }}>
+                        <Text style={{ fontSize: 11, fontWeight: '700', color }}>{pct}%</Text>
+                      </View>
+                    </View>
+                  </View>
+                  <View style={{ height: 8, backgroundColor: colors.surfaceAlt, borderRadius: 4 }}>
+                    <View style={{ height: 8, width: `${barWidth}%`, backgroundColor: color, borderRadius: 4 }} />
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        );
+      })()}
+
+      {mixTotalWeight > 0 && (() => {
+        const MIX = [
+          { label: 'Equities', pct: mixEquity, color: '#7c3aed' },
+          { label: 'Bonds',    pct: mixBond,   color: '#2563eb' },
+          { label: 'Other',    pct: mixOther,  color: '#9ca3af' },
+        ].filter(m => m.pct > 0);
+        const mixMax = Math.max(...MIX.map(m => m.pct));
+        return (
+          <View style={[styles.section, { marginBottom: 24 }]}>
+            <Text style={styles.sectionTitle}>Underlying Asset Mix</Text>
+            <Text style={{ fontSize: 12, color: colors.textTertiary, marginBottom: 12, marginTop: -8 }}>
+              Weighted average across analysed funds
+            </Text>
+            {MIX.map(({ label, pct, color }) => (
+              <View key={label} style={{ marginBottom: 14 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: color, marginRight: 7 }} />
+                    <Text style={{ fontSize: 13, color: colors.textSecondary, fontWeight: '500' }}>{label}</Text>
+                  </View>
+                  <View style={{ backgroundColor: color + '22', borderRadius: 5, paddingHorizontal: 6, paddingVertical: 1 }}>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color }}>{pct}%</Text>
+                  </View>
+                </View>
+                <View style={{ height: 8, backgroundColor: colors.surfaceAlt, borderRadius: 4 }}>
+                  <View style={{ height: 8, width: `${(pct / mixMax) * 100}%`, backgroundColor: color, borderRadius: 4 }} />
+                </View>
+              </View>
+            ))}
           </View>
         );
       })()}
