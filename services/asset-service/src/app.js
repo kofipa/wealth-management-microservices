@@ -631,11 +631,14 @@ Fund name: "${name}"`,
       }],
     });
 
-    const text = message.content[0].text.trim();
+    let text = message.content[0].text.trim();
+    // Strip markdown code fences if present (```json ... ``` or ``` ... ```)
+    text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
     let data;
     try {
       data = JSON.parse(text);
     } catch {
+      console.error('Fund analysis parse error, raw response:', text);
       return res.status(502).json({ error: 'Could not parse fund data' });
     }
 
