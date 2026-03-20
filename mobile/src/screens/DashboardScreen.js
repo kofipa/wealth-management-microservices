@@ -21,6 +21,24 @@ const fmtLabel = (s) =>
 
 const ROTATION_MS = 4000;
 
+const RISK_ORDER = ['Defensive', 'Cautious', 'Balanced', 'Growth', 'Aggressive'];
+const RISK_COLORS = { Defensive: '#16a34a', Cautious: '#2563eb', Balanced: '#7c3aed', Growth: '#f59e0b', Aggressive: '#ef4444' };
+
+function classifyInvestmentRisk(types) {
+  const t = Array.isArray(types) ? types : (types ? [types] : []);
+  if (!t.length) return null;
+  if (t.includes('crypto')) return 'Aggressive';
+  if (t.includes('stocks') && !t.includes('bonds')) return 'Growth';
+  if (t.includes('bonds') && !t.includes('stocks') && !t.includes('crypto')) return 'Defensive';
+  if (t.includes('stocks') && t.includes('bonds')) return 'Balanced';
+  return 'Balanced'; // funds, ISA, etc.
+}
+
+function classifyPensionRisk(meta) {
+  if (meta?.pension_type === 'State' || meta?.contribution_type === 'DB') return 'Defensive';
+  return 'Balanced';
+}
+
 export default function DashboardScreen() {
   const { user, isDelegated } = useAuth();
   const { colors } = useTheme();
@@ -35,7 +53,30 @@ export default function DashboardScreen() {
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const intervalRef = useRef(null);
 
-  const recommendations = useMemo(() => (data ? buildRecommendations(data) : []), [data]);
+  const riskInfo = useMemo(() => {
+    if (!assets.length) return null;
+    const map = {};
+    for (const a of assets) {
+      const value = parseFloat(a.value);
+      if (!value || value <= 0) continue;
+      if (a.metadata?.fund_category) {
+        const cat = a.metadata.fund_category;
+        map[cat] = (map[cat] || 0) + value;
+      } else if (a.asset_type === 'investment') {
+        const cat = classifyInvestmentRisk(a.metadata?.investment_type);
+        if (cat) map[cat] = (map[cat] || 0) + value;
+      } else if (a.asset_type === 'pension') {
+        const cat = classifyPensionRisk(a.metadata);
+        if (cat) map[cat] = (map[cat] || 0) + value;
+      }
+    }
+    const total = Object.values(map).reduce((s, v) => s + v, 0);
+    if (!total) return null;
+    const dominant = Object.entries(map).reduce((a, b) => b[1] > a[1] ? b : a);
+    return { map, total, dominantCategory: dominant[0], dominantPct: (dominant[1] / total) * 100 };
+  }, [assets]);
+
+  const recommendations = useMemo(() => (data ? buildRecommendations(data, riskInfo) : []), [data, riskInfo]);
 
   const fadeTo = useCallback((nextIndex, cb) => {
     Animated.timing(fadeAnim, { toValue: 0, duration: 220, useNativeDriver: true }).start(() => {
@@ -173,19 +214,12 @@ export default function DashboardScreen() {
   const currentIndex = recommendations.length > 0 ? recIndex % recommendations.length : 0;
   const svc = recommendations[currentIndex];
 
-  // Fund analysis — only assets with a saved fund_category and a positive value
-  const RISK_COLORS = { Defensive: '#16a34a', Cautious: '#2563eb', Balanced: '#7c3aed', Growth: '#f59e0b', Aggressive: '#ef4444' };
-  const RISK_ORDER = ['Defensive', 'Cautious', 'Balanced', 'Growth', 'Aggressive'];
-  const analysedFunds = assets.filter(a => a.metadata?.fund_category && parseFloat(a.value) > 0);
+  // Risk entries derived from riskInfo useMemo (merges fund_category + auto-classified investments/pensions)
+  const riskEntries = riskInfo ? RISK_ORDER.filter(r => riskInfo.map[r]).map(r => [r, riskInfo.map[r]]) : [];
+  const riskTotal = riskInfo?.total ?? 0;
 
-  // Risk breakdown: sum asset values per risk category
-  const riskMap = {};
-  for (const a of analysedFunds) {
-    const cat = a.metadata.fund_category;
-    riskMap[cat] = (riskMap[cat] || 0) + parseFloat(a.value);
-  }
-  const riskEntries = RISK_ORDER.filter(r => riskMap[r]).map(r => [r, riskMap[r]]);
-  const riskTotal = riskEntries.reduce((s, [, v]) => s + v, 0);
+  // Underlying asset mix: weighted average equity/bond/other — only pension funds with fetched data
+  const analysedFunds = assets.filter(a => a.metadata?.fund_category && parseFloat(a.value) > 0);
 
   // Underlying asset mix: weighted average equity/bond/other by value
   let mixTotalWeight = 0, mixEquityW = 0, mixBondW = 0, mixOtherW = 0;
@@ -328,7 +362,7 @@ export default function DashboardScreen() {
           <View style={[styles.section, { marginBottom: 24 }]}>
             <Text style={styles.sectionTitle}>Portfolio Risk Profile</Text>
             <Text style={{ fontSize: 12, color: colors.textTertiary, marginBottom: 12, marginTop: -8 }}>
-              Based on {analysedFunds.length} analysed fund{analysedFunds.length !== 1 ? 's' : ''}
+              Investments & pensions by value · {riskInfo?.dominantCategory ?? ''} weighted
             </Text>
             {riskEntries.map(([cat, val]) => {
               const color = RISK_COLORS[cat] || '#9ca3af';

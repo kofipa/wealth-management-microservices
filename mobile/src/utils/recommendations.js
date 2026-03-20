@@ -7,7 +7,7 @@ const fmt = (n) =>
  * The same list is used by both the Dashboard carousel and the Services screen,
  * ensuring the two are always in sync.
  */
-export const buildRecommendations = (data) => {
+export const buildRecommendations = (data, riskInfo = null) => {
   const totalAssets = parseFloat(data?.totalAssets ?? 0);
   const totalLiabilities = parseFloat(data?.totalLiabilities ?? 0);
   const netWorth = totalAssets - totalLiabilities;
@@ -94,6 +94,22 @@ export const buildRecommendations = (data) => {
       nudge: 'Compare competitive personal loan rates',
       color: '#0891b2', bg: '#ecfeff',
     });
+  }
+
+  // Risk-based nudges
+  if (riskInfo && riskInfo.dominantPct >= 70) {
+    const { dominantCategory } = riskInfo;
+    if (dominantCategory === 'Aggressive' || dominantCategory === 'Growth') {
+      // Promote income protection to the front with a tailored nudge
+      const idx = recs.findIndex(r => r.id === 'income-protection');
+      if (idx > 0) recs.unshift(recs.splice(idx, 1)[0]);
+      const ip = recs.find(r => r.id === 'income-protection');
+      if (ip) ip.nudge = 'Your portfolio is growth-oriented — protect your income if you cannot work';
+    } else if (dominantCategory === 'Defensive' && totalAssets > 5000) {
+      // Nudge towards growth investments
+      const inv = recs.find(r => r.id === 'investment-advice');
+      if (inv) inv.nudge = 'Your portfolio skews defensive — consider growth investments to build wealth';
+    }
   }
 
   return recs;
