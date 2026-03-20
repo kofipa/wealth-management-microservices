@@ -28,10 +28,11 @@ function classifyInvestmentRisk(types) {
   const t = Array.isArray(types) ? types : (types ? [types] : []);
   if (!t.length) return null;
   if (t.includes('crypto')) return 'Aggressive';
-  if (t.includes('stocks') && !t.includes('bonds')) return 'Growth';
   if (t.includes('bonds') && !t.includes('stocks') && !t.includes('crypto')) return 'Defensive';
   if (t.includes('stocks') && t.includes('bonds')) return 'Balanced';
-  return 'Balanced'; // funds, ISA, etc.
+  if (t.includes('funds') && t.includes('bonds')) return 'Balanced';
+  // stocks only, funds only, ISA only — assume equity exposure → Growth
+  return 'Growth';
 }
 
 function classifyPensionRisk(meta) {
