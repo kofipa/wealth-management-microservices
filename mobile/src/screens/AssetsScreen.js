@@ -7,8 +7,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
-import * as WebBrowser from 'expo-web-browser';
-import { getAssets, createAsset, updateAsset, deleteAsset, uploadDocument, getLiabilities, createLiability, updateLiability, deleteLiability, getOpenBankingAuthUrl, getOpenBankingStatus, getOpenBankingAccounts, getPropertyValuation, getStockQuote, getVehicleValuation, getFundInfo } from '../api/client';
+import { getAssets, createAsset, updateAsset, deleteAsset, uploadDocument, getLiabilities, createLiability, updateLiability, deleteLiability, getPropertyValuation, getStockQuote, getVehicleValuation, getFundInfo } from '../api/client';
 import DatePickerField from '../components/DatePickerField';
 import { useTheme } from '../context/ThemeContext';
 
@@ -30,12 +29,7 @@ export default function AssetsScreen() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingAsset, setEditingAsset] = useState(null);
   const [pendingFile, setPendingFile] = useState(null);
-  const [bankConnected, setBankConnected] = useState(false);
-  const [importModalVisible, setImportModalVisible] = useState(false);
-  const [bankAccounts, setBankAccounts] = useState([]);
-  const [selectedAccounts, setSelectedAccounts] = useState({});
-  const [importingBank, setImportingBank] = useState(false);
-  const [valuations, setValuations] = useState({}); // { [assetId]: { value, count, loading, error } }
+const [valuations, setValuations] = useState({}); // { [assetId]: { value, count, loading, error } }
   const [quotes, setQuotes] = useState({}); // { [assetId]: { name, price_gbp, exchange, loading, error } }
   const [vehicleVals, setVehicleVals] = useState({}); // { [assetId]: { estimated_value, make, year, loading, error } }
   const [fieldErrors, setFieldErrors] = useState({});
@@ -52,9 +46,8 @@ export default function AssetsScreen() {
 
   const load = async () => {
     try {
-      const [assetsRes, statusRes] = await Promise.allSettled([
+      const [assetsRes] = await Promise.allSettled([
         getAssets(),
-        getOpenBankingStatus(),
       ]);
       if (assetsRes.status === 'fulfilled') {
         const loaded = assetsRes.value.data.assets || [];
@@ -68,7 +61,6 @@ export default function AssetsScreen() {
         loaded.filter(a => a.metadata?.original_type === 'vehicle' && a.metadata?.reg_plate && a.metadata?.purchase_price && a.metadata?.purchase_date)
           .forEach(a => fetchVehicleValuation(a.id, a.metadata.reg_plate, a.metadata.purchase_price, a.metadata.purchase_date));
       } else Alert.alert('Error', 'Could not load assets');
-      if (statusRes.status === 'fulfilled') setBankConnected(statusRes.value.data.connected);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -517,73 +509,6 @@ export default function AssetsScreen() {
     ]);
   };
 
-  const handleConnectBank = async () => {
-    try {
-      const { data } = await getOpenBankingAuthUrl();
-      // Backend handles the code exchange; success page tries wealthmanager:// for iOS,
-      // but we always check status after the browser closes as a fallback for Expo Go.
-      await WebBrowser.openAuthSessionAsync(data.url, 'wealthmanager://openbanking/success');
-      // Check actual connection status regardless of how the browser was dismissed
-      const statusRes = await getOpenBankingStatus();
-      if (statusRes.data.connected) {
-        setBankConnected(true);
-        handleImportAccounts();
-      }
-    } catch {
-      Alert.alert('Error', 'Could not connect to bank. Make sure the bank service is running.');
-    }
-  };
-
-  const handleImportAccounts = async () => {
-    try {
-      setImportingBank(true);
-      const { data } = await getOpenBankingAccounts();
-      const accounts = data.accounts || [];
-      setBankAccounts(accounts);
-      const sel = {};
-      accounts.forEach((a) => { sel[a.account_id] = true; });
-      setSelectedAccounts(sel);
-      setImportModalVisible(true);
-    } catch {
-      Alert.alert('Error', 'Could not fetch bank accounts. Please try again.');
-    } finally {
-      setImportingBank(false);
-    }
-  };
-
-  const handleImportConfirm = async () => {
-    const toImport = bankAccounts.filter((a) => selectedAccounts[a.account_id]);
-    if (toImport.length === 0) {
-      setImportModalVisible(false);
-      return;
-    }
-    try {
-      setSaving(true);
-      for (const acct of toImport) {
-        await createAsset({
-          name: acct.display_name,
-          type: 'cash',
-          value: acct.balance,
-          description: `Imported via Open Banking`,
-          metadata: {
-            source: 'truelayer',
-            account_id: acct.account_id,
-            institution: acct.provider,
-            account_type: acct.account_type,
-            currency: acct.currency,
-          },
-        });
-      }
-      setImportModalVisible(false);
-      load();
-      Alert.alert('Done', `Imported ${toImport.length} account${toImport.length !== 1 ? 's' : ''}`);
-    } catch {
-      Alert.alert('Error', 'Failed to import some accounts');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const getMetaSummary = (item) => {
     const m = item.metadata || {};
     switch (item.asset_type) {
@@ -654,16 +579,6 @@ export default function AssetsScreen() {
           <Text style={styles.addBtnText}>+ Add</Text>
         </TouchableOpacity>
       </View>
-
-      <TouchableOpacity
-        style={styles.connectBankBtn}
-        onPress={bankConnected ? handleImportAccounts : handleConnectBank}
-        disabled={importingBank}
-      >
-        <Text style={styles.connectBankBtnText}>
-          {importingBank ? 'Loading...' : bankConnected ? '🏦 Import from Bank' : '🔗 Connect Bank'}
-        </Text>
-      </TouchableOpacity>
 
       {/* Search + sort — only useful with more than one item */}
       {assets.length > 1 && (
@@ -828,57 +743,6 @@ export default function AssetsScreen() {
           </View>
         )}
       />
-
-      {/* ── Bank Import Modal ── */}
-      <Modal visible={importModalVisible} animationType="slide" presentationStyle="pageSheet">
-        <View style={styles.modal}>
-          <View style={[styles.modalContent, { paddingBottom: 20 }]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Import Accounts</Text>
-              <TouchableOpacity onPress={() => setImportModalVisible(false)}>
-                <Text style={styles.modalClose}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={{ color: colors.textSecondary, marginBottom: 16, fontSize: 14 }}>
-              Select accounts to import as cash assets:
-            </Text>
-            {bankAccounts.map((acct) => {
-              const selected = !!selectedAccounts[acct.account_id];
-              return (
-                <TouchableOpacity
-                  key={acct.account_id}
-                  style={styles.accountRow}
-                  onPress={() => setSelectedAccounts((prev) => ({ ...prev, [acct.account_id]: !prev[acct.account_id] }))}
-                >
-                  <View style={[styles.accountCheck, selected && { backgroundColor: colors.primary }]}>
-                    {selected && <Text style={{ color: colors.surface, fontSize: 14, fontWeight: '700' }}>✓</Text>}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>{acct.display_name}</Text>
-                    <Text style={{ fontSize: 13, color: colors.textSecondary }}>{acct.provider} · {acct.account_type}</Text>
-                  </View>
-                  <Text style={{ fontSize: 16, fontWeight: '700', color: '#16a34a' }}>
-                    {new Intl.NumberFormat('en-GB', { style: 'currency', currency: acct.currency || 'GBP' }).format(acct.balance)}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-            {bankAccounts.length === 0 && (
-              <Text style={{ textAlign: 'center', color: colors.textTertiary, marginTop: 40 }}>No accounts found</Text>
-            )}
-          </View>
-          <View style={{ padding: 24, paddingTop: 0 }}>
-            <TouchableOpacity style={styles.saveBtn} onPress={handleImportConfirm} disabled={saving}>
-              {saving
-                ? <ActivityIndicator color={colors.surface} />
-                : <Text style={styles.saveBtnText}>
-                    Import {Object.values(selectedAccounts).filter(Boolean).length} Account{Object.values(selectedAccounts).filter(Boolean).length !== 1 ? 's' : ''}
-                  </Text>
-              }
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
 
       {/* ── Analyse Fund Modal ── */}
       <Modal visible={fundModalVisible} animationType="slide" presentationStyle="pageSheet">
@@ -1604,11 +1468,7 @@ const makeStyles = (colors) => StyleSheet.create({
   fundAllocLegendText: { fontSize: 12, color: colors.textSecondary },
   fundDescription: { fontSize: 13, color: colors.textSecondary, lineHeight: 19, marginBottom: 8 },
   fundConfidence: { fontSize: 11, color: colors.textTertiary, fontStyle: 'italic', marginBottom: 16 },
-  connectBankBtn: { backgroundColor: colors.primaryLight, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 16, alignItems: 'center', marginHorizontal: 16, marginTop: 12, marginBottom: 4, borderWidth: 1, borderColor: colors.primary },
-  connectBankBtnText: { fontSize: 14, color: colors.primary, fontWeight: '600' },
-  accountRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.surfaceAlt },
-  accountCheck: { width: 24, height: 24, borderRadius: 4, borderWidth: 2, borderColor: colors.primary, marginRight: 12, alignItems: 'center', justifyContent: 'center' },
-  searchRow: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.surfaceAlt },
+searchRow: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.surfaceAlt },
   searchInput: { backgroundColor: colors.surfaceAlt, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: colors.text },
   sortRow: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 8, backgroundColor: colors.surface, gap: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
   sortChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border },
