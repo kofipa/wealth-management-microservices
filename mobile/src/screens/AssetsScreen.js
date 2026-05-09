@@ -195,8 +195,12 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
         if (qty > 0) return { ...prev, value: String((data.price_gbp * qty).toFixed(2)) };
         return prev;
       });
-    } catch {
-      setFormQuote({ loading: false, error: true });
+    } catch (err) {
+      const status = err?.response?.status;
+      const msg = status === 404 ? 'Ticker not found — check the symbol'
+                : status === 400 ? 'Invalid ticker format'
+                : 'Price feed unavailable — try again';
+      setFormQuote({ loading: false, error: msg });
     }
   };
 
@@ -964,7 +968,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
                     {form.metadata.quantity > 0 ? ` · Value auto-filled` : ''}
                   </Text>
                 )}
-                {formQuote?.error && <Text style={[styles.quoteStatus, { color: colors.error || '#ef4444' }]}>Ticker not found — check the symbol</Text>}
+                {formQuote?.error && <Text style={[styles.quoteStatus, { color: colors.error || '#ef4444' }]}>{formQuote.error}</Text>}
                 <Text style={styles.label}>Quantity / Units</Text>
                 <TextInput
                   style={styles.input}
