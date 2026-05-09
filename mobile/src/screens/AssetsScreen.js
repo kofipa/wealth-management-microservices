@@ -33,6 +33,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
   const [quotes, setQuotes] = useState({}); // { [assetId]: { name, price_gbp, exchange, loading, error } }
   const [vehicleVals, setVehicleVals] = useState({}); // { [assetId]: { estimated_value, make, year, loading, error } }
   const [fieldErrors, setFieldErrors] = useState({});
+  const [formQuote, setFormQuote] = useState(null); // { loading, name, price_gbp, exchange, error }
   const editingAssetIdRef = useRef(null); // tracks which asset is open in edit modal
   const [fundModalVisible, setFundModalVisible] = useState(false);
   const [fundModalAsset, setFundModalAsset] = useState(null);
@@ -182,6 +183,23 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
     }
   };
 
+  const fetchFormQuote = async (ticker) => {
+    const t = ticker.trim().toUpperCase();
+    if (!t) return;
+    setFormQuote({ loading: true });
+    try {
+      const { data } = await getStockQuote(t);
+      setFormQuote({ name: data.name, price_gbp: data.price_gbp, exchange: data.exchange, loading: false });
+      setForm(prev => {
+        const qty = parseFloat(prev.metadata.quantity);
+        if (qty > 0) return { ...prev, value: String((data.price_gbp * qty).toFixed(2)) };
+        return prev;
+      });
+    } catch {
+      setFormQuote({ loading: false, error: true });
+    }
+  };
+
   const fetchVehicleValuation = async (assetId, reg, purchase_price, purchase_date) => {
     setVehicleVals(prev => ({ ...prev, [assetId]: { loading: true } }));
     try {
@@ -227,6 +245,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
     setForm(EMPTY_FORM);
     setFieldErrors({});
     setPendingFile(null);
+    setFormQuote(null);
   };
 
   const pickDocument = async () => {
@@ -932,11 +951,20 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
                 <TextInput
                   style={styles.input}
                   value={form.metadata.ticker_symbol || ''}
-                  onChangeText={(v) => setMeta('ticker_symbol', v.toUpperCase())}
+                  onChangeText={(v) => { setMeta('ticker_symbol', v.toUpperCase()); setFormQuote(null); }}
+                  onEndEditing={(e) => { if (e.nativeEvent.text.trim()) fetchFormQuote(e.nativeEvent.text); }}
                   placeholder="e.g. VWRL.L (LSE) or AAPL (US)"
                   placeholderTextColor={colors.placeholder}
                   autoCapitalize="characters"
                 />
+                {formQuote?.loading && <Text style={styles.quoteStatus}>Looking up price…</Text>}
+                {formQuote && !formQuote.loading && !formQuote.error && (
+                  <Text style={styles.quoteStatus}>
+                    {formQuote.name} · £{formQuote.price_gbp?.toFixed(4)} · {formQuote.exchange}
+                    {form.metadata.quantity > 0 ? ` · Value auto-filled` : ''}
+                  </Text>
+                )}
+                {formQuote?.error && <Text style={[styles.quoteStatus, { color: colors.error || '#ef4444' }]}>Ticker not found — check the symbol</Text>}
                 <Text style={styles.label}>Quantity / Units</Text>
                 <TextInput
                   style={styles.input}
@@ -1467,6 +1495,7 @@ const makeStyles = (colors) => StyleSheet.create({
   fundAllocLegend: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 12 },
   fundAllocLegendText: { fontSize: 12, color: colors.textSecondary },
   fundDescription: { fontSize: 13, color: colors.textSecondary, lineHeight: 19, marginBottom: 8 },
+  quoteStatus: { fontSize: 12, color: colors.primary, marginTop: 4, marginBottom: 4 },
   fundConfidence: { fontSize: 11, color: colors.textTertiary, fontStyle: 'italic', marginBottom: 16 },
 searchRow: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.surfaceAlt },
   searchInput: { backgroundColor: colors.surfaceAlt, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: colors.text },
