@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   RefreshControl, ActivityIndicator, Alert, Modal,
@@ -34,7 +34,7 @@ const SORT_OPTIONS = [
   { key: 'type',        label: 'Type' },
 ];
 
-export default function LiabilitiesScreen() {
+export default function LiabilitiesScreen({ route }) {
   const { colors } = useTheme();
   const [liabilities, setLiabilities] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -48,6 +48,11 @@ export default function LiabilitiesScreen() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [fieldErrors, setFieldErrors] = useState({});
   const [detailLiability, setDetailLiability] = useState(null);
+  const [typeFilter, setTypeFilter] = useState(route?.params?.filterType || null);
+
+  useEffect(() => {
+    setTypeFilter(route?.params?.filterType || null);
+  }, [route?.params?.filterType]);
 
   const load = async () => {
     setLoading(true);
@@ -181,8 +186,11 @@ export default function LiabilitiesScreen() {
 
   const totalAmount = liabilities.reduce((sum, l) => sum + parseFloat(l.amount || 0), 0);
 
+  const LIABILITY_TYPE_LABELS = { short_term: 'Short-Term', long_term: 'Long-Term' };
+
   const filteredLiabilities = liabilities
     .filter(l => {
+      if (typeFilter && l.liability_type !== typeFilter) return false;
       const q = searchQuery.toLowerCase();
       return !q || l.name?.toLowerCase().includes(q) || l.liability_type?.toLowerCase().includes(q);
     })
@@ -242,6 +250,17 @@ export default function LiabilitiesScreen() {
             ))}
           </View>
         </>
+      )}
+
+      {typeFilter && (
+        <View style={{ flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 8, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <View style={[styles.sortChipActive, { flexDirection: 'row', alignItems: 'center' }]}>
+            <Text style={[styles.sortChipTextActive, { fontSize: 13, marginRight: 6 }]}>{LIABILITY_TYPE_LABELS[typeFilter] || typeFilter}</Text>
+            <TouchableOpacity onPress={() => setTypeFilter(null)} hitSlop={8}>
+              <Text style={[styles.sortChipTextActive, { fontSize: 18, lineHeight: 20 }]}>×</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       )}
 
       <FlatList

@@ -191,6 +191,7 @@ export default function DashboardScreen() {
     other: 'Other Assets',
   };
   const donutSegments = Object.entries(data?.assetsByType || {}).map(([type, value]) => ({
+    type,
     label: ASSET_LABELS[type] || fmtLabel(type),
     value: parseFloat(value) || 0,
     color: ASSET_COLORS[type] || '#9ca3af',
@@ -334,7 +335,7 @@ export default function DashboardScreen() {
               const pct = rawPct < 1 ? '<1' : Math.round(rawPct);
               const barWidth = (seg.value / maxVal) * 100;
               return (
-                <View key={i} style={{ marginBottom: 14 }}>
+                <TouchableOpacity key={i} style={{ marginBottom: 14 }} onPress={() => navigation.navigate('Assets', { filterType: seg.type })} activeOpacity={0.7}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: seg.color, marginRight: 7 }} />
@@ -350,7 +351,7 @@ export default function DashboardScreen() {
                   <View style={{ height: 8, backgroundColor: colors.surfaceAlt, borderRadius: 4 }}>
                     <View style={{ height: 8, width: `${barWidth}%`, backgroundColor: seg.color, borderRadius: 4 }} />
                   </View>
-                </View>
+                </TouchableOpacity>
               );
             })}
           </View>
@@ -442,7 +443,7 @@ export default function DashboardScreen() {
               const color = LIABILITY_COLORS[type] || '#9ca3af';
               const label = LIABILITY_LABELS[type] || fmtLabel(type);
               return (
-                <View key={type} style={{ marginBottom: 14 }}>
+                <TouchableOpacity key={type} style={{ marginBottom: 14 }} onPress={() => navigation.navigate('Liabilities', { filterType: type })} activeOpacity={0.7}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: color, marginRight: 7 }} />
@@ -458,7 +459,7 @@ export default function DashboardScreen() {
                   <View style={{ height: 8, backgroundColor: colors.surfaceAlt, borderRadius: 4 }}>
                     <View style={{ height: 8, width: `${barWidth}%`, backgroundColor: color, borderRadius: 4 }} />
                   </View>
-                </View>
+                </TouchableOpacity>
               );
             })}
           </View>
@@ -475,7 +476,7 @@ export default function DashboardScreen() {
               const barColor = isGain ? '#16a34a' : '#ef4444';
               const barWidth = (Math.abs(item.pct) / maxAbsPct) * 100;
               return (
-                <View key={item.id} style={styles.perfRow}>
+                <TouchableOpacity key={item.id} style={styles.perfRow} onPress={() => navigation.navigate('Assets')} activeOpacity={0.7}>
                   <View style={styles.perfLabelRow}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                       <View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: PERF_COLORS[item.type] || '#9ca3af', marginRight: 6 }} />
@@ -489,7 +490,7 @@ export default function DashboardScreen() {
                   <View style={styles.perfBarBg}>
                     <View style={[styles.perfBar, { width: `${barWidth}%`, backgroundColor: barColor }]} />
                   </View>
-                </View>
+                </TouchableOpacity>
               );
             })}
           </View>

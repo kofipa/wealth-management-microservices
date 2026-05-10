@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   RefreshControl, ActivityIndicator, Alert, Modal,
@@ -19,7 +19,7 @@ const ASSET_TYPES = ['cash', 'investment', 'property', 'pension', 'vehicle', 'in
 
 const EMPTY_FORM = { name: '', type: 'cash', value: '', description: '', metadata: {} };
 
-export default function AssetsScreen() {
+export default function AssetsScreen({ route }) {
   const [assets, setAssets] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('value_desc');
@@ -44,6 +44,11 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
   const [fundModalLoading, setFundModalLoading] = useState(false);
   const [fundModalResult, setFundModalResult] = useState(null);
   const [fundModalError, setFundModalError] = useState('');
+  const [typeFilter, setTypeFilter] = useState(route?.params?.filterType || null);
+
+  useEffect(() => {
+    setTypeFilter(route?.params?.filterType || null);
+  }, [route?.params?.filterType]);
 
   const { colors } = useTheme();
   const styles = makeStyles(colors);
@@ -610,8 +615,14 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
 
   const totalValue = assets.reduce((sum, a) => sum + parseFloat(a.value || 0), 0);
 
+  const ASSET_TYPE_LABELS = { cash: 'Cash & Savings', investment: 'Investments', property: 'Property', pension: 'Pensions', vehicle: 'Vehicles', insurance: 'Insurance', other: 'Other Assets' };
+
   const filteredAssets = assets
     .filter(a => {
+      if (typeFilter) {
+        const aType = a.metadata?.original_type || a.asset_type;
+        if (aType !== typeFilter && a.asset_type !== typeFilter) return false;
+      }
       const q = searchQuery.toLowerCase();
       return !q || a.name?.toLowerCase().includes(q) || a.asset_type?.toLowerCase().includes(q);
     })
@@ -712,6 +723,17 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
           </TouchableOpacity>
         ))}
       </View>
+      )}
+
+      {typeFilter && (
+        <View style={{ flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 8, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <View style={[styles.sortChipActive, { flexDirection: 'row', alignItems: 'center' }]}>
+            <Text style={[styles.sortChipTextActive, { fontSize: 13, marginRight: 6 }]}>{ASSET_TYPE_LABELS[typeFilter] || typeFilter}</Text>
+            <TouchableOpacity onPress={() => setTypeFilter(null)} hitSlop={8}>
+              <Text style={[styles.sortChipTextActive, { fontSize: 18, lineHeight: 20 }]}>×</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       )}
 
       <FlatList
