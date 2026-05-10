@@ -77,6 +77,7 @@ export default function DocumentsScreen() {
   const [activeFilter, setActiveFilter] = useState('all');
 
   // Upload modal
+  const [detailDocument, setDetailDocument] = useState(null);
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
   const [uploadCategory, setUploadCategory] = useState('other');
   const [uploadDescription, setUploadDescription] = useState('');
@@ -323,7 +324,7 @@ export default function DocumentsScreen() {
               <View style={styles.itemIcon}>
                 <Text style={styles.fileIcon}>{getFileIcon(item.original_name || item.filename)}</Text>
               </View>
-              <View style={styles.itemLeft}>
+              <TouchableOpacity style={styles.itemLeft} onPress={() => setDetailDocument(item)} activeOpacity={0.7}>
                 <Text style={styles.itemName} numberOfLines={1}>{item.original_name || item.filename}</Text>
                 <View style={styles.badgeRow}>
                   <View style={[styles.catBadge, { backgroundColor: cat.color + '18', borderColor: cat.color + '40' }]}>
@@ -345,7 +346,7 @@ export default function DocumentsScreen() {
                   {formatDate(item.created_at)}{item.file_size ? ` · ${formatSize(item.file_size)}` : ''}
                   {item.expiry_date ? ` · Expires ${formatDate(item.expiry_date)}` : ''}
                 </Text>
-              </View>
+              </TouchableOpacity>
               <View style={styles.actions}>
                 <TouchableOpacity onPress={() => handleView(item)} style={styles.viewBtn}>
                   <Text style={styles.viewText}>View</Text>
@@ -461,6 +462,61 @@ export default function DocumentsScreen() {
           )}
         </SafeAreaView>
       </Modal>
+
+      {/* ── Document Detail Modal ── */}
+      <Modal visible={!!detailDocument} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setDetailDocument(null)}>
+        <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
+          {detailDocument && (() => {
+            const cat = getCat(detailDocument.category);
+            const expiryStatus = getExpiryStatus(detailDocument);
+            const rows = [];
+            const row = (label, value) => value != null && value !== '' && rows.push({ label, value });
+            row('Category', `${cat.emoji} ${cat.label}`);
+            row('File Size', detailDocument.file_size ? formatSize(detailDocument.file_size) : null);
+            row('Uploaded', formatDate(detailDocument.created_at));
+            row('Expires', detailDocument.expiry_date ? formatDate(detailDocument.expiry_date) : null);
+            row('Description', detailDocument.description);
+            return (
+              <>
+                <View style={styles.modalHeader}>
+                  <View style={{ flex: 1, marginRight: 12 }}>
+                    <Text style={styles.docDetailIcon}>{getFileIcon(detailDocument.original_name || detailDocument.filename)}</Text>
+                    <Text style={styles.modalTitle} numberOfLines={2}>{detailDocument.original_name || detailDocument.filename}</Text>
+                    {(expiryStatus === 'expired' || expiryStatus === 'soon') && (
+                      <View style={expiryStatus === 'expired' ? styles.expiredBadge : styles.expiringSoonBadge}>
+                        <Text style={expiryStatus === 'expired' ? styles.expiredBadgeText : styles.expiringSoonBadgeText}>
+                          {expiryStatus === 'expired' ? 'Expired' : 'Expiring soon'}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <TouchableOpacity onPress={() => setDetailDocument(null)}>
+                    <Text style={styles.modalClose}>Close</Text>
+                  </TouchableOpacity>
+                </View>
+                {rows.map(({ label, value }) => (
+                  <View key={label} style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>{label}</Text>
+                    <Text style={styles.detailValue}>{value}</Text>
+                  </View>
+                ))}
+                <TouchableOpacity
+                  style={[styles.viewBtnLarge, { marginTop: 24 }]}
+                  onPress={() => { setDetailDocument(null); handleView(detailDocument); }}
+                >
+                  <Text style={styles.viewBtnLargeText}>View Document</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.deleteBtnLarge, { marginTop: 12 }]}
+                  onPress={() => { setDetailDocument(null); handleDelete(detailDocument.id, detailDocument.original_name || detailDocument.filename); }}
+                >
+                  <Text style={styles.deleteBtnLargeText}>Delete Document</Text>
+                </TouchableOpacity>
+              </>
+            );
+          })()}
+        </ScrollView>
+      </Modal>
     </View>
   );
 }
@@ -519,6 +575,14 @@ const makeStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.dangerLight, borderWidth: 1, borderColor: colors.danger,
   },
   deleteText: { fontSize: 13, color: colors.danger, fontWeight: '500' },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.surfaceAlt },
+  detailLabel: { fontSize: 14, color: colors.textSecondary, flex: 1 },
+  detailValue: { fontSize: 14, color: colors.text, fontWeight: '500', flex: 1, textAlign: 'right' },
+  docDetailIcon: { fontSize: 36, marginBottom: 8 },
+  viewBtnLarge: { backgroundColor: colors.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  viewBtnLargeText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  deleteBtnLarge: { backgroundColor: colors.dangerLight, borderRadius: 12, paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: colors.danger },
+  deleteBtnLargeText: { color: colors.danger, fontSize: 16, fontWeight: '600' },
 
   // Upload modal
   modal: { flex: 1, backgroundColor: colors.background },
