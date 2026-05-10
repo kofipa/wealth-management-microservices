@@ -110,6 +110,14 @@ function AppNavigatorStack({ navigationRef }) {
   const bgTimestamp = useRef(null);
 
   useEffect(() => {
+    SecureStore.getItemAsync('onboardingDone').then(done => {
+      if (!done && navigationRef.current?.isReady()) {
+        navigationRef.current.navigate('Onboarding');
+      }
+    });
+  }, []);
+
+  useEffect(() => {
     const handleAppStateChange = async (nextState) => {
       if (nextState === 'background' || nextState === 'inactive') {
         bgTimestamp.current = Date.now();
@@ -221,13 +229,6 @@ export default function AppNavigator() {
   const { colors } = useTheme();
   const navigationRef = useRef(null);
 
-  const handleNavigationReady = async () => {
-    const done = await SecureStore.getItemAsync('onboardingDone');
-    if (!done && navigationRef.current) {
-      navigationRef.current.navigate('Onboarding');
-    }
-  };
-
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
@@ -237,7 +238,7 @@ export default function AppNavigator() {
   }
 
   return (
-    <NavigationContainer ref={navigationRef} onReady={token ? handleNavigationReady : undefined}>
+    <NavigationContainer ref={navigationRef}>
       {token ? <AppNavigatorStack navigationRef={navigationRef} /> : <AuthNavigatorStack />}
     </NavigationContainer>
   );
