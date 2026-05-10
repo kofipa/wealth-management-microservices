@@ -417,7 +417,7 @@ export default function LiabilitiesScreen() {
           >
             <Text style={styles.saveBtnText}>Edit Liability</Text>
           </TouchableOpacity>
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </Modal>
     </View>
   );

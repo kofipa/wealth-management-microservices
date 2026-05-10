@@ -1586,7 +1586,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
           >
             <Text style={styles.saveBtnText}>Edit Asset</Text>
           </TouchableOpacity>
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </Modal>
 
     </View>
