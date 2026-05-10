@@ -1,3 +1,5 @@
+process.env.JWT_SECRET = 'your-secret-key';
+
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
 
@@ -45,18 +47,19 @@ describe('authenticateToken', () => {
 });
 
 describe('GET /api/services', () => {
-  it('returns all 5 registered services', async () => {
+  it('returns all 6 registered services', async () => {
     const res = await request(app)
       .get('/api/services')
       .set('Authorization', `Bearer ${TEST_TOKEN}`);
     expect(res.status).toBe(200);
-    expect(res.body.services).toHaveLength(5);
+    expect(res.body.services).toHaveLength(6);
     const names = res.body.services.map(s => s.name);
     expect(names).toContain('user-service');
     expect(names).toContain('asset-service');
     expect(names).toContain('liability-service');
     expect(names).toContain('networth-service');
     expect(names).toContain('document-service');
+    expect(names).toContain('openbanking-service');
   });
 
   it('each service has name, port, url and description', async () => {
@@ -79,7 +82,7 @@ describe('GET /api/services/health', () => {
       .get('/api/services/health')
       .set('Authorization', `Bearer ${TEST_TOKEN}`);
     expect(res.status).toBe(200);
-    expect(res.body.services).toHaveLength(5);
+    expect(res.body.services).toHaveLength(6);
     for (const service of res.body.services) {
       expect(service.status).toBe('up');
     }
