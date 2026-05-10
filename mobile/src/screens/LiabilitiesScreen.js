@@ -46,6 +46,7 @@ export default function LiabilitiesScreen() {
   const [pendingFile, setPendingFile] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [detailLiability, setDetailLiability] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -263,7 +264,7 @@ export default function LiabilitiesScreen() {
         }
         renderItem={({ item }) => (
           <View style={styles.item}>
-            <View style={styles.itemTop}>
+            <TouchableOpacity style={styles.itemTop} onPress={() => setDetailLiability(item)} activeOpacity={0.7}>
               <View style={styles.itemLeft}>
                 <Text style={styles.itemName}>{item.name}</Text>
                 <Text style={styles.itemType}>{fmtType(item.liability_type)}</Text>
@@ -274,7 +275,7 @@ export default function LiabilitiesScreen() {
                 {item.description ? <Text style={styles.itemMeta}>{item.description}</Text> : null}
               </View>
               <Text style={styles.itemAmount}>{fmt(item.amount)}</Text>
-            </View>
+            </TouchableOpacity>
             <View style={styles.itemActions}>
               <TouchableOpacity style={styles.editBtn} onPress={() => openEditModal(item)}>
                 <Text style={styles.editBtnText}>Edit</Text>
@@ -386,6 +387,39 @@ export default function LiabilitiesScreen() {
           </ScrollView>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* ── Liability Detail Modal ── */}
+      <Modal visible={!!detailLiability} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setDetailLiability(null)}>
+        <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{detailLiability?.name}</Text>
+            <TouchableOpacity onPress={() => setDetailLiability(null)}>
+              <Text style={styles.modalClose}>Close</Text>
+            </TouchableOpacity>
+          </View>
+          {detailLiability && (() => {
+            const rows = [];
+            const row = (label, value) => value != null && value !== '' && rows.push({ label, value: String(value) });
+            row('Type', fmtType(detailLiability.liability_type));
+            row('Amount', fmt(detailLiability.amount));
+            row('Interest Rate', detailLiability.interest_rate ? `${detailLiability.interest_rate}%` : null);
+            row('Due Date', detailLiability.due_date ? String(detailLiability.due_date).split('T')[0] : null);
+            row('Description', detailLiability.description);
+            return rows.map(({ label, value }) => (
+              <View key={label} style={styles.detailRow}>
+                <Text style={styles.detailLabel}>{label}</Text>
+                <Text style={styles.detailValue}>{value}</Text>
+              </View>
+            ));
+          })()}
+          <TouchableOpacity
+            style={[styles.saveBtn, { marginTop: 24 }]}
+            onPress={() => { setDetailLiability(null); openEditModal(detailLiability); }}
+          >
+            <Text style={styles.saveBtnText}>Edit Liability</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </Modal>
     </View>
   );
 }
@@ -413,6 +447,9 @@ const makeStyles = (colors) => StyleSheet.create({
   itemName: { fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 2 },
   itemType: { fontSize: 12, color: colors.textSecondary, marginBottom: 2 },
   itemMeta: { fontSize: 12, color: colors.textTertiary },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.surfaceAlt },
+  detailLabel: { fontSize: 14, color: colors.textSecondary, flex: 1 },
+  detailValue: { fontSize: 14, color: colors.text, fontWeight: '500', flex: 1, textAlign: 'right' },
   itemAmount: { fontSize: 16, fontWeight: '700', color: colors.danger },
   itemActions: { flexDirection: 'row', gap: 8, marginTop: 4 },
   editBtn: {

@@ -35,6 +35,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
   const [fieldErrors, setFieldErrors] = useState({});
   const [formQuote, setFormQuote] = useState(null); // { loading, name, price_gbp, exchange, error }
   const [formFundAnalysis, setFormFundAnalysis] = useState(null); // { loading, result, error }
+  const [detailAsset, setDetailAsset] = useState(null);
   const editingAssetIdRef = useRef(null); // tracks which asset is open in edit modal
   const [fundModalVisible, setFundModalVisible] = useState(false);
   const [fundModalAsset, setFundModalAsset] = useState(null);
@@ -733,7 +734,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
         }
         renderItem={({ item }) => (
           <View style={styles.item}>
-            <View style={styles.itemLeft}>
+            <TouchableOpacity style={styles.itemLeft} onPress={() => setDetailAsset(item)} activeOpacity={0.7}>
               <Text style={styles.itemName}>{item.name}</Text>
               <Text style={styles.itemType}>{item.metadata?.original_type || item.asset_type}</Text>
               {getMetaSummary(item)}
@@ -827,7 +828,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
                 </View>
               )}
               {item.description ? <Text style={styles.itemDesc}>{item.description}</Text> : null}
-            </View>
+            </TouchableOpacity>
             <View style={styles.itemRight}>
               <Text style={styles.itemValue}>{fmt(item.value)}</Text>
               <View style={styles.itemActions}>
@@ -1509,6 +1510,88 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
           </ScrollView>
         </KeyboardAvoidingView>
       </Modal>
+      {/* ── Asset Detail Modal ── */}
+      <Modal visible={!!detailAsset} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setDetailAsset(null)}>
+        <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{detailAsset?.name}</Text>
+            <TouchableOpacity onPress={() => setDetailAsset(null)}>
+              <Text style={styles.modalClose}>Close</Text>
+            </TouchableOpacity>
+          </View>
+          {detailAsset && (() => {
+            const m = detailAsset.metadata || {};
+            const type = m.original_type || detailAsset.asset_type;
+            const rows = [];
+            const row = (label, value) => value != null && value !== '' && rows.push({ label, value: String(value) });
+
+            row('Type', type.charAt(0).toUpperCase() + type.slice(1));
+            row('Value', fmt(detailAsset.value));
+            if (detailAsset.description) row('Description', detailAsset.description);
+
+            if (type === 'cash') {
+              row('Institution', m.institution);
+              row('Account Type', m.account_type);
+              row('Interest Rate', m.interest_rate ? `${m.interest_rate}%` : null);
+            } else if (type === 'investment') {
+              row('Platform', m.platform);
+              row('Investment Type', Array.isArray(m.investment_type) ? m.investment_type.join(', ') : m.investment_type);
+              row('Ticker Symbol', m.ticker_symbol);
+              row('Quantity', m.quantity);
+              row('Purchase Price/Unit', m.purchase_price ? fmt(m.purchase_price) : null);
+              row('Purchase Date', m.purchase_date ? String(m.purchase_date).split('T')[0] : null);
+              row('Fund Name', m.fund_name);
+              row('Fund Category', m.fund_category);
+              if (m.fund_equity_pct > 0 || m.fund_bond_pct > 0) {
+                row('Allocation', [m.fund_equity_pct && `Equity ${m.fund_equity_pct}%`, m.fund_bond_pct && `Bonds ${m.fund_bond_pct}%`, m.fund_other_pct && `Other ${m.fund_other_pct}%`].filter(Boolean).join(' · '));
+              }
+            } else if (type === 'property') {
+              row('Address', m.address);
+              row('Property Type', m.property_type);
+              row('Purchase Price', m.purchase_price ? fmt(m.purchase_price) : null);
+              row('Purchase Date', m.purchase_date ? String(m.purchase_date).split('T')[0] : null);
+              row('Mortgage', m.has_mortgage ? `Yes — £${m.mortgage_balance} balance` : 'No');
+            } else if (type === 'pension') {
+              row('Provider', m.provider);
+              row('Pension Type', Array.isArray(m.pension_type) ? m.pension_type.join(', ') : m.pension_type);
+              row('Contribution Type', m.contribution_type);
+              row('Employee Contribution', m.employee_contribution ? `${m.employee_contribution}%` : null);
+              row('Employer Contribution', m.employer_contribution ? `${m.employer_contribution}%` : null);
+              row('Policy Number', m.policy_number);
+              row('Fund Name', m.fund_name);
+              row('Fund Category', m.fund_category);
+            } else if (type === 'vehicle') {
+              row('Category', m.category);
+              row('Registration', m.reg_plate);
+              row('Purchase Price', m.purchase_price ? fmt(m.purchase_price) : null);
+              row('Purchase Date', m.purchase_date ? String(m.purchase_date).split('T')[0] : null);
+              row('Finance', m.has_finance ? `Yes — £${m.finance_balance} balance` : 'No');
+            } else if (type === 'insurance') {
+              row('Insurer', m.insurer);
+              row('Policy Type', Array.isArray(m.policy_type) ? m.policy_type.join(', ') : m.policy_type);
+              row('Policy Number', m.policy_number);
+              row('Premium', m.premium ? `${fmt(m.premium)} ${m.premium_frequency || 'monthly'}` : null);
+              row('Coverage', m.coverage_amount ? fmt(m.coverage_amount) : null);
+            } else {
+              row('Category', m.category);
+            }
+
+            return rows.map(({ label, value }) => (
+              <View key={label} style={styles.detailRow}>
+                <Text style={styles.detailLabel}>{label}</Text>
+                <Text style={styles.detailValue}>{value}</Text>
+              </View>
+            ));
+          })()}
+          <TouchableOpacity
+            style={[styles.saveBtn, { marginTop: 24 }]}
+            onPress={() => { setDetailAsset(null); openEditModal(detailAsset); }}
+          >
+            <Text style={styles.saveBtnText}>Edit Asset</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </Modal>
+
     </View>
   );
 }
@@ -1578,6 +1661,9 @@ const makeStyles = (colors) => StyleSheet.create({
   fundAllocLegendText: { fontSize: 12, color: colors.textSecondary },
   fundDescription: { fontSize: 13, color: colors.textSecondary, lineHeight: 19, marginBottom: 8 },
   quoteStatus: { fontSize: 12, color: colors.primary, marginTop: 4, marginBottom: 4 },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.surfaceAlt },
+  detailLabel: { fontSize: 14, color: colors.textSecondary, flex: 1 },
+  detailValue: { fontSize: 14, color: colors.text, fontWeight: '500', flex: 1, textAlign: 'right' },
   fundConfidence: { fontSize: 11, color: colors.textTertiary, fontStyle: 'italic', marginBottom: 16 },
 searchRow: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.surfaceAlt },
   searchInput: { backgroundColor: colors.surfaceAlt, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: colors.text },
