@@ -516,7 +516,7 @@ export default function DocumentsScreen() {
               </>
             );
           })()}
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </Modal>
     </View>
   );
