@@ -162,13 +162,13 @@ export default function DashboardScreen() {
   const liabilitiesByType = data?.liabilitiesByType ? Object.entries(data.liabilitiesByType) : [];
 
   const historyValues = history.map(h => parseFloat(h.net_worth));
-  const monthlyChange = history.length >= 1
+  const monthlyChange = history.length >= 2
     ? parseFloat(netWorth) - historyValues[0]
     : null;
-  const assetsTrend = history.length >= 1
+  const assetsTrend = history.length >= 2
     ? parseFloat(totalAssets) - parseFloat(history[0].total_assets)
     : null;
-  const liabsTrend = history.length >= 1
+  const liabsTrend = history.length >= 2
     ? parseFloat(totalLiabilities) - parseFloat(history[0].total_liabilities)
     : null;
 

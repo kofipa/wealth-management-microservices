@@ -355,7 +355,10 @@ export default function ProfileScreen() {
           </Text>
         ) : null}
         {profile?.date_of_birth && (() => {
-          const age = Math.floor((new Date() - new Date(profile.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000));
+          const [y, m, d] = profile.date_of_birth.split('-').map(Number);
+          const today = new Date();
+          let age = today.getFullYear() - y;
+          if (today.getMonth() + 1 < m || (today.getMonth() + 1 === m && today.getDate() < d)) age--;
           return <Text style={styles.dobText}>Age {age}</Text>;
         })()}
         <TouchableOpacity
