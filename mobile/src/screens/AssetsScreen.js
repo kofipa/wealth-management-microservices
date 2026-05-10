@@ -34,6 +34,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
   const [vehicleVals, setVehicleVals] = useState({}); // { [assetId]: { estimated_value, make, year, loading, error } }
   const [fieldErrors, setFieldErrors] = useState({});
   const [formQuote, setFormQuote] = useState(null); // { loading, name, price_gbp, exchange, error }
+  const [formFundAnalysis, setFormFundAnalysis] = useState(null); // { loading, result, error }
   const editingAssetIdRef = useRef(null); // tracks which asset is open in edit modal
   const [fundModalVisible, setFundModalVisible] = useState(false);
   const [fundModalAsset, setFundModalAsset] = useState(null);
@@ -204,6 +205,32 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
     }
   };
 
+  const runFormFundAnalysis = async () => {
+    const name = (form.metadata.fund_name || '').trim();
+    if (!name) return;
+    setFormFundAnalysis({ loading: true });
+    try {
+      const { data } = await getFundInfo(name);
+      setFormFundAnalysis({ loading: false, result: data });
+      setForm(prev => ({
+        ...prev,
+        metadata: {
+          ...prev.metadata,
+          fund_category: data.risk_category,
+          fund_equity_pct: data.equity_pct,
+          fund_bond_pct: data.bond_pct,
+          fund_other_pct: data.other_pct,
+          fund_type: data.fund_type,
+          fund_description: data.description,
+          fund_confidence: data.confidence,
+          fund_analysed_at: data.analysed_at || new Date().toISOString(),
+        },
+      }));
+    } catch {
+      setFormFundAnalysis({ loading: false, error: 'Could not analyse fund — check the name and try again' });
+    }
+  };
+
   const fetchVehicleValuation = async (assetId, reg, purchase_price, purchase_date) => {
     setVehicleVals(prev => ({ ...prev, [assetId]: { loading: true } }));
     try {
@@ -226,6 +253,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
     setEditingAsset(null);
     setForm(EMPTY_FORM);
     setFieldErrors({});
+    setFormFundAnalysis(null);
     setModalVisible(true);
   };
 
@@ -239,6 +267,18 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
       description: asset.description || '',
       metadata: asset.metadata || {},
     });
+    setFormFundAnalysis(asset.metadata?.fund_category ? {
+      loading: false,
+      result: {
+        risk_category: asset.metadata.fund_category,
+        equity_pct: asset.metadata.fund_equity_pct || 0,
+        bond_pct: asset.metadata.fund_bond_pct || 0,
+        other_pct: asset.metadata.fund_other_pct || 0,
+        fund_type: asset.metadata.fund_type || '',
+        description: asset.metadata.fund_description || '',
+        confidence: asset.metadata.fund_confidence || 'medium',
+      },
+    } : null);
     setModalVisible(true);
   };
 
@@ -250,6 +290,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
     setFieldErrors({});
     setPendingFile(null);
     setFormQuote(null);
+    setFormFundAnalysis(null);
   };
 
   const pickDocument = async () => {
@@ -590,6 +631,41 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
   }
+
+  const FundAnalysisInline = (
+    <>
+      {form.metadata.fund_name?.trim() ? (
+        <TouchableOpacity
+          style={[styles.saveBtn, { marginTop: 8, marginBottom: 4, opacity: formFundAnalysis?.loading ? 0.5 : 1 }]}
+          onPress={runFormFundAnalysis}
+          disabled={!!formFundAnalysis?.loading}
+        >
+          <Text style={styles.saveBtnText}>{formFundAnalysis?.loading ? 'Analysing…' : formFundAnalysis?.result ? 'Re-analyse Fund' : 'Analyse Fund'}</Text>
+        </TouchableOpacity>
+      ) : null}
+      {formFundAnalysis?.error && <Text style={[styles.quoteStatus, { color: colors.error || '#ef4444' }]}>{formFundAnalysis.error}</Text>}
+      {formFundAnalysis?.result && (
+        <View style={styles.fundResultCard}>
+          <View style={[styles.fundRiskBadge, { backgroundColor: RISK_COLORS[formFundAnalysis.result.risk_category] || '#9ca3af' }]}>
+            <Text style={styles.fundRiskText}>{formFundAnalysis.result.risk_category}</Text>
+          </View>
+          {formFundAnalysis.result.fund_type ? <Text style={styles.fundType}>{formFundAnalysis.result.fund_type}</Text> : null}
+          <View style={styles.fundAllocBar}>
+            {formFundAnalysis.result.equity_pct > 0 && <View style={{ flex: formFundAnalysis.result.equity_pct, backgroundColor: '#7c3aed' }} />}
+            {formFundAnalysis.result.bond_pct > 0 && <View style={{ flex: formFundAnalysis.result.bond_pct, backgroundColor: '#2563eb' }} />}
+            {formFundAnalysis.result.other_pct > 0 && <View style={{ flex: formFundAnalysis.result.other_pct, backgroundColor: '#9ca3af' }} />}
+          </View>
+          <View style={styles.fundAllocLegend}>
+            {formFundAnalysis.result.equity_pct > 0 && <Text style={styles.fundAllocLegendText}><Text style={{ color: '#7c3aed' }}>■</Text> Equity {formFundAnalysis.result.equity_pct}%</Text>}
+            {formFundAnalysis.result.bond_pct > 0 && <Text style={styles.fundAllocLegendText}><Text style={{ color: '#2563eb' }}>■</Text> Bonds {formFundAnalysis.result.bond_pct}%</Text>}
+            {formFundAnalysis.result.other_pct > 0 && <Text style={styles.fundAllocLegendText}><Text style={{ color: '#9ca3af' }}>■</Text> Other {formFundAnalysis.result.other_pct}%</Text>}
+          </View>
+          {formFundAnalysis.result.description ? <Text style={styles.fundDescription}>{formFundAnalysis.result.description}</Text> : null}
+          <Text style={styles.fundConfidence}>Confidence: {formFundAnalysis.result.confidence}</Text>
+        </View>
+      )}
+    </>
+  );
 
   return (
     <View style={styles.container}>
@@ -1000,11 +1076,12 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
                     <TextInput
                       style={styles.input}
                       value={form.metadata.fund_name || ''}
-                      onChangeText={(v) => setMeta('fund_name', v)}
+                      onChangeText={(v) => { setMeta('fund_name', v); setFormFundAnalysis(null); }}
                       placeholder="e.g. Vanguard LifeStrategy 80% Equity"
                       placeholderTextColor={colors.placeholder}
                       autoCapitalize="words"
                     />
+                    {FundAnalysisInline}
                   </>
                 )}
               </>
@@ -1138,11 +1215,12 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
                 <TextInput
                   style={styles.input}
                   value={form.metadata.fund_name || ''}
-                  onChangeText={(v) => setMeta('fund_name', v)}
+                  onChangeText={(v) => { setMeta('fund_name', v); setFormFundAnalysis(null); }}
                   placeholder="e.g. Vanguard LifeStrategy 80% Equity"
                   placeholderTextColor={colors.placeholder}
                   autoCapitalize="words"
                 />
+                {FundAnalysisInline}
                 <Text style={styles.label}>Policy / Reference Number</Text>
                 <TextInput
                   style={styles.input}
