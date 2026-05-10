@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+﻿import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
   TouchableOpacity, ActivityIndicator, Alert,
@@ -31,7 +31,7 @@ const SECURITY_QUESTIONS = [
   "What was the name of your childhood best friend?",
 ];
 
-// Semantic status colours — kept fixed regardless of theme
+// Semantic status colours â€” kept fixed regardless of theme
 const StatusDot = ({ status }) => (
   <View style={{
     width: 8, height: 8, borderRadius: 4,
@@ -350,7 +350,7 @@ export default function ProfileScreen() {
         <Text style={styles.email}>{displayUser?.email || ''}</Text>
         {profile?.phone ? (
           <Text style={styles.dobText}>
-            {profile.phone.replace(/(\d+)(?=\d{4})/, (m) => '•'.repeat(m.length)).replace(/(\d{4})$/, ' $1')}
+            {profile.phone.replace(/(\d+)(?=\d{4})/, (m) => 'â€¢'.repeat(m.length)).replace(/(\d{4})$/, ' $1')}
           </Text>
         ) : null}
         {profile?.date_of_birth && (() => {
@@ -381,14 +381,14 @@ export default function ProfileScreen() {
           onPress={() => { setEmailForm({ newEmail: '', password: '' }); setEmailModalVisible(true); }}
         >
           <Text style={styles.securityRowLabel}>Change Email</Text>
-          <Text style={styles.securityRowChevron}>›</Text>
+          <Text style={styles.securityRowChevron}>â€º</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.securityRow}
           onPress={() => { setPwForm({ current: '', next: '', confirm: '' }); setShowPw({ current: false, next: false, confirm: false }); setPwModalVisible(true); }}
         >
           <Text style={styles.securityRowLabel}>Change Password</Text>
-          <Text style={styles.securityRowChevron}>›</Text>
+          <Text style={styles.securityRowChevron}>â€º</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.securityRow}
@@ -403,10 +403,10 @@ export default function ProfileScreen() {
             {profile?.security_question ? (
               <Text style={styles.securityRowSub} numberOfLines={1}>{profile.security_question}</Text>
             ) : (
-              <Text style={styles.securityRowSubEmpty}>Not set — tap to add</Text>
+              <Text style={styles.securityRowSubEmpty}>Not set â€” tap to add</Text>
             )}
           </View>
-          <Text style={styles.securityRowChevron}>›</Text>
+          <Text style={styles.securityRowChevron}>â€º</Text>
         </TouchableOpacity>
         {biometricAvailable && (
           <View style={styles.securityRow}>
@@ -433,17 +433,17 @@ export default function ProfileScreen() {
         {/* Privacy & Security */}
         <TouchableOpacity style={styles.securityRow} onPress={() => navigation.navigate('PrivacySecurity')}>
           <Text style={styles.securityRowLabel}>Privacy & Security</Text>
-          <Text style={styles.securityRowChevron}>›</Text>
+          <Text style={styles.securityRowChevron}>â€º</Text>
         </TouchableOpacity>
 
         {/* Terms of Service */}
         <TouchableOpacity style={styles.securityRow} onPress={() => navigation.navigate('TermsOfService')}>
           <Text style={styles.securityRowLabel}>Terms of Service</Text>
-          <Text style={styles.securityRowChevron}>›</Text>
+          <Text style={styles.securityRowChevron}>â€º</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Trusted Contacts — hidden when in delegated mode */}
+      {/* Trusted Contacts â€” hidden when in delegated mode */}
       {!isDelegated && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -486,7 +486,7 @@ export default function ProfileScreen() {
         </View>
       )}
 
-      {/* Accounts I can access — hidden when in delegated mode */}
+      {/* Accounts I can access â€” hidden when in delegated mode */}
       {!isDelegated && delegatedAccounts.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Accounts I Can Access</Text>
@@ -499,10 +499,10 @@ export default function ProfileScreen() {
               <View style={styles.delegatedLeft}>
                 <Text style={styles.delegatedEmail}>{acc.owner_name || acc.owner_email}</Text>
                 {acc.access_available ? (
-                  <Text style={styles.accessAvailable}>● Access available</Text>
+                  <Text style={styles.accessAvailable}>â— Access available</Text>
                 ) : (
                   <Text style={styles.accessPending}>
-                    ● {acc.days_remaining} day{acc.days_remaining !== 1 ? 's' : ''} remaining
+                    â— {acc.days_remaining} day{acc.days_remaining !== 1 ? 's' : ''} remaining
                   </Text>
                 )}
               </View>
@@ -532,7 +532,7 @@ export default function ProfileScreen() {
                 <View style={styles.allUpDot} />
               )}
             </View>
-            <Text style={styles.chevron}>{healthExpanded ? '▲' : '▼'}</Text>
+            <Text style={styles.chevron}>{healthExpanded ? 'â–²' : 'â–¼'}</Text>
           </TouchableOpacity>
 
           {healthExpanded && services.map((svc) => (
@@ -566,7 +566,7 @@ export default function ProfileScreen() {
 
       {/* Edit Profile Modal */}
       <Modal visible={editProfileVisible} animationType="slide" presentationStyle="pageSheet">
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit Profile</Text>
@@ -615,7 +615,7 @@ export default function ProfileScreen() {
                   ? new Date(editForm.date_of_birth).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
                   : 'Select date of birth'}
               </Text>
-              <Text style={styles.datePickerIcon}>📅</Text>
+              <Text style={styles.datePickerIcon}>ðŸ“…</Text>
             </TouchableOpacity>
             {showDobPicker && (
               <DateTimePicker
@@ -649,7 +649,7 @@ export default function ProfileScreen() {
 
       {/* Change Password Modal */}
       <Modal visible={pwModalVisible} animationType="slide" presentationStyle="pageSheet">
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Change Password</Text>
@@ -672,7 +672,7 @@ export default function ProfileScreen() {
                 style={styles.pwEye}
                 onPress={() => setShowPw((s) => ({ ...s, current: !s.current }))}
               >
-                <Text style={styles.pwEyeText}>{showPw.current ? '🙈' : '👁️'}</Text>
+                <Text style={styles.pwEyeText}>{showPw.current ? 'ðŸ™ˆ' : 'ðŸ‘ï¸'}</Text>
               </TouchableOpacity>
             </View>
 
@@ -690,7 +690,7 @@ export default function ProfileScreen() {
                 style={styles.pwEye}
                 onPress={() => setShowPw((s) => ({ ...s, next: !s.next }))}
               >
-                <Text style={styles.pwEyeText}>{showPw.next ? '🙈' : '👁️'}</Text>
+                <Text style={styles.pwEyeText}>{showPw.next ? 'ðŸ™ˆ' : 'ðŸ‘ï¸'}</Text>
               </TouchableOpacity>
             </View>
 
@@ -708,7 +708,7 @@ export default function ProfileScreen() {
                 style={styles.pwEye}
                 onPress={() => setShowPw((s) => ({ ...s, confirm: !s.confirm }))}
               >
-                <Text style={styles.pwEyeText}>{showPw.confirm ? '🙈' : '👁️'}</Text>
+                <Text style={styles.pwEyeText}>{showPw.confirm ? 'ðŸ™ˆ' : 'ðŸ‘ï¸'}</Text>
               </TouchableOpacity>
             </View>
 
@@ -721,7 +721,7 @@ export default function ProfileScreen() {
 
       {/* Change Email Modal */}
       <Modal visible={emailModalVisible} animationType="slide" presentationStyle="pageSheet">
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Change Email</Text>
@@ -764,7 +764,7 @@ export default function ProfileScreen() {
 
       {/* Security Question Modal */}
       <Modal visible={sqModalVisible} animationType="slide" presentationStyle="pageSheet">
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Security Question</Text>
@@ -783,9 +783,9 @@ export default function ProfileScreen() {
               onPress={() => setShowQuestionPicker(v => !v)}
             >
               <Text style={sqForm.question ? styles.datePickerText : styles.datePickerPlaceholder} numberOfLines={2}>
-                {sqForm.question || 'Select a question…'}
+                {sqForm.question || 'Select a questionâ€¦'}
               </Text>
-              <Text style={styles.datePickerIcon}>{showQuestionPicker ? '▲' : '▼'}</Text>
+              <Text style={styles.datePickerIcon}>{showQuestionPicker ? 'â–²' : 'â–¼'}</Text>
             </TouchableOpacity>
 
             {showQuestionPicker && (
@@ -825,7 +825,7 @@ export default function ProfileScreen() {
 
       {/* Delete Account Modal */}
       <Modal visible={deleteModalVisible} animationType="slide" presentationStyle="pageSheet">
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.danger }]}>Delete Account</Text>
@@ -866,7 +866,7 @@ export default function ProfileScreen() {
 
       {/* Add Nominee Modal */}
       <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet">
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add Trusted Contact</Text>
@@ -914,12 +914,12 @@ export default function ProfileScreen() {
 
       {/* Edit Nominee Modal */}
       <Modal visible={editNomineeVisible} animationType="slide" presentationStyle="pageSheet">
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit Trusted Contact</Text>
               <TouchableOpacity onPress={() => setEditNomineeVisible(false)}>
-                <Text style={styles.modalClose}>✕</Text>
+                <Text style={styles.modalClose}>âœ•</Text>
               </TouchableOpacity>
             </View>
 
