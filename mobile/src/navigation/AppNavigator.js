@@ -105,6 +105,7 @@ function MainTabs() {
 
 function AppNavigatorStack({ navigationRef }) {
   const { colors } = useTheme();
+  const { logout } = useAuth();
   const [biometricLocked, setBiometricLocked] = useState(false);
   const bgTimestamp = useRef(null);
 
@@ -192,6 +193,12 @@ function AppNavigatorStack({ navigationRef }) {
           >
             <Text style={styles.lockBtnText}>Unlock</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.lockSignOut}
+            onPress={() => { setBiometricLocked(false); logout(); }}
+          >
+            <Text style={styles.lockSignOutText}>Sign out instead</Text>
+          </TouchableOpacity>
         </View>
       </Modal>
     </View>
@@ -255,4 +262,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 48,
   },
   lockBtnText: { color: '#fff', fontSize: 17, fontWeight: '700' },
+  lockSignOut: { marginTop: 20, padding: 8 },
+  lockSignOutText: { color: '#6b7280', fontSize: 14, textDecorationLine: 'underline' },
 });

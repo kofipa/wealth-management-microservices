@@ -117,10 +117,7 @@ export const uploadDocument = async (file, description = '', relatedEntityType =
   form.append('category', category);
   if (expiryDate) form.append('expiry_date', expiryDate);
   return documentClient.post('/api/documents/upload', form, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-      Authorization: `Bearer ${_activeToken}`,
-    },
+    headers: { 'Content-Type': 'multipart/form-data' },
   });
 };
 

@@ -55,7 +55,7 @@ export default function LiabilitiesScreen({ route }) {
   }, [route?.params?.filterType]);
 
   const load = async () => {
-    setLoading(true);
+    if (liabilities.length === 0) setLoading(true);
     try {
       const res = await getLiabilities();
       setLiabilities(res.data.liabilities || []);

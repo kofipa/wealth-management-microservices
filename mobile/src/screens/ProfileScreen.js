@@ -683,7 +683,7 @@ export default function ProfileScreen() {
                 style={styles.pwInput}
                 value={pwForm.next}
                 onChangeText={(v) => setPwForm({ ...pwForm, next: v })}
-                placeholder="At least 8 characters"
+                placeholder="At least 10 characters"
                 placeholderTextColor={colors.placeholder}
                 secureTextEntry={!showPw.next}
               />
