@@ -17,6 +17,7 @@ import * as Sharing from 'expo-sharing';
 import * as SecureStore from 'expo-secure-store';
 import { getDocuments, deleteDocument, uploadDocument } from '../api/client';
 import { BASE_URLS } from '../api/config';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useTheme } from '../context/ThemeContext';
 
 const CATEGORIES = [
@@ -362,8 +363,7 @@ export default function DocumentsScreen() {
 
       {/* â”€â”€ Upload modal â”€â”€ */}
       <Modal visible={uploadModalVisible} animationType="slide" presentationStyle="pageSheet">
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
+                  <KeyboardAwareScrollView style={styles.modal} enableOnAndroid={true} extraScrollHeight={20} contentContainerStyle={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Upload Document</Text>
               <TouchableOpacity onPress={() => setUploadModalVisible(false)}>
@@ -447,8 +447,7 @@ export default function DocumentsScreen() {
             <TouchableOpacity style={styles.sourceBtn} onPress={pickDocument}>
               <Text style={styles.sourceBtnText}>ðŸ“Ž  Browse Files</Text>
             </TouchableOpacity>
-          </ScrollView>
-        </KeyboardAvoidingView>
+          </KeyboardAwareScrollView>
       </Modal>
 
       {/* â”€â”€ Image preview modal â”€â”€ */}
@@ -465,7 +464,7 @@ export default function DocumentsScreen() {
 
       {/* â”€â”€ Document Detail Modal â”€â”€ */}
       <Modal visible={!!detailDocument} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setDetailDocument(null)}>
-        <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
+        <KeyboardAwareScrollView style={styles.modal} enableOnAndroid={true} extraScrollHeight={20} contentContainerStyle={styles.modalContent}>
           {detailDocument && (() => {
             const cat = getCat(detailDocument.category);
             const expiryStatus = getExpiryStatus(detailDocument);

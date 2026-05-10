@@ -9,6 +9,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { getAssets, createAsset, updateAsset, deleteAsset, uploadDocument, getLiabilities, createLiability, updateLiability, deleteLiability, getPropertyValuation, getStockQuote, getVehicleValuation, getFundInfo } from '../api/client';
 import DatePickerField from '../components/DatePickerField';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useTheme } from '../context/ThemeContext';
 
 const fmt = (n) =>
@@ -846,8 +847,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
 
       {/* â”€â”€ Analyse Fund Modal â”€â”€ */}
       <Modal visible={fundModalVisible} animationType="slide" presentationStyle="pageSheet">
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
+                  <KeyboardAwareScrollView style={styles.modal} enableOnAndroid={true} extraScrollHeight={20} contentContainerStyle={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Analyse Fund</Text>
               <TouchableOpacity onPress={() => setFundModalVisible(false)}>
@@ -904,13 +904,11 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
                 </TouchableOpacity>
               </View>
             )}
-          </ScrollView>
-        </KeyboardAvoidingView>
+          </KeyboardAwareScrollView>
       </Modal>
 
       <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet">
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
+                  <KeyboardAwareScrollView style={styles.modal} enableOnAndroid={true} extraScrollHeight={20} contentContainerStyle={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{editingAsset ? 'Edit Asset' : 'Add Asset'}</Text>
               <TouchableOpacity onPress={closeModal}>
@@ -1507,12 +1505,11 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
                 : <Text style={styles.saveBtnText}>{editingAsset ? 'Save Changes' : 'Add Asset'}</Text>
               }
             </TouchableOpacity>
-          </ScrollView>
-        </KeyboardAvoidingView>
+          </KeyboardAwareScrollView>
       </Modal>
       {/* â”€â”€ Asset Detail Modal â”€â”€ */}
       <Modal visible={!!detailAsset} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setDetailAsset(null)}>
-        <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
+        <KeyboardAwareScrollView style={styles.modal} enableOnAndroid={true} extraScrollHeight={20} contentContainerStyle={styles.modalContent}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>{detailAsset?.name}</Text>
             <TouchableOpacity onPress={() => setDetailAsset(null)}>

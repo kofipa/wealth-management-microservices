@@ -12,6 +12,7 @@ import {
   deleteLiability, uploadDocument,
 } from '../api/client';
 import DatePickerField from '../components/DatePickerField';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useTheme } from '../context/ThemeContext';
 
 const fmt = (n) =>
@@ -289,8 +290,7 @@ export default function LiabilitiesScreen() {
       />
 
       <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet">
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
+                  <KeyboardAwareScrollView style={styles.modal} enableOnAndroid={true} extraScrollHeight={20} contentContainerStyle={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{editingLiability ? 'Edit Liability' : 'Add Liability'}</Text>
               <TouchableOpacity onPress={closeModal}>
@@ -384,13 +384,12 @@ export default function LiabilitiesScreen() {
                 </Text>
               )}
             </TouchableOpacity>
-          </ScrollView>
-        </KeyboardAvoidingView>
+          </KeyboardAwareScrollView>
       </Modal>
 
       {/* â”€â”€ Liability Detail Modal â”€â”€ */}
       <Modal visible={!!detailLiability} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setDetailLiability(null)}>
-        <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
+        <KeyboardAwareScrollView style={styles.modal} enableOnAndroid={true} extraScrollHeight={20} contentContainerStyle={styles.modalContent}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>{detailLiability?.name}</Text>
             <TouchableOpacity onPress={() => setDetailLiability(null)}>

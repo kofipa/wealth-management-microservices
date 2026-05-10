@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { forgotPassword, resetPassword, getSecurityQuestion, verifySecurityQuestion } from '../api/client';
 import { validatePassword } from '../utils/validatePassword';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useTheme } from '../context/ThemeContext';
 
 // step: 1=email, 'sq'=security question, 2=code+new password
@@ -110,11 +111,7 @@ export default function ForgotPasswordScreen({ navigation }) {
   const styles = makeStyles(colors);
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
+    <KeyboardAwareScrollView style={styles.container} contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled" enableOnAndroid={true} extraScrollHeight={20}>
         <Text style={styles.title}>Reset Password</Text>
         <Text style={styles.subtitle}>{getSubtitle()}</Text>
 
@@ -223,8 +220,7 @@ export default function ForgotPasswordScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.navigate('Login')}>
           <Text style={styles.link}>Back to <Text style={styles.linkBold}>Sign In</Text></Text>
         </TouchableOpacity>
-      </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAwareScrollView>
   );
 }
 

@@ -10,6 +10,7 @@ import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
 import Constants from 'expo-constants';
 import { useAuth } from '../context/AuthContext';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useTheme } from '../context/ThemeContext';
 import AppLogo from '../components/AppLogo';
 import { validatePassword } from '../utils/validatePassword';
@@ -566,8 +567,7 @@ export default function ProfileScreen() {
 
       {/* Edit Profile Modal */}
       <Modal visible={editProfileVisible} animationType="slide" presentationStyle="pageSheet">
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
+                  <KeyboardAwareScrollView style={styles.modal} enableOnAndroid={true} extraScrollHeight={20} contentContainerStyle={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit Profile</Text>
               <TouchableOpacity onPress={() => setEditProfileVisible(false)}>
@@ -643,14 +643,12 @@ export default function ProfileScreen() {
             <TouchableOpacity style={styles.saveBtn} onPress={handleEditProfile} disabled={savingProfile}>
               {savingProfile ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Save Changes</Text>}
             </TouchableOpacity>
-          </ScrollView>
-        </KeyboardAvoidingView>
+          </KeyboardAwareScrollView>
       </Modal>
 
       {/* Change Password Modal */}
       <Modal visible={pwModalVisible} animationType="slide" presentationStyle="pageSheet">
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
+                  <KeyboardAwareScrollView style={styles.modal} enableOnAndroid={true} extraScrollHeight={20} contentContainerStyle={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Change Password</Text>
               <TouchableOpacity onPress={() => setPwModalVisible(false)}>
@@ -715,14 +713,12 @@ export default function ProfileScreen() {
             <TouchableOpacity style={styles.saveBtn} onPress={handleChangePassword} disabled={savingPw}>
               {savingPw ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Update Password</Text>}
             </TouchableOpacity>
-          </ScrollView>
-        </KeyboardAvoidingView>
+          </KeyboardAwareScrollView>
       </Modal>
 
       {/* Change Email Modal */}
       <Modal visible={emailModalVisible} animationType="slide" presentationStyle="pageSheet">
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
+                  <KeyboardAwareScrollView style={styles.modal} enableOnAndroid={true} extraScrollHeight={20} contentContainerStyle={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Change Email</Text>
               <TouchableOpacity onPress={() => setEmailModalVisible(false)}>
@@ -758,14 +754,12 @@ export default function ProfileScreen() {
             <TouchableOpacity style={styles.saveBtn} onPress={handleChangeEmail} disabled={savingEmail}>
               {savingEmail ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Send Verification Email</Text>}
             </TouchableOpacity>
-          </ScrollView>
-        </KeyboardAvoidingView>
+          </KeyboardAwareScrollView>
       </Modal>
 
       {/* Security Question Modal */}
       <Modal visible={sqModalVisible} animationType="slide" presentationStyle="pageSheet">
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
+                  <KeyboardAwareScrollView style={styles.modal} enableOnAndroid={true} extraScrollHeight={20} contentContainerStyle={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Security Question</Text>
               <TouchableOpacity onPress={() => { setSqModalVisible(false); setShowQuestionPicker(false); }}>
@@ -819,14 +813,12 @@ export default function ProfileScreen() {
             <TouchableOpacity style={[styles.saveBtn, { marginTop: 8 }]} onPress={handleSaveSecurityQuestion} disabled={savingSq}>
               {savingSq ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Save Security Question</Text>}
             </TouchableOpacity>
-          </ScrollView>
-        </KeyboardAvoidingView>
+          </KeyboardAwareScrollView>
       </Modal>
 
       {/* Delete Account Modal */}
       <Modal visible={deleteModalVisible} animationType="slide" presentationStyle="pageSheet">
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
+                  <KeyboardAwareScrollView style={styles.modal} enableOnAndroid={true} extraScrollHeight={20} contentContainerStyle={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.danger }]}>Delete Account</Text>
               <TouchableOpacity onPress={() => setDeleteModalVisible(false)}>
@@ -860,14 +852,12 @@ export default function ProfileScreen() {
                 ? <ActivityIndicator color="#fff" />
                 : <Text style={styles.saveBtnText}>Permanently Delete My Account</Text>}
             </TouchableOpacity>
-          </ScrollView>
-        </KeyboardAvoidingView>
+          </KeyboardAwareScrollView>
       </Modal>
 
       {/* Add Nominee Modal */}
       <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet">
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
+                  <KeyboardAwareScrollView style={styles.modal} enableOnAndroid={true} extraScrollHeight={20} contentContainerStyle={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add Trusted Contact</Text>
               <TouchableOpacity onPress={() => { setModalVisible(false); setNomineeEmail(''); setInactivityDays(30); }}>
@@ -908,14 +898,12 @@ export default function ProfileScreen() {
             <TouchableOpacity style={styles.saveBtn} onPress={handleAddNominee} disabled={saving}>
               {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Add Trusted Contact</Text>}
             </TouchableOpacity>
-          </ScrollView>
-        </KeyboardAvoidingView>
+          </KeyboardAwareScrollView>
       </Modal>
 
       {/* Edit Nominee Modal */}
       <Modal visible={editNomineeVisible} animationType="slide" presentationStyle="pageSheet">
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <ScrollView style={styles.modal} contentContainerStyle={styles.modalContent}>
+                  <KeyboardAwareScrollView style={styles.modal} enableOnAndroid={true} extraScrollHeight={20} contentContainerStyle={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit Trusted Contact</Text>
               <TouchableOpacity onPress={() => setEditNomineeVisible(false)}>
@@ -952,8 +940,7 @@ export default function ProfileScreen() {
             <TouchableOpacity style={styles.saveBtn} onPress={handleUpdateNominee} disabled={savingEdit}>
               {savingEdit ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Save Changes</Text>}
             </TouchableOpacity>
-          </ScrollView>
-        </KeyboardAvoidingView>
+          </KeyboardAwareScrollView>
       </Modal>
     </ScrollView>
   );
