@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   RefreshControl, ActivityIndicator, Alert, Modal,
@@ -200,9 +200,9 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
       });
     } catch (err) {
       const status = err?.response?.status;
-      const msg = status === 404 ? 'Ticker not found â€” check the symbol'
+      const msg = status === 404 ? 'Ticker not found — check the symbol'
                 : status === 400 ? 'Invalid ticker format'
-                : 'Price feed unavailable â€” try again';
+                : 'Price feed unavailable — try again';
       setFormQuote({ loading: false, error: msg });
     }
   };
@@ -229,7 +229,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
         },
       }));
     } catch {
-      setFormFundAnalysis({ loading: false, error: 'Could not analyse fund â€” check the name and try again' });
+      setFormFundAnalysis({ loading: false, error: 'Could not analyse fund — check the name and try again' });
     }
   };
 
@@ -364,7 +364,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
         } catch { /* ignore */ }
       }
 
-      // â”€â”€ Mortgage liability sync â”€â”€
+      // ── Mortgage liability sync ──
       if (form.type === 'property') {
         const hasMortgage = form.metadata.has_mortgage === true;
         const mortgageBalance = parseFloat(form.metadata.mortgage_balance) || 0;
@@ -377,7 +377,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
           const descParts = [
             form.metadata.mortgage_provider ? `Mortgage with ${form.metadata.mortgage_provider}` : '',
             mortgagePayment > 0
-              ? `Â£${mortgagePayment} paid ${freq.toLowerCase()} (Â£${(mortgagePayment * multiplier).toFixed(2)}/yr)`
+              ? `£${mortgagePayment} paid ${freq.toLowerCase()} (£${(mortgagePayment * multiplier).toFixed(2)}/yr)`
               : '',
           ].filter(Boolean);
           const liabilityPayload = {
@@ -412,7 +412,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
             }
           }
         } else if (!hasMortgage && existingLiabilityId) {
-          // Mortgage removed â€” delete the linked liability
+          // Mortgage removed — delete the linked liability
           try {
             await deleteLiability(existingLiabilityId);
             await updateAsset(savedAsset.id, {
@@ -424,7 +424,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
         }
       }
 
-      // â”€â”€ Vehicle finance liability sync â”€â”€
+      // ── Vehicle finance liability sync ──
       if (form.type === 'vehicle') {
         const hasFinance = form.metadata.has_finance === true;
         const financeBalance = parseFloat(form.metadata.finance_balance) || 0;
@@ -438,7 +438,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
           const descParts = [
             form.metadata.finance_provider ? `Finance with ${form.metadata.finance_provider}` : '',
             financePayment > 0
-              ? `Â£${financePayment} paid ${freq.toLowerCase()} (Â£${(financePayment * multiplier).toFixed(2)}/yr)`
+              ? `£${financePayment} paid ${freq.toLowerCase()} (£${(financePayment * multiplier).toFixed(2)}/yr)`
               : '',
           ].filter(Boolean);
           const liabilityPayload = {
@@ -483,7 +483,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
         }
       }
 
-      // â”€â”€ Insurance premium liability sync â”€â”€
+      // ── Insurance premium liability sync ──
       if (form.type === 'insurance') {
         const premiumAmount = parseFloat(form.metadata.premium);
         const hasPremium = premiumAmount > 0;
@@ -496,7 +496,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
           const descParts = [
             form.metadata.policy_type,
             form.metadata.insurer ? `with ${form.metadata.insurer}` : '',
-            `Â£${premiumAmount} paid ${freq.toLowerCase()} (Â£${annualCost.toFixed(2)}/yr)`,
+            `£${premiumAmount} paid ${freq.toLowerCase()} (£${annualCost.toFixed(2)}/yr)`,
           ].filter(Boolean);
           const liabilityPayload = {
             name: `Insurance Premium - ${form.name}`,
@@ -580,12 +580,12 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
     switch (item.asset_type) {
       case 'cash':
         return m.institution
-          ? <Text style={styles.itemDesc}>{m.institution}{m.account_type ? ` Â· ${m.account_type}` : ''}</Text>
+          ? <Text style={styles.itemDesc}>{m.institution}{m.account_type ? ` · ${m.account_type}` : ''}</Text>
           : null;
       case 'investment': {
         const itypes = Array.isArray(m.investment_type) ? m.investment_type.join(', ') : m.investment_type;
         return m.platform
-          ? <Text style={styles.itemDesc}>{m.platform}{itypes ? ` Â· ${itypes}` : ''}</Text>
+          ? <Text style={styles.itemDesc}>{m.platform}{itypes ? ` · ${itypes}` : ''}</Text>
           : null;
       }
       case 'property':
@@ -593,14 +593,14 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
       case 'pension': {
         const ptype = Array.isArray(m.pension_type) ? m.pension_type.join(', ') : m.pension_type;
         return <>
-          {m.provider ? <Text style={styles.itemDesc}>{m.provider}{ptype ? ` Â· ${ptype}` : ''}</Text> : null}
+          {m.provider ? <Text style={styles.itemDesc}>{m.provider}{ptype ? ` · ${ptype}` : ''}</Text> : null}
           {m.policy_number ? <Text style={styles.itemDesc}>Ref: {m.policy_number}</Text> : null}
         </>;
       }
       case 'insurance': {
         const ptypes = Array.isArray(m.policy_type) ? m.policy_type.join(', ') : m.policy_type;
         return m.insurer
-          ? <Text style={styles.itemDesc}>{m.insurer}{ptypes ? ` Â· ${ptypes}` : ''}</Text>
+          ? <Text style={styles.itemDesc}>{m.insurer}{ptypes ? ` · ${ptypes}` : ''}</Text>
           : null;
       }
       default:
@@ -624,8 +624,8 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
     });
 
   const SORT_OPTIONS = [
-    { key: 'value_desc', label: 'Value', arrow: ' â†“' },
-    { key: 'value_asc',  label: 'Value', arrow: ' â†‘' },
+    { key: 'value_desc', label: 'Value', arrow: ' ↓' },
+    { key: 'value_asc',  label: 'Value', arrow: ' ↑' },
     { key: 'name',       label: 'Name' },
     { key: 'type',       label: 'Type' },
   ];
@@ -642,7 +642,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
           onPress={runFormFundAnalysis}
           disabled={!!formFundAnalysis?.loading}
         >
-          <Text style={styles.saveBtnText}>{formFundAnalysis?.loading ? 'Analysingâ€¦' : formFundAnalysis?.result ? 'Re-analyse Fund' : 'Analyse Fund'}</Text>
+          <Text style={styles.saveBtnText}>{formFundAnalysis?.loading ? 'Analysing…' : formFundAnalysis?.result ? 'Re-analyse Fund' : 'Analyse Fund'}</Text>
         </TouchableOpacity>
       ) : null}
       {formFundAnalysis?.error && <Text style={[styles.quoteStatus, { color: colors.error || '#ef4444' }]}>{formFundAnalysis.error}</Text>}
@@ -658,9 +658,9 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
             {formFundAnalysis.result.other_pct > 0 && <View style={{ flex: formFundAnalysis.result.other_pct, backgroundColor: '#9ca3af' }} />}
           </View>
           <View style={styles.fundAllocLegend}>
-            {formFundAnalysis.result.equity_pct > 0 && <Text style={styles.fundAllocLegendText}><Text style={{ color: '#7c3aed' }}>â– </Text> Equity {formFundAnalysis.result.equity_pct}%</Text>}
-            {formFundAnalysis.result.bond_pct > 0 && <Text style={styles.fundAllocLegendText}><Text style={{ color: '#2563eb' }}>â– </Text> Bonds {formFundAnalysis.result.bond_pct}%</Text>}
-            {formFundAnalysis.result.other_pct > 0 && <Text style={styles.fundAllocLegendText}><Text style={{ color: '#9ca3af' }}>â– </Text> Other {formFundAnalysis.result.other_pct}%</Text>}
+            {formFundAnalysis.result.equity_pct > 0 && <Text style={styles.fundAllocLegendText}><Text style={{ color: '#7c3aed' }}>■</Text> Equity {formFundAnalysis.result.equity_pct}%</Text>}
+            {formFundAnalysis.result.bond_pct > 0 && <Text style={styles.fundAllocLegendText}><Text style={{ color: '#2563eb' }}>■</Text> Bonds {formFundAnalysis.result.bond_pct}%</Text>}
+            {formFundAnalysis.result.other_pct > 0 && <Text style={styles.fundAllocLegendText}><Text style={{ color: '#9ca3af' }}>■</Text> Other {formFundAnalysis.result.other_pct}%</Text>}
           </View>
           {formFundAnalysis.result.description ? <Text style={styles.fundDescription}>{formFundAnalysis.result.description}</Text> : null}
           <Text style={styles.fundConfidence}>Confidence: {formFundAnalysis.result.confidence}</Text>
@@ -681,12 +681,12 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
         </TouchableOpacity>
       </View>
 
-      {/* Search + sort â€” only useful with more than one item */}
+      {/* Search + sort — only useful with more than one item */}
       {assets.length > 1 && (
       <View style={styles.searchRow}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Search assetsâ€¦"
+          placeholder="Search assets…"
           placeholderTextColor={colors.placeholder}
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -722,7 +722,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
         ListEmptyComponent={
           assets.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyEmoji}>ðŸ’°</Text>
+              <Text style={styles.emptyEmoji}>💰</Text>
               <Text style={styles.emptyTitle}>No assets yet</Text>
               <Text style={styles.emptyBody}>Add your first asset to start tracking your wealth</Text>
               <TouchableOpacity style={styles.emptyBtn} onPress={openAddModal}>
@@ -746,12 +746,12 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
                 return (
                   <View style={styles.valuationRow}>
                     {v?.loading
-                      ? <Text style={styles.valuationError}>Updating valueâ€¦</Text>
+                      ? <Text style={styles.valuationError}>Updating value…</Text>
                       : v?.error
                       ? <Text style={styles.valuationError}>Valuation unavailable</Text>
                       : v?.value != null
                       ? <Text style={styles.valuationError}>
-                          Land Registry Â· {v.count} nearby sale{v.count !== 1 ? 's' : ''}
+                          Land Registry · {v.count} nearby sale{v.count !== 1 ? 's' : ''}
                         </Text>
                       : v
                       ? <Text style={styles.valuationError}>No recent sales data</Text>
@@ -759,7 +759,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
                     }
                     {!v?.loading && (
                       <TouchableOpacity onPress={() => fetchValuation(item.id, postcode)} style={styles.refreshBtn}>
-                        <Text style={styles.refreshIcon}>â†»</Text>
+                        <Text style={styles.refreshIcon}>↻</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -773,18 +773,18 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
                 return (
                   <View style={styles.valuationRow}>
                     {q?.loading
-                      ? <Text style={styles.valuationError}>Fetching priceâ€¦</Text>
+                      ? <Text style={styles.valuationError}>Fetching price…</Text>
                       : q?.error
                       ? <Text style={styles.valuationError}>Price unavailable</Text>
                       : q?.price_gbp != null
                       ? <Text style={styles.valuationError}>
-                          {fmt(q.price_gbp)} Ã— {qty} Â· {q.exchange || 'Live'}
+                          {fmt(q.price_gbp)} × {qty} · {q.exchange || 'Live'}
                         </Text>
                       : null
                     }
                     {!q?.loading && (
                       <TouchableOpacity onPress={() => fetchQuote(item.id, ticker, qty)} style={styles.refreshBtn}>
-                        <Text style={styles.refreshIcon}>â†»</Text>
+                        <Text style={styles.refreshIcon}>↻</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -797,12 +797,12 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
                 const pd = item.metadata?.purchase_date;
                 if (!reg || !pp || !pd) return null;
                 const label = vv?.make
-                  ? `${vv.make}${vv.year ? ` ${vv.year}` : ''} Â· 15%/yr depreciation`
+                  ? `${vv.make}${vv.year ? ` ${vv.year}` : ''} · 15%/yr depreciation`
                   : '15%/yr depreciation estimate';
                 return (
                   <View style={styles.valuationRow}>
                     {vv?.loading
-                      ? <Text style={styles.valuationError}>Estimating valueâ€¦</Text>
+                      ? <Text style={styles.valuationError}>Estimating value…</Text>
                       : vv?.error
                       ? <Text style={styles.valuationError}>Valuation unavailable</Text>
                       : vv?.estimated_value != null
@@ -811,7 +811,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
                     }
                     {!vv?.loading && (
                       <TouchableOpacity onPress={() => fetchVehicleValuation(item.id, reg, pp, pd)} style={styles.refreshBtn}>
-                        <Text style={styles.refreshIcon}>â†»</Text>
+                        <Text style={styles.refreshIcon}>↻</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -820,11 +820,11 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
               {(item.asset_type === 'pension' || (item.asset_type === 'investment' && item.metadata?.fund_name)) && (
                 <View style={styles.valuationRow}>
                   {item.metadata?.fund_category
-                    ? <Text style={styles.valuationError}>{item.metadata.fund_category} Â· {item.metadata.fund_name || 'Analysed'}</Text>
+                    ? <Text style={styles.valuationError}>{item.metadata.fund_category} · {item.metadata.fund_name || 'Analysed'}</Text>
                     : <Text style={styles.valuationError}>{item.asset_type === 'pension' ? 'Fund not yet analysed' : 'Fund not yet analysed'}</Text>
                   }
                   <TouchableOpacity onPress={() => openFundModal(item)} style={styles.refreshBtn}>
-                    <Text style={styles.refreshIcon}>ðŸ”</Text>
+                    <Text style={styles.refreshIcon}>🔍</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -845,9 +845,10 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
         )}
       />
 
-      {/* â”€â”€ Analyse Fund Modal â”€â”€ */}
+      {/* ── Analyse Fund Modal ── */}
       <Modal visible={fundModalVisible} animationType="slide" presentationStyle="pageSheet">
-                  <KeyboardAwareScrollView style={styles.modal} enableOnAndroid={true} extraScrollHeight={20} contentContainerStyle={styles.modalContent}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <KeyboardAwareScrollView style={styles.modal} enableOnAndroid={true} extraScrollHeight={20} contentContainerStyle={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Analyse Fund</Text>
               <TouchableOpacity onPress={() => setFundModalVisible(false)}>
@@ -870,7 +871,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
               onPress={runFundAnalysis}
               disabled={!fundModalName.trim() || fundModalLoading}
             >
-              <Text style={styles.saveBtnText}>{fundModalLoading ? 'Analysingâ€¦' : 'Analyse'}</Text>
+              <Text style={styles.saveBtnText}>{fundModalLoading ? 'Analysing…' : 'Analyse'}</Text>
             </TouchableOpacity>
 
             {fundModalError ? <Text style={[styles.fieldError, { marginTop: 12 }]}>{fundModalError}</Text> : null}
@@ -889,14 +890,14 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
                   {fundModalResult.other_pct > 0 && <View style={{ flex: fundModalResult.other_pct, backgroundColor: '#9ca3af' }} />}
                 </View>
                 <View style={styles.fundAllocLegend}>
-                  {fundModalResult.equity_pct > 0 && <Text style={styles.fundAllocLegendText}><Text style={{ color: '#7c3aed' }}>â– </Text> Equity {fundModalResult.equity_pct}%</Text>}
-                  {fundModalResult.bond_pct > 0 && <Text style={styles.fundAllocLegendText}><Text style={{ color: '#2563eb' }}>â– </Text> Bonds {fundModalResult.bond_pct}%</Text>}
-                  {fundModalResult.other_pct > 0 && <Text style={styles.fundAllocLegendText}><Text style={{ color: '#9ca3af' }}>â– </Text> Other {fundModalResult.other_pct}%</Text>}
+                  {fundModalResult.equity_pct > 0 && <Text style={styles.fundAllocLegendText}><Text style={{ color: '#7c3aed' }}>■</Text> Equity {fundModalResult.equity_pct}%</Text>}
+                  {fundModalResult.bond_pct > 0 && <Text style={styles.fundAllocLegendText}><Text style={{ color: '#2563eb' }}>■</Text> Bonds {fundModalResult.bond_pct}%</Text>}
+                  {fundModalResult.other_pct > 0 && <Text style={styles.fundAllocLegendText}><Text style={{ color: '#9ca3af' }}>■</Text> Other {fundModalResult.other_pct}%</Text>}
                 </View>
 
                 {fundModalResult.description ? <Text style={styles.fundDescription}>{fundModalResult.description}</Text> : null}
                 <Text style={styles.fundConfidence}>
-                  Confidence: {fundModalResult.confidence}{fundModalResult.confidence === 'low' ? ' â€” verify with your pension provider' : ''}
+                  Confidence: {fundModalResult.confidence}{fundModalResult.confidence === 'low' ? ' — verify with your pension provider' : ''}
                 </Text>
 
                 <TouchableOpacity style={styles.saveBtn} onPress={saveFundAnalysis}>
@@ -905,10 +906,12 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
               </View>
             )}
           </KeyboardAwareScrollView>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet">
-                  <KeyboardAwareScrollView style={styles.modal} enableOnAndroid={true} extraScrollHeight={20} contentContainerStyle={styles.modalContent}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <KeyboardAwareScrollView style={styles.modal} enableOnAndroid={true} extraScrollHeight={20} contentContainerStyle={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{editingAsset ? 'Edit Asset' : 'Add Asset'}</Text>
               <TouchableOpacity onPress={closeModal}>
@@ -961,7 +964,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
               numberOfLines={3}
             />
 
-            {/* â”€â”€ Cash fields â”€â”€ */}
+            {/* ── Cash fields ── */}
             {form.type === 'cash' && (
               <>
                 <Text style={styles.sectionLabel}>Bank Details</Text>
@@ -998,7 +1001,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
               </>
             )}
 
-            {/* â”€â”€ Investment fields â”€â”€ */}
+            {/* ── Investment fields ── */}
             {form.type === 'investment' && (
               <>
                 <Text style={styles.sectionLabel}>Investment Details</Text>
@@ -1036,11 +1039,11 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
                   placeholderTextColor={colors.placeholder}
                   autoCapitalize="characters"
                 />
-                {formQuote?.loading && <Text style={styles.quoteStatus}>Looking up priceâ€¦</Text>}
+                {formQuote?.loading && <Text style={styles.quoteStatus}>Looking up price…</Text>}
                 {formQuote && !formQuote.loading && !formQuote.error && (
                   <Text style={styles.quoteStatus}>
-                    {formQuote.name} Â· Â£{formQuote.price_gbp?.toFixed(4)} Â· {formQuote.exchange}
-                    {form.metadata.quantity > 0 ? ` Â· Value auto-filled` : ''}
+                    {formQuote.name} · £{formQuote.price_gbp?.toFixed(4)} · {formQuote.exchange}
+                    {form.metadata.quantity > 0 ? ` · Value auto-filled` : ''}
                   </Text>
                 )}
                 {formQuote?.error && <Text style={[styles.quoteStatus, { color: colors.error || '#ef4444' }]}>{formQuote.error}</Text>}
@@ -1053,7 +1056,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
                   placeholderTextColor={colors.placeholder}
                   keyboardType="decimal-pad"
                 />
-                <Text style={styles.label}>Purchase Price Per Unit (Â£)</Text>
+                <Text style={styles.label}>Purchase Price Per Unit (£)</Text>
                 <TextInput
                   style={styles.input}
                   value={form.metadata.purchase_price !== undefined ? String(form.metadata.purchase_price) : ''}
@@ -1086,7 +1089,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
               </>
             )}
 
-            {/* â”€â”€ Property fields â”€â”€ */}
+            {/* ── Property fields ── */}
             {form.type === 'property' && (
               <>
                 <Text style={styles.sectionLabel}>Property Details</Text>
@@ -1112,7 +1115,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
                     </TouchableOpacity>
                   ))}
                 </View>
-                <Text style={styles.label}>Purchase Price (Â£)</Text>
+                <Text style={styles.label}>Purchase Price (£)</Text>
                 <TextInput
                   style={styles.input}
                   value={form.metadata.purchase_price !== undefined ? String(form.metadata.purchase_price) : ''}
@@ -1153,7 +1156,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
                       placeholderTextColor={colors.placeholder}
                       autoCapitalize="words"
                     />
-                    <Text style={styles.label}>Mortgage Balance (Â£)</Text>
+                    <Text style={styles.label}>Mortgage Balance (£)</Text>
                     <TextInput
                       style={styles.input}
                       value={form.metadata.mortgage_balance !== undefined ? String(form.metadata.mortgage_balance) : ''}
@@ -1171,7 +1174,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
                       placeholderTextColor={colors.placeholder}
                       keyboardType="decimal-pad"
                     />
-                    <Text style={styles.label}>Monthly Payment (Â£)</Text>
+                    <Text style={styles.label}>Monthly Payment (£)</Text>
                     <TextInput
                       style={styles.input}
                       value={form.metadata.mortgage_payment !== undefined ? String(form.metadata.mortgage_payment) : ''}
@@ -1197,7 +1200,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
               </>
             )}
 
-            {/* â”€â”€ Pension fields â”€â”€ */}
+            {/* ── Pension fields ── */}
             {form.type === 'pension' && (
               <>
                 <Text style={styles.sectionLabel}>Pension Details</Text>
@@ -1282,7 +1285,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
               </>
             )}
 
-            {/* â”€â”€ Vehicle / Other fields â”€â”€ */}
+            {/* ── Vehicle / Other fields ── */}
             {(form.type === 'vehicle' || form.type === 'other') && (
               <>
                 <Text style={styles.sectionLabel}>Details</Text>
@@ -1308,7 +1311,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
                     />
                   </>
                 )}
-                <Text style={styles.label}>Purchase Price (Â£)</Text>
+                <Text style={styles.label}>Purchase Price (£)</Text>
                 <TextInput
                   style={styles.input}
                   value={form.metadata.purchase_price !== undefined ? String(form.metadata.purchase_price) : ''}
@@ -1363,7 +1366,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
                           placeholderTextColor={colors.placeholder}
                           autoCapitalize="words"
                         />
-                        <Text style={styles.label}>Outstanding Balance (Â£)</Text>
+                        <Text style={styles.label}>Outstanding Balance (£)</Text>
                         <TextInput
                           style={styles.input}
                           value={form.metadata.finance_balance !== undefined ? String(form.metadata.finance_balance) : ''}
@@ -1372,7 +1375,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
                           placeholderTextColor={colors.placeholder}
                           keyboardType="decimal-pad"
                         />
-                        <Text style={styles.label}>Periodic Payment (Â£)</Text>
+                        <Text style={styles.label}>Periodic Payment (£)</Text>
                         <TextInput
                           style={styles.input}
                           value={form.metadata.finance_payment !== undefined ? String(form.metadata.finance_payment) : ''}
@@ -1409,7 +1412,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
               </>
             )}
 
-            {/* â”€â”€ Insurance fields â”€â”€ */}
+            {/* ── Insurance fields ── */}
             {form.type === 'insurance' && (
               <>
                 <Text style={styles.sectionLabel}>Policy Details</Text>
@@ -1446,7 +1449,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
                   placeholderTextColor={colors.placeholder}
                   autoCapitalize="characters"
                 />
-                <Text style={styles.label}>Sum Assured / Coverage (Â£)</Text>
+                <Text style={styles.label}>Sum Assured / Coverage (£)</Text>
                 <TextInput
                   style={styles.input}
                   value={form.metadata.sum_assured !== undefined ? String(form.metadata.sum_assured) : ''}
@@ -1455,7 +1458,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
                   placeholderTextColor={colors.placeholder}
                   keyboardType="decimal-pad"
                 />
-                <Text style={styles.label}>Premium Amount (Â£)</Text>
+                <Text style={styles.label}>Premium Amount (£)</Text>
                 <TextInput
                   style={styles.input}
                   value={form.metadata.premium !== undefined ? String(form.metadata.premium) : ''}
@@ -1484,13 +1487,13 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
               </>
             )}
 
-            {/* â”€â”€ Attach Document â”€â”€ */}
+            {/* ── Attach Document ── */}
             <Text style={styles.sectionLabel}>Documents</Text>
             {pendingFile ? (
               <View style={styles.pendingFile}>
-                <Text style={styles.pendingFileName} numberOfLines={1}>ðŸ“Ž {pendingFile.name}</Text>
+                <Text style={styles.pendingFileName} numberOfLines={1}>📎 {pendingFile.name}</Text>
                 <TouchableOpacity onPress={() => setPendingFile(null)}>
-                  <Text style={styles.removeFile}>âœ•</Text>
+                  <Text style={styles.removeFile}>✕</Text>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -1506,8 +1509,9 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
               }
             </TouchableOpacity>
           </KeyboardAwareScrollView>
+        </KeyboardAvoidingView>
       </Modal>
-      {/* â”€â”€ Asset Detail Modal â”€â”€ */}
+      {/* ── Asset Detail Modal ── */}
       <Modal visible={!!detailAsset} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setDetailAsset(null)}>
         <KeyboardAwareScrollView style={styles.modal} enableOnAndroid={true} extraScrollHeight={20} contentContainerStyle={styles.modalContent}>
           <View style={styles.modalHeader}>
@@ -1540,14 +1544,14 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
               row('Fund Name', m.fund_name);
               row('Fund Category', m.fund_category);
               if (m.fund_equity_pct > 0 || m.fund_bond_pct > 0) {
-                row('Allocation', [m.fund_equity_pct && `Equity ${m.fund_equity_pct}%`, m.fund_bond_pct && `Bonds ${m.fund_bond_pct}%`, m.fund_other_pct && `Other ${m.fund_other_pct}%`].filter(Boolean).join(' Â· '));
+                row('Allocation', [m.fund_equity_pct && `Equity ${m.fund_equity_pct}%`, m.fund_bond_pct && `Bonds ${m.fund_bond_pct}%`, m.fund_other_pct && `Other ${m.fund_other_pct}%`].filter(Boolean).join(' · '));
               }
             } else if (type === 'property') {
               row('Address', m.address);
               row('Property Type', m.property_type);
               row('Purchase Price', m.purchase_price ? fmt(m.purchase_price) : null);
               row('Purchase Date', m.purchase_date ? String(m.purchase_date).split('T')[0] : null);
-              row('Mortgage', m.has_mortgage ? `Yes â€” Â£${m.mortgage_balance} balance` : 'No');
+              row('Mortgage', m.has_mortgage ? `Yes — £${m.mortgage_balance} balance` : 'No');
             } else if (type === 'pension') {
               row('Provider', m.provider);
               row('Pension Type', Array.isArray(m.pension_type) ? m.pension_type.join(', ') : m.pension_type);
@@ -1562,7 +1566,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
               row('Registration', m.reg_plate);
               row('Purchase Price', m.purchase_price ? fmt(m.purchase_price) : null);
               row('Purchase Date', m.purchase_date ? String(m.purchase_date).split('T')[0] : null);
-              row('Finance', m.has_finance ? `Yes â€” Â£${m.finance_balance} balance` : 'No');
+              row('Finance', m.has_finance ? `Yes — £${m.finance_balance} balance` : 'No');
             } else if (type === 'insurance') {
               row('Insurer', m.insurer);
               row('Policy Type', Array.isArray(m.policy_type) ? m.policy_type.join(', ') : m.policy_type);
@@ -1586,7 +1590,7 @@ const [valuations, setValuations] = useState({}); // { [assetId]: { value, count
           >
             <Text style={styles.saveBtnText}>Edit Asset</Text>
           </TouchableOpacity>
-        </KeyboardAwareScrollView>
+        </ScrollView>
       </Modal>
 
     </View>

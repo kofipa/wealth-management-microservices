@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, KeyboardAvoidingView, Platform,
@@ -115,7 +115,7 @@ export default function ForgotPasswordScreen({ navigation }) {
         <Text style={styles.title}>Reset Password</Text>
         <Text style={styles.subtitle}>{getSubtitle()}</Text>
 
-        {/* Email field â€” always shown but disabled after step 1 */}
+        {/* Email field — always shown but disabled after step 1 */}
         <TextInput
           style={[styles.input, step !== 1 && styles.inputDisabled]}
           placeholder="Email"

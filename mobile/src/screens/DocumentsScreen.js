@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   RefreshControl, ActivityIndicator, Alert, Platform,
@@ -21,20 +21,20 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view
 import { useTheme } from '../context/ThemeContext';
 
 const CATEGORIES = [
-  { id: 'identity',    label: 'Identity',    emoji: 'ðŸªª', color: '#7c3aed' },
-  { id: 'property',    label: 'Property',    emoji: 'ðŸ ', color: '#16a34a' },
-  { id: 'insurance',   label: 'Insurance',   emoji: 'ðŸ›¡ï¸', color: '#0891b2' },
-  { id: 'investments', label: 'Investments', emoji: 'ðŸ“ˆ', color: '#d97706' },
-  { id: 'banking',     label: 'Banking',     emoji: 'ðŸ¦', color: '#2563eb' },
-  { id: 'tax',         label: 'Tax',         emoji: 'ðŸ§¾', color: '#dc2626' },
-  { id: 'legal',       label: 'Legal',       emoji: 'âš–ï¸', color: '#92400e' },
-  { id: 'will',        label: 'Will',        emoji: 'ðŸ“œ', color: '#b45309' },
-  { id: 'other',       label: 'Other',       emoji: 'ðŸ“„', color: '#9ca3af' },
+  { id: 'identity',    label: 'Identity',    emoji: '🪪', color: '#7c3aed' },
+  { id: 'property',    label: 'Property',    emoji: '🏠', color: '#16a34a' },
+  { id: 'insurance',   label: 'Insurance',   emoji: '🛡️', color: '#0891b2' },
+  { id: 'investments', label: 'Investments', emoji: '📈', color: '#d97706' },
+  { id: 'banking',     label: 'Banking',     emoji: '🏦', color: '#2563eb' },
+  { id: 'tax',         label: 'Tax',         emoji: '🧾', color: '#dc2626' },
+  { id: 'legal',       label: 'Legal',       emoji: '⚖️', color: '#92400e' },
+  { id: 'will',        label: 'Will',        emoji: '📜', color: '#b45309' },
+  { id: 'other',       label: 'Other',       emoji: '📄', color: '#9ca3af' },
 ];
 
 const ALL_FILTERS = [
-  { id: 'all',      label: 'All',           emoji: 'ðŸ“‚', color: '#6b7280' },
-  { id: 'expiring', label: 'Expiring Soon',  emoji: 'â°', color: '#f59e0b' },
+  { id: 'all',      label: 'All',           emoji: '📂', color: '#6b7280' },
+  { id: 'expiring', label: 'Expiring Soon',  emoji: '⏰', color: '#f59e0b' },
   ...CATEGORIES,
 ];
 
@@ -53,13 +53,13 @@ const formatSize = (bytes) => {
 };
 
 function getFileIcon(filename) {
-  if (!filename) return 'ðŸ“„';
+  if (!filename) return '📄';
   const ext = filename.split('.').pop()?.toLowerCase();
-  if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) return 'ðŸ–¼ï¸';
-  if (ext === 'pdf') return 'ðŸ“‘';
-  if (['doc', 'docx'].includes(ext)) return 'ðŸ“';
-  if (['xls', 'xlsx', 'csv'].includes(ext)) return 'ðŸ“Š';
-  return 'ðŸ“„';
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) return '🖼️';
+  if (ext === 'pdf') return '📑';
+  if (['doc', 'docx'].includes(ext)) return '📝';
+  if (['xls', 'xlsx', 'csv'].includes(ext)) return '📊';
+  return '📄';
 }
 
 const IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
@@ -262,7 +262,7 @@ export default function DocumentsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* â”€â”€ Header â”€â”€ */}
+      {/* ── Header ── */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>
           {filteredDocs.length} Document{filteredDocs.length !== 1 ? 's' : ''}
@@ -279,7 +279,7 @@ export default function DocumentsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* â”€â”€ Category filter chips â”€â”€ */}
+      {/* ── Category filter chips ── */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -302,7 +302,7 @@ export default function DocumentsScreen() {
         })}
       </ScrollView>
 
-      {/* â”€â”€ Document list â”€â”€ */}
+      {/* ── Document list ── */}
       <FlatList
         data={filteredDocs}
         keyExtractor={(item) => String(item.id)}
@@ -310,7 +310,7 @@ export default function DocumentsScreen() {
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>ðŸ“„</Text>
+            <Text style={styles.emptyIcon}>📄</Text>
             <Text style={styles.empty}>No documents{activeFilter !== 'all' ? ` in ${getCat(activeFilter).label}` : ''}</Text>
             <Text style={styles.emptySub}>
               {activeFilter !== 'all' ? 'Try a different category or tap + Upload' : 'Tap + Upload to add a file'}
@@ -344,8 +344,8 @@ export default function DocumentsScreen() {
                 </View>
                 {item.description ? <Text style={styles.itemDesc}>{item.description}</Text> : null}
                 <Text style={styles.itemMeta}>
-                  {formatDate(item.created_at)}{item.file_size ? ` Â· ${formatSize(item.file_size)}` : ''}
-                  {item.expiry_date ? ` Â· Expires ${formatDate(item.expiry_date)}` : ''}
+                  {formatDate(item.created_at)}{item.file_size ? ` · ${formatSize(item.file_size)}` : ''}
+                  {item.expiry_date ? ` · Expires ${formatDate(item.expiry_date)}` : ''}
                 </Text>
               </TouchableOpacity>
               <View style={styles.actions}>
@@ -361,9 +361,10 @@ export default function DocumentsScreen() {
         }}
       />
 
-      {/* â”€â”€ Upload modal â”€â”€ */}
+      {/* ── Upload modal ── */}
       <Modal visible={uploadModalVisible} animationType="slide" presentationStyle="pageSheet">
-                  <KeyboardAwareScrollView style={styles.modal} enableOnAndroid={true} extraScrollHeight={20} contentContainerStyle={styles.modalContent}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <KeyboardAwareScrollView style={styles.modal} enableOnAndroid={true} extraScrollHeight={20} contentContainerStyle={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Upload Document</Text>
               <TouchableOpacity onPress={() => setUploadModalVisible(false)}>
@@ -407,7 +408,7 @@ export default function DocumentsScreen() {
                   ? new Date(uploadExpiryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
                   : 'Select expiry date (optional)'}
               </Text>
-              <Text style={styles.datePickerIcon}>ðŸ“…</Text>
+              <Text style={styles.datePickerIcon}>📅</Text>
             </TouchableOpacity>
             {uploadExpiryDate ? (
               <TouchableOpacity onPress={() => setUploadExpiryDate('')} style={{ marginTop: -14, marginBottom: 14, alignSelf: 'flex-end' }}>
@@ -439,22 +440,23 @@ export default function DocumentsScreen() {
 
             <Text style={styles.sectionLabel}>Choose Source</Text>
             <TouchableOpacity style={styles.sourceBtn} onPress={pickFromCamera}>
-              <Text style={styles.sourceBtnText}>ðŸ“·  Take Photo</Text>
+              <Text style={styles.sourceBtnText}>📷  Take Photo</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.sourceBtn} onPress={pickFromGallery}>
-              <Text style={styles.sourceBtnText}>ðŸ–¼ï¸  Photo Library</Text>
+              <Text style={styles.sourceBtnText}>🖼️  Photo Library</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.sourceBtn} onPress={pickDocument}>
-              <Text style={styles.sourceBtnText}>ðŸ“Ž  Browse Files</Text>
+              <Text style={styles.sourceBtnText}>📎  Browse Files</Text>
             </TouchableOpacity>
           </KeyboardAwareScrollView>
+        </KeyboardAvoidingView>
       </Modal>
 
-      {/* â”€â”€ Image preview modal â”€â”€ */}
+      {/* ── Image preview modal ── */}
       <Modal visible={!!previewUri} transparent animationType="fade">
         <SafeAreaView style={styles.previewOverlay}>
           <TouchableOpacity style={styles.previewClose} onPress={() => setPreviewUri(null)}>
-            <Text style={styles.previewCloseText}>âœ• Close</Text>
+            <Text style={styles.previewCloseText}>✕ Close</Text>
           </TouchableOpacity>
           {previewUri && (
             <Image source={{ uri: previewUri }} style={styles.previewImage} resizeMode="contain" />
@@ -462,7 +464,7 @@ export default function DocumentsScreen() {
         </SafeAreaView>
       </Modal>
 
-      {/* â”€â”€ Document Detail Modal â”€â”€ */}
+      {/* ── Document Detail Modal ── */}
       <Modal visible={!!detailDocument} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setDetailDocument(null)}>
         <KeyboardAwareScrollView style={styles.modal} enableOnAndroid={true} extraScrollHeight={20} contentContainerStyle={styles.modalContent}>
           {detailDocument && (() => {
@@ -514,7 +516,7 @@ export default function DocumentsScreen() {
               </>
             );
           })()}
-        </KeyboardAwareScrollView>
+        </ScrollView>
       </Modal>
     </View>
   );

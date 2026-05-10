@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   RefreshControl, ActivityIndicator, Alert, Modal,
@@ -28,8 +28,8 @@ const EMPTY_FORM = {
 };
 
 const SORT_OPTIONS = [
-  { key: 'amount_desc', label: 'Amount', arrow: ' â†“' },
-  { key: 'amount_asc',  label: 'Amount', arrow: ' â†‘' },
+  { key: 'amount_desc', label: 'Amount', arrow: ' ↓' },
+  { key: 'amount_asc',  label: 'Amount', arrow: ' ↑' },
   { key: 'name',        label: 'Name' },
   { key: 'type',        label: 'Type' },
 ];
@@ -217,7 +217,7 @@ export default function LiabilitiesScreen() {
           <View style={styles.searchRow}>
             <TextInput
               style={styles.searchInput}
-              placeholder="Search liabilitiesâ€¦"
+              placeholder="Search liabilities…"
               placeholderTextColor={colors.placeholder}
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -252,7 +252,7 @@ export default function LiabilitiesScreen() {
         ListEmptyComponent={
           liabilities.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyEmoji}>ðŸ“‹</Text>
+              <Text style={styles.emptyEmoji}>📋</Text>
               <Text style={styles.emptyTitle}>No liabilities yet</Text>
               <Text style={styles.emptyBody}>Track loans, mortgages and other debts to see your true net worth</Text>
               <TouchableOpacity style={styles.emptyBtn} onPress={() => setModalVisible(true)}>
@@ -290,7 +290,8 @@ export default function LiabilitiesScreen() {
       />
 
       <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet">
-                  <KeyboardAwareScrollView style={styles.modal} enableOnAndroid={true} extraScrollHeight={20} contentContainerStyle={styles.modalContent}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <KeyboardAwareScrollView style={styles.modal} enableOnAndroid={true} extraScrollHeight={20} contentContainerStyle={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{editingLiability ? 'Edit Liability' : 'Add Liability'}</Text>
               <TouchableOpacity onPress={closeModal}>
@@ -364,9 +365,9 @@ export default function LiabilitiesScreen() {
             <Text style={styles.sectionLabel}>Documents</Text>
             {pendingFile ? (
               <View style={styles.pendingFile}>
-                <Text style={styles.pendingFileName} numberOfLines={1}>ðŸ“Ž {pendingFile.name}</Text>
+                <Text style={styles.pendingFileName} numberOfLines={1}>📎 {pendingFile.name}</Text>
                 <TouchableOpacity onPress={() => setPendingFile(null)}>
-                  <Text style={styles.removeFile}>âœ•</Text>
+                  <Text style={styles.removeFile}>✕</Text>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -385,9 +386,10 @@ export default function LiabilitiesScreen() {
               )}
             </TouchableOpacity>
           </KeyboardAwareScrollView>
+        </KeyboardAvoidingView>
       </Modal>
 
-      {/* â”€â”€ Liability Detail Modal â”€â”€ */}
+      {/* ── Liability Detail Modal ── */}
       <Modal visible={!!detailLiability} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setDetailLiability(null)}>
         <KeyboardAwareScrollView style={styles.modal} enableOnAndroid={true} extraScrollHeight={20} contentContainerStyle={styles.modalContent}>
           <View style={styles.modalHeader}>
@@ -417,7 +419,7 @@ export default function LiabilitiesScreen() {
           >
             <Text style={styles.saveBtnText}>Edit Liability</Text>
           </TouchableOpacity>
-        </KeyboardAwareScrollView>
+        </ScrollView>
       </Modal>
     </View>
   );
