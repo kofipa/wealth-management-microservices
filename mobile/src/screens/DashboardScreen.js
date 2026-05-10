@@ -272,20 +272,20 @@ export default function DashboardScreen() {
       </View>
 
       <View style={styles.row}>
-        <View style={[styles.summaryCard, styles.cardGreen]}>
+        <TouchableOpacity style={[styles.summaryCard, styles.cardGreen]} onPress={() => navigation.navigate('Assets')} activeOpacity={0.7}>
           <Text style={styles.cardLabel}>Total Assets</Text>
           <Text style={styles.cardValue}>{fmt(totalAssets)}</Text>
           <Text style={{ fontSize: 12, fontWeight: '600', marginTop: 4, color: assetsTrend === null ? colors.textTertiary : assetsTrend >= 0 ? colors.success : colors.danger }}>
             {assetsTrend === null ? '— 30-day trend' : `${assetsTrend >= 0 ? '↑' : '↓'} ${assetsTrend >= 0 ? '+' : ''}${fmt(assetsTrend)}`}
           </Text>
-        </View>
-        <View style={[styles.summaryCard, styles.cardRed]}>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.summaryCard, styles.cardRed]} onPress={() => navigation.navigate('Liabilities')} activeOpacity={0.7}>
           <Text style={styles.cardLabel}>Total Liabilities</Text>
           <Text style={styles.cardValue}>{fmt(totalLiabilities)}</Text>
           <Text style={{ fontSize: 12, fontWeight: '600', marginTop: 4, color: liabsTrend === null ? colors.textTertiary : liabsTrend <= 0 ? colors.success : colors.danger }}>
             {liabsTrend === null ? '— 30-day trend' : `${liabsTrend <= 0 ? '↓' : '↑'} ${liabsTrend > 0 ? '+' : ''}${fmt(liabsTrend)}`}
           </Text>
-        </View>
+        </TouchableOpacity>
       </View>
 
       {svc && (
